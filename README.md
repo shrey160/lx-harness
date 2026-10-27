@@ -4,8 +4,58 @@ Both first product gates passed. The images + supplied-transcripts verifier is
 implemented. The synthetic-only live Spark spike edited, harvested and selected
 a correct candidate through the actual engine in Docker: 35 calls, $0.008337338
 computed token cost, then zero-call/zero-execution resume. This establishes the
-small JSON integration, not broader multimodal capability. Backend/frontend
-construction follows with the user-approved React + Python/SQLite architecture.
+small JSON integration, not broader multimodal capability. The local app uses
+the user-approved React + Python/SQLite architecture. The
+application is a **controlled preview**: its discussion/worker/improver responses
+are predetermined and never load credentials or spend credits. Application
+live activation is pending explicit approval of the reviewed data flow below.
+
+## Open the app
+
+Inside WSL, from this repository:
+
+```bash
+uv sync --locked --python 3.12
+```
+
+Build the React assets from Windows or WSL:
+
+```bash
+npm --prefix web ci
+npm --prefix web run build
+```
+
+Then inside WSL:
+
+```bash
+.venv/bin/python -m lx.server --port 8765
+```
+
+Or from PowerShell after setup: `./scripts/serve.ps1`.
+Open [the local workspace](http://127.0.0.1:8765). The service binds to loopback,
+uses a per-session change token and rejects foreign origins. Close the serving
+terminal to stop it. No hosting/account or public service is configured.
+
+Application runtime records use the WSL user's native local-state directory;
+private credentials use native local-share storage with owner-only files.
+The service refuses key writes on filesystems that cannot enforce private
+POSIX permissions. Its secret directory is separate from samples and exports.
+
+The workflow supports model create/update/delete metadata and write-only key
+replacement, folder/ZIP intake and inventory, metadata-first discussion,
+versioned spec editing/approval, one managed run at a time, role/phase/candidate
+usage, stop/resume, package download and fresh constructed-scene reuse. A changed
+spec clears approval; active runs must stop before editing. The worker rechecks
+approval and frozen input hashes before any request.
+
+This first optimization template accepts the constructed demo dataset or an
+identical imported snapshot. Other supported public/synthetic files can be
+inventoried and discussed; they are not silently treated as independently
+verifiable tasks. The app offers the demo as `data.zip` for testing both paths.
+Known-negative candidates retain the starting harness and show failed checks.
+
+See [application live review](docs/application-live-review.md) for the specific
+pending permission. The rejected generic application transport was not added.
 
 ## Offline setup and checks
 
@@ -55,6 +105,14 @@ Contributor prices were verified on 28 October 2026:
 Input $0.10/M, cached input $0.002/M, output $0.20/M. Computed list-price
 cost is distinct from provider billing. The old pilot's recorded $0.001 is
 retained as conservative prior spend; its notes used Standard-mode prices.
+
+App evidence: [validation](evidence/2026-10-28-app-preview/validation.json),
+[core regression](evidence/2026-10-28-app-preview/core-regression.json),
+[browser result](evidence/2026-10-28-app-preview/ui-results.png).
+The preview uses a separate, explicitly simulated usage ledger; the actual live
+pilot ledger is unchanged. Package exports include spec version, instructions,
+check results, simulated usage/cost and limitations; keys/secret references and
+machine paths are excluded.
 
 ## Live S1 evidence
 

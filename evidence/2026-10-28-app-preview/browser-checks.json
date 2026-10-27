@@ -1,0 +1,20 @@
+{
+  "mode": "controlled_preview",
+  "local_date": "2026-10-28",
+  "checks": {
+    "react_build": "passed",
+    "create_demo_and_inventory": "passed",
+    "metadata_discussion": "passed",
+    "versioned_spec_approval": "passed",
+    "unsaved_spec_approval_disabled": "passed",
+    "model_edit_immutable_id_and_blank_key": "passed",
+    "managed_preview_completed": "passed",
+    "heldout_checks": "2/2 passed (controlled responses)",
+    "fresh_constructed_scene": "independent check passed (controlled response)",
+    "stop": "cancelled observed; resume race corrected and covered by regression test",
+    "layout": "no horizontal overflow in observed 820px viewport"
+  },
+  "screenshot": "ui-results.png",
+  "application_live_calls": 0,
+  "note": "Browser-created demo and private runtime records are not included in the repository. Live JSON spike evidence is separate."
+}

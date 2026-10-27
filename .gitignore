@@ -9,4 +9,6 @@ dist/
 !.env.example
 .lx/
 runs/
+node_modules/
+web/dist/
 

@@ -1,0 +1,23 @@
+{
+  "date_local": "2026-10-28",
+  "validation_id": "validation-20261027T234155490113Z",
+  "state": "passed",
+  "tests": 57,
+  "checks_passed": [
+    "tests",
+    "official-demo",
+    "cli-demo",
+    "custom-local",
+    "custom-docker",
+    "damaged_answer_recovery",
+    "whole-container",
+    "docker_job"
+  ],
+  "reliability_id": "reliability-20261027T234406048775Z",
+  "reliability_state": "passed",
+  "crash_cycles": 10,
+  "cycles_per_backend": 5,
+  "image_id": "sha256:f1e6ebcc0abbb7b92d0ceabc8704155fe655848cb3463b19abb6d77b1ad79866",
+  "core_source_changed": false,
+  "model_calls": 0
+}

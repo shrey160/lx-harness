@@ -1,0 +1,80 @@
+test_active_spec_edit_and_changed_frozen_input_are_blocked (test_application.ApplicationFlowTests.test_active_spec_edit_and_changed_frozen_input_are_blocked) ... ok
+test_no_improvement_retains_base_and_reports_failed_heldout_checks (test_application.ApplicationFlowTests.test_no_improvement_retains_base_and_reports_failed_heldout_checks) ...   [visual-annotation] 1/2 ok           dev-sample-01
+  [visual-annotation] 2/2 ok           dev-sample-02
+ok
+test_per_run_reservations_are_atomic_across_connections (test_application.ApplicationFlowTests.test_per_run_reservations_are_atomic_across_connections) ... ok
+test_real_managed_core_job_package_and_fresh_reuse (test_application.ApplicationFlowTests.test_real_managed_core_job_package_and_fresh_reuse) ... ok
+test_resume_pending_does_not_restore_old_cancelled_state (test_application.ApplicationFlowTests.test_resume_pending_does_not_restore_old_cancelled_state) ... ok
+test_snapshot_change_cannot_run_after_approval (test_application.ApplicationFlowTests.test_snapshot_change_cannot_run_after_approval) ... ok
+test_spec_change_invalidates_approval_and_catalog_cannot_be_assigned (test_application.ApplicationFlowTests.test_spec_change_invalidates_approval_and_catalog_cannot_be_assigned) ... ok
+test_unapproved_or_nonpublic_data_cannot_start (test_application.ApplicationFlowTests.test_unapproved_or_nonpublic_data_cannot_start) ... ok
+test_actual_cost_over_reservation_sets_error_and_blocks_calls (test_budget.BudgetLedgerTests.test_actual_cost_over_reservation_sets_error_and_blocks_calls) ... ok
+test_invalid_amounts_are_rejected (test_budget.BudgetLedgerTests.test_invalid_amounts_are_rejected) ... ok
+test_invalid_token_counts_are_rejected (test_budget.BudgetLedgerTests.test_invalid_token_counts_are_rejected) ... ok
+test_nine_decimal_settlement_usage_and_duplicate_rejection (test_budget.BudgetLedgerTests.test_nine_decimal_settlement_usage_and_duplicate_rejection) ... ok
+test_reservation_overrun_blocks_calls_even_when_cap_remains (test_budget.BudgetLedgerTests.test_reservation_overrun_blocks_calls_even_when_cap_remains) ... ok
+test_restart_preserves_reservations_unknown_and_configuration (test_budget.BudgetLedgerTests.test_restart_preserves_reservations_unknown_and_configuration) ... ok
+test_two_connections_cannot_over_reserve_shared_cap (test_budget.BudgetLedgerTests.test_two_connections_cannot_over_reserve_shared_cap) ... ok
+test_unknown_roles_are_rejected (test_budget.BudgetLedgerTests.test_unknown_roles_are_rejected) ... ok
+test_accepts_box_edges_within_documented_one_pixel_tolerance (test_domain.DemoDomainTests.test_accepts_box_edges_within_documented_one_pixel_tolerance) ... ok
+test_accepts_known_good_and_order_independent_output (test_domain.DemoDomainTests.test_accepts_known_good_and_order_independent_output) ... ok
+test_generated_images_are_valid_pngs_of_expected_dimensions (test_domain.DemoDomainTests.test_generated_images_are_valid_pngs_of_expected_dimensions) ... ok
+test_rejects_box_shift_beyond_tolerance (test_domain.DemoDomainTests.test_rejects_box_shift_beyond_tolerance) ... ok
+test_rejects_malformed_extra_and_non_finite_fields (test_domain.DemoDomainTests.test_rejects_malformed_extra_and_non_finite_fields) ... ok
+test_rejects_missing_object (test_domain.DemoDomainTests.test_rejects_missing_object) ... ok
+test_rejects_wrong_transcript (test_domain.DemoDomainTests.test_rejects_wrong_transcript) ... ok
+test_split_is_by_whole_source_scene_and_truth_is_separate (test_domain.DemoDomainTests.test_split_is_by_whole_source_scene_and_truth_is_separate) ... ok
+test_existing_destination_is_never_overwritten (test_intake.IntakeTests.test_existing_destination_is_never_overwritten) ... ok
+test_folder_snapshots_supported_files_and_hashes_copy (test_intake.IntakeTests.test_folder_snapshots_supported_files_and_hashes_copy) ... ok
+test_protected_names_rejected_before_any_file_open (test_intake.IntakeTests.test_protected_names_rejected_before_any_file_open) ... ok
+test_rejects_casefold_duplicates_and_symlink_members (test_intake.IntakeTests.test_rejects_casefold_duplicates_and_symlink_members) ... ok
+test_rejects_compression_bomb_and_configured_file_and_byte_limits (test_intake.IntakeTests.test_rejects_compression_bomb_and_configured_file_and_byte_limits) ... ok
+test_rejects_links_and_source_destination_overlap (test_intake.IntakeTests.test_rejects_links_and_source_destination_overlap) ... ok
+test_rejects_protected_zip_names_before_decompression (test_intake.IntakeTests.test_rejects_protected_zip_names_before_decompression) ... ok
+test_rejects_zip_traversal_absolute_backslash_and_drive_paths (test_intake.IntakeTests.test_rejects_zip_traversal_absolute_backslash_and_drive_paths) ... ok
+test_windows_to_wsl_translation_and_rejections (test_intake.IntakeTests.test_windows_to_wsl_translation_and_rejections) ... ok
+test_zip_snapshot_accepts_one_wrapper_folder_and_checks_hashes (test_intake.IntakeTests.test_zip_snapshot_accepts_one_wrapper_folder_and_checks_hashes) ... ok
+test_429_uses_retry_after (test_live.MetaTransportTests.test_429_uses_retry_after) ... ok
+test_fixed_endpoint_model_tools_and_dummy_auth (test_live.MetaTransportTests.test_fixed_endpoint_model_tools_and_dummy_auth) ... ok
+test_generic_http_error_withholds_provider_body (test_live.MetaTransportTests.test_generic_http_error_withholds_provider_body) ... ok
+test_malformed_json_is_model_error (test_live.MetaTransportTests.test_malformed_json_is_model_error) ... ok
+test_more_than_40_ledger_attempts_refuses_before_network (test_live.MetaTransportTests.test_more_than_40_ledger_attempts_refuses_before_network) ... ok
+test_redirects_are_disabled (test_live.MetaTransportTests.test_redirects_are_disabled) ... ok
+test_request_outside_fixed_model_or_tools_contract_is_rejected (test_live.MetaTransportTests.test_request_outside_fixed_model_or_tools_contract_is_rejected) ... ok
+test_custom_key_is_separate_private_and_never_returned (test_registry.RegistryTests.test_custom_key_is_separate_private_and_never_returned) ... ok
+test_fields_and_keys_are_validated_without_echoing_key (test_registry.RegistryTests.test_fields_and_keys_are_validated_without_echoing_key) ... ok
+test_key_rotation_removes_old_secret_and_delete_removes_rotated_secret (test_registry.RegistryTests.test_key_rotation_removes_old_secret_and_delete_removes_rotated_secret) ... ok
+test_non_spark_catalog_credential_does_not_load_runtime_key (test_registry.RegistryTests.test_non_spark_catalog_credential_does_not_load_runtime_key) ... ok
+test_non_spark_catalog_is_immutable_and_spark_model_id_cannot_be_created (test_registry.RegistryTests.test_non_spark_catalog_is_immutable_and_spark_model_id_cannot_be_created) ... ok
+test_registered_spark_key_precedes_runtime_loader_and_metadata_can_change (test_registry.RegistryTests.test_registered_spark_key_precedes_runtime_loader_and_metadata_can_change) ... ok
+test_seed_catalog_and_safe_public_records (test_registry.RegistryTests.test_seed_catalog_and_safe_public_records) ... ok
+test_spark_credential_is_loaded_only_on_runtime_credential_call (test_registry.RegistryTests.test_spark_credential_is_loaded_only_on_runtime_credential_call) ... ok
+test_update_cannot_change_model_id_and_unknown_ids_fail (test_registry.RegistryTests.test_update_cannot_change_model_id_and_unknown_ids_fail) ... ok
+test_create_project_requires_and_accepts_demo_data_consent (test_server.ServerBoundaryTests.test_create_project_requires_and_accepts_demo_data_consent) ... ok
+test_cross_origin_post_is_rejected (test_server.ServerBoundaryTests.test_cross_origin_post_is_rejected) ... ok
+test_invalid_host_is_rejected (test_server.ServerBoundaryTests.test_invalid_host_is_rejected) ... ok
+test_model_key_never_appears_in_response_or_state_and_spec_rejects_catalog (test_server.ServerBoundaryTests.test_model_key_never_appears_in_response_or_state_and_spec_rejects_catalog) ... ok
+test_mutation_requires_session_token (test_server.ServerBoundaryTests.test_mutation_requires_session_token) ... ok
+test_non_json_post_is_rejected (test_server.ServerBoundaryTests.test_non_json_post_is_rejected) ... ok
+test_run_is_refused_before_approval (test_server.ServerBoundaryTests.test_run_is_refused_before_approval) ... ok
+test_state_is_controlled_preview_and_has_no_secret_metadata (test_server.ServerBoundaryTests.test_state_is_controlled_preview_and_has_no_secret_metadata) ... ok
+test_cancel_during_dispatch_records_usage_and_suppresses_response (test_spark.ProtocolTests.test_cancel_during_dispatch_records_usage_and_suppresses_response) ... ok
+test_cancellation_prevents_dispatch (test_spark.ProtocolTests.test_cancellation_prevents_dispatch) ... ok
+test_cap_rejects_before_transport (test_spark.ProtocolTests.test_cap_rejects_before_transport) ... ok
+test_file_tools_constrain_writes_and_paths (test_spark.ProtocolTests.test_file_tools_constrain_writes_and_paths) ... ok
+test_full_assistant_tool_replay_and_tokens (test_spark.ProtocolTests.test_full_assistant_tool_replay_and_tokens) ... ok
+test_linked_file_access_rejected (test_spark.ProtocolTests.test_linked_file_access_rejected) ... ok
+test_malformed_tool_not_dispatched (test_spark.ProtocolTests.test_malformed_tool_not_dispatched) ... ok
+test_missing_usage_keeps_reservation_across_restart (test_spark.ProtocolTests.test_missing_usage_keeps_reservation_across_restart) ... ok
+test_provider_overrun_records_actual_cost_and_blocks_future_dispatch (test_spark.ProtocolTests.test_provider_overrun_records_actual_cost_and_blocks_future_dispatch) ... ok
+test_rate_limit_retries_owned_by_protocol_and_held (test_spark.ProtocolTests.test_rate_limit_retries_owned_by_protocol_and_held) ... ok
+test_usage_and_completion_validation (test_spark.ProtocolTests.test_usage_and_completion_validation) ... ok
+test_individual_proposer_cache_preserves_harvest_without_transport (test_spike.SpikeIntegration.test_individual_proposer_cache_preserves_harvest_without_transport) ... ok
+test_real_engine_harvest_select_and_resume_without_new_usage (test_spike.SpikeIntegration.test_real_engine_harvest_select_and_resume_without_new_usage) ...   [data-cleaning] 1/1 ok           records-1
+  [data-cleaning] 1/1 skipped      records-1
+ok
+
+----------------------------------------------------------------------
+Ran 71 tests in 11.971s
+
+OK
