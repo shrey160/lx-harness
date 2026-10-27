@@ -1,10 +1,11 @@
 # LX harness product
 
-The first product gates are in progress. The images + supplied-transcripts
-verifier is implemented. A Spark-shaped, injected transport passes controlled
-tests through the actual pinned Harness² engine. Live Spark improvement has
-not been tested; there is no live network transport or credential loader here.
-The frontend and backend application remain gated on that live spike.
+Both first product gates passed. The images + supplied-transcripts verifier is
+implemented. The synthetic-only live Spark spike edited, harvested and selected
+a correct candidate through the actual engine in Docker: 35 calls, $0.008337338
+computed token cost, then zero-call/zero-execution resume. This establishes the
+small JSON integration, not broader multimodal capability. Backend/frontend
+construction follows with the user-approved React + Python/SQLite architecture.
 
 ## Offline setup and checks
 
@@ -25,7 +26,7 @@ session cache and harvested workspace, not only whole-task skipping.
 The core is a declared local library dependency; the engine remains its pinned
 vendored dependency. `uv.lock` uses relative paths. No core source changes are
 required. Tests use the existing synthetic core fixture from the sibling source
-repository. S3's final application/core-consumption decision remains open.
+repository. The user confirmed library consumption for S3 on 28 October 2026.
 
 ## Implemented contracts
 
@@ -55,10 +56,15 @@ Input $0.10/M, cached input $0.002/M, output $0.20/M. Computed list-price
 cost is distinct from provider billing. The old pilot's recorded $0.001 is
 retained as conservative prior spend; its notes used Standard-mode prices.
 
-## Remaining gate
+## Live S1 evidence
 
-See [the proposed live spike payload](docs/live-spike-review.md).
-Automatic approval review rejected the earlier generic live transport because
-it could send potentially sensitive context and load caller-selected credential
-files. No such transport was added. Explicit approval of the bounded synthetic
-payload/destination is pending before adding and running live integration.
+See [the approved payload](docs/live-spike-review.md) and
+[live result](evidence/2026-10-28-live-gate/live-report.json).
+The explicit user approval superseded the earlier automatic-review hold for
+this fixed synthetic experiment. `python -m lx.live` accepts no custom input
+path, loads the existing key only at runtime, uses the fixed Meta endpoint,
+requires the approved fixture checksum, and enforces 40 shared calls/$20 cap.
+Generated code runs in Docker under the core's managed job lifecycle. The
+transport refuses redirects and withholds provider error bodies. Candidate
+input copies and selected Docker artifacts are checked. No managed containers
+remained after the run. The adjacent offline suite passed 36 tests.

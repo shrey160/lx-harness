@@ -1,0 +1,91 @@
+{
+  "mode": "live_spark_synthetic_only",
+  "state": "passed",
+  "model": "muse-spark-1.3-contributor",
+  "endpoint": "https://api.meta.ai/v1/chat/completions",
+  "task": "records-1",
+  "k": 1,
+  "backend": "docker",
+  "independent_check": true,
+  "candidate_edited_and_harvested": true,
+  "selected_run_id": "custom_json_records-oc-seq1/records-1/c1",
+  "execution_count_first_pass": 4,
+  "live_calls_this_invocation": 35,
+  "resume_live_calls": 0,
+  "resume_execution_count": 0,
+  "ledger_before": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.001,
+    "reserved_usd": 0.0,
+    "remaining_usd": 19.999,
+    "settled_calls": 0,
+    "reserved_calls": 0,
+    "unknown_count": 0,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.0,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 0,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 0,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.0,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 0,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.009337338,
+    "reserved_usd": 0.0,
+    "remaining_usd": 19.990662662,
+    "settled_calls": 35,
+    "reserved_calls": 0,
+    "unknown_count": 0,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.008337338,
+        "reserved_usd": 0.0,
+        "input_tokens": 189102,
+        "output_tokens": 11727,
+        "settled_calls": 35,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 0,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.0,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 0,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "cost_basis": "provider token usage at verified Contributor list prices; not an invoice"
+}

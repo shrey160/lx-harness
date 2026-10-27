@@ -1,4 +1,11 @@
-# Proposed bounded live spike — approval pending
+# Approved bounded live spike
+
+Explicit user approval received 28 October 2026: "go ahead" in response to the
+specific request to send this synthetic payload to Meta with runtime key
+loading under the existing $20 cap. Implementation: `lx.live`; it accepts no
+custom paths/inputs, requires the approved fixture checksum, enforces a shared
+40-call limit, and runs generated task code in Docker through the managed job
+lifecycle. Transport tests use dummy credentials and a mocked network only.
 
 Destination: `https://api.meta.ai/v1/chat/completions`.
 Model: `muse-spark-1.3-contributor` only, acting as improver/selector/reflector.
@@ -40,5 +47,5 @@ Success requires a genuinely model-edited, harvested candidate, selected output
 passing the independent check, and reconciled usage. Controlled-response
 success is not accepted as live success. S3/frontend construction stays gated.
 
-Approval requested: add and run this synthetic-only integration to the specified
+Approved action: add and run this synthetic-only integration to the specified
 Meta endpoint under the existing $20 cap, including runtime credential loading.

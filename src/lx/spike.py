@@ -79,12 +79,34 @@ def fixture_module(core_source):
 
 def run_spike(core_source, output, client, *, backend="local", image="h2portable:offline"):
     from h2portable.execution import DockerRunner, LocalRunner, resolve_image
-    from harness2.core.schedule import run_domain
+    from harness2.core.schedule import Namespace, run_domain
     fixture = fixture_module(core_source)
     root = Path(output).resolve()
     root.mkdir(parents=True, exist_ok=True)
     runner = LocalRunner() if backend == "local" else DockerRunner(image=resolve_image(image))
-    adapter = fixture.CustomJSONAdapter(root, runner, backend)
+    class CheckedAdapter(fixture.CustomJSONAdapter):
+        def _input_intact(self, run_dir, task_id):
+            inputs = run_dir/"workspace"/"inputs"
+            copied = inputs/"records.json"
+            return (not inputs.is_symlink() and not copied.is_symlink() and copied.is_file()
+                    and copied.read_bytes() == (self.task_files(task_id)/"records.json").read_bytes())
+
+        def execute(self, task_id, harness_dir, run_id, *, timeout=None):
+            run_dir = super().execute(task_id, harness_dir, run_id, timeout=timeout)
+            if not self._input_intact(run_dir, task_id):
+                raise ValueError("candidate changed its synthetic input copy")
+            return run_dir
+
+        def artifacts_intact(self, run_dir):
+            if not super().artifacts_intact(run_dir):
+                return False
+            try:
+                task = json.loads((run_dir/"execution.json").read_text())["task"]
+                return self._input_intact(run_dir, task)
+            except (OSError, ValueError, KeyError):
+                return False
+
+    adapter = CheckedAdapter(root, runner, backend)
     proposer = SparkProposer(client, root/"proposer_audit")
     reflector = SparkProposer(client, root/"reflector_audit")
     adapter.spec = replace(adapter.spec, channels={"proposer": proposer.spec, "selector": proposer.spec})
@@ -93,16 +115,17 @@ def run_spike(core_source, output, client, *, backend="local", image="h2portable
                         library_root=root/"library"/"k1", modes=("seq",), reflector_prop=reflector)
     if result["done"] != 1 or result["failed"] != 0:
         raise AssertionError(f"spike workflow failed: {result}")
-    selected = None
-    for path in adapter.spec.runs_root.rglob("summary.json"):
-        summary = json.loads(path.read_text())
-        if summary.get("task_id") == "records-1":
-            selected = summary.get("selections", {}).get("seq", {}).get("chosen_run_id")
-            if selected:
-                break
+    namespace = Namespace(adapter.spec.name, adapter.substrate.name, "agg", 1)
+    summary = json.loads((namespace.task_dir(adapter.spec.runs_root, "records-1")/"summary.json").read_text())
+    selected = summary.get("selections", {}).get("seq", {}).get("chosen_run_id")
     if not selected:
         raise AssertionError("selection missing")
-    answer = json.loads((adapter.spec.runs_root/"executions"/selected/"answer.json").read_text())
+    run_dir = adapter.spec.runs_root/"executions"/selected
+    record = json.loads((run_dir/"execution.json").read_text())
+    expected_backend = "local-posix" if backend == "local" else "docker-cli"
+    if record["execution"]["backend"] != expected_backend or not adapter.artifacts_intact(run_dir):
+        raise AssertionError("selected result has the wrong backend or damaged artifacts")
+    answer = json.loads((run_dir/"answer.json").read_text())
     fixture._verify_answer("records-1", answer)
     harvested = list((root/"proposer_audit").glob("*.workspace/scripts/normalize.py"))
     if not harvested or not any("if amount > 0" not in p.read_text() for p in harvested):
