@@ -1,0 +1,12 @@
+{
+  "date_local": "2026-10-28",
+  "runtime": "existing supported WSL Python 3.12 environment",
+  "command": "H2_TEST_DOCKER_IMAGE=h2portable:offline .venv/bin/python -m unittest discover -s tests -v",
+  "tests": 57,
+  "result": "OK",
+  "duration_seconds": 31.505,
+  "source_changes_to_core": false,
+  "demo_and_crash_campaign_rerun": false,
+  "model_calls": 0,
+  "note": "Observed command result. Older 9-demo/10-cycle evidence is retained as prior evidence, not a new claim."
+}

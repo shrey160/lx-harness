@@ -1,0 +1,38 @@
+version = 1
+revision = 5
+requires-python = ">=3.12, <3.14"
+
+[[package]]
+name = "h2portable"
+version = "0.1.0"
+source = { editable = "../harness2_portable_core" }
+dependencies = [
+    { name = "harness2-cli" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "harness2-cli", editable = "../harness2_portable_core/vendor/harness2-cli" }]
+
+[[package]]
+name = "harness2-cli"
+version = "0.1.0"
+source = { editable = "../harness2_portable_core/vendor/harness2-cli" }
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", marker = "extra == 'bridge'", specifier = "==0.139.2" },
+    { name = "google-auth", marker = "extra == 'bridge'", specifier = "==2.56.3" },
+    { name = "litellm", extras = ["proxy"], marker = "extra == 'bridge'", specifier = "==1.95.0" },
+]
+provides-extras = ["bridge"]
+
+[[package]]
+name = "lx-harness"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "h2portable" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "h2portable", editable = "../harness2_portable_core" }]
