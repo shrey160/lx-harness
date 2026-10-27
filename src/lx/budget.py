@@ -105,7 +105,7 @@ class BudgetLedger:
             raise BudgetError(f"role must be one of {', '.join(sorted(_ROLES))}")
         return role
 
-    def reserve(self, amount_usd: Any, role: str, phase: str, candidate: str = "") -> str:
+    def reserve(self, amount_usd: Any, role: str, phase: str, candidate: str = "", *, scope_prefix=None, scope_cap_usd=None) -> str:
         amount = _nanos(amount_usd, "amount_usd")
         role = self._role(role)
         if not isinstance(phase, str) or not phase:
@@ -132,6 +132,13 @@ class BudgetLedger:
             if cfg["initial_nanos"] + sums["spent"] + sums["held"] + amount > cfg["cap_nanos"]:
                 db.rollback()
                 raise BudgetExceeded("reservation would exceed the configured budget cap")
+            if scope_prefix is not None:
+                if not isinstance(scope_prefix,str) or not candidate.startswith(scope_prefix):
+                    raise BudgetError("invalid budget scope")
+                scoped = db.execute("SELECT COALESCE(SUM(CASE WHEN status='settled' THEN actual_nanos ELSE reserved_nanos END),0) FROM reservations WHERE substr(candidate,1,?)=?",
+                                    (len(scope_prefix),scope_prefix)).fetchone()[0]
+                if scoped+amount > _nanos(scope_cap_usd,"scope_cap_usd"):
+                    raise BudgetExceeded("Approved run budget has no room for another reservation")
             db.execute(
                 "INSERT INTO reservations "
                 "(id,role,phase,candidate,reserved_nanos,status) VALUES (?,?,?,?,?,'reserved')",
