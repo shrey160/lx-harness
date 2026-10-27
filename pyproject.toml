@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lx-harness"
+version = "0.1.0"
+description = "Local harness workflow on the pinned portable core"
+requires-python = ">=3.12,<3.14"
+dependencies = ["h2portable==0.1.0"]
+
+[tool.uv.sources]
+h2portable = { path = "../harness2_portable_core", editable = true }
+harness2-cli = { path = "../harness2_portable_core/vendor/harness2-cli", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
