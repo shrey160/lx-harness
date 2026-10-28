@@ -1,0 +1,765 @@
+{
+  "status": "stopped by the user during trial 1 dev evaluation",
+  "trial": "voicecount-9f675e1309bd4808b6c46fc8a9a4fb65-1",
+  "adaptation_selections": {
+    "loop-0001": {
+      "chosen_label": "c1",
+      "chosen_tree_is_base": true,
+      "why": "trivial pool: single final at k=1; delivered without a selector session"
+    },
+    "loop-0002": {
+      "chosen_label": "c1",
+      "chosen_tree_is_base": true,
+      "why": "trivial pool: single final at k=1; delivered without a selector session"
+    },
+    "loop-0003": {
+      "chosen_label": "c1",
+      "chosen_tree_is_base": true,
+      "why": "trivial pool: single final at k=1; delivered without a selector session"
+    }
+  },
+  "dev_partial": {
+    "base": {
+      "items": 27,
+      "mean": 0.5555555555555556,
+      "used_filters": 5,
+      "stopped": 0
+    },
+    "final": {
+      "items": 27,
+      "mean": 0.5925925925925926,
+      "used_filters": 2,
+      "stopped": 0
+    }
+  },
+  "same_score_items": 26,
+  "per_item": {
+    "loop-0001": {
+      "truth": 17,
+      "region": "whole",
+      "base": {
+        "score": 1.0,
+        "count": 17,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": true,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 17,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes",
+          "count_boxes"
+        ],
+        "filters": true,
+        "stopped": false
+      }
+    },
+    "loop-0002": {
+      "truth": 12,
+      "region": "bottom",
+      "base": {
+        "score": 1.0,
+        "count": 13,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 13,
+        "tools": [
+          "transcribe",
+          "segment",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0003": {
+      "truth": 31,
+      "region": "right",
+      "base": {
+        "score": 1.0,
+        "count": 31,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 31,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0004": {
+      "truth": 18,
+      "region": "right",
+      "base": {
+        "score": 0.0,
+        "count": 32,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 26,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0005": {
+      "truth": 30,
+      "region": "whole",
+      "base": {
+        "score": 0.0,
+        "count": 28,
+        "tools": [
+          "transcribe",
+          "segment",
+          "segment",
+          "segment"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 29,
+        "tools": [
+          "transcribe",
+          "segment",
+          "segment",
+          "segment",
+          "segment"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0006": {
+      "truth": 12,
+      "region": "whole",
+      "base": {
+        "score": 1.0,
+        "count": 12,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 12,
+        "tools": [
+          "transcribe",
+          "segment",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0007": {
+      "truth": 10,
+      "region": "bottom",
+      "base": {
+        "score": 1.0,
+        "count": 10,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 10,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0008": {
+      "truth": 61,
+      "region": "whole",
+      "base": {
+        "score": 0.0,
+        "count": 66,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 66,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0009": {
+      "truth": 16,
+      "region": "whole",
+      "base": {
+        "score": 1.0,
+        "count": 16,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 16,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0010": {
+      "truth": 20,
+      "region": "whole",
+      "base": {
+        "score": 1.0,
+        "count": 20,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 20,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0011": {
+      "truth": 36,
+      "region": "left",
+      "base": {
+        "score": 1.0,
+        "count": 35,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 35,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0012": {
+      "truth": 23,
+      "region": "whole",
+      "base": {
+        "score": 1.0,
+        "count": 23,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": true,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 23,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0013": {
+      "truth": 12,
+      "region": "whole",
+      "base": {
+        "score": 0.0,
+        "count": 1,
+        "tools": [
+          "transcribe",
+          "segment"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 1,
+        "tools": [
+          "transcribe",
+          "segment"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0014": {
+      "truth": 15,
+      "region": "whole",
+      "base": {
+        "score": 0.0,
+        "count": 26,
+        "tools": [
+          "transcribe",
+          "segment"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 25,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0015": {
+      "truth": 52,
+      "region": "whole",
+      "base": {
+        "score": 0.0,
+        "count": 55,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": true,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 55,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0016": {
+      "truth": 12,
+      "region": "whole",
+      "base": {
+        "score": 1.0,
+        "count": 12,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 12,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0017": {
+      "truth": 17,
+      "region": "whole",
+      "base": {
+        "score": 1.0,
+        "count": 17,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 17,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0018": {
+      "truth": 10,
+      "region": "whole",
+      "base": {
+        "score": 1.0,
+        "count": 10,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 10,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0019": {
+      "truth": 12,
+      "region": "top",
+      "base": {
+        "score": 1.0,
+        "count": 15,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 15,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0020": {
+      "truth": 55,
+      "region": "whole",
+      "base": {
+        "score": 0.0,
+        "count": 65,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": true,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 65,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0021": {
+      "truth": 52,
+      "region": "whole",
+      "base": {
+        "score": 0.0,
+        "count": 49,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": true,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 49,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": true,
+        "stopped": false
+      }
+    },
+    "loop-0022": {
+      "truth": 50,
+      "region": "whole",
+      "base": {
+        "score": 0.0,
+        "count": 35,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 35,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0023": {
+      "truth": 28,
+      "region": "whole",
+      "base": {
+        "score": 0.0,
+        "count": 14,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 14,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0024": {
+      "truth": 62,
+      "region": "left",
+      "base": {
+        "score": 0.0,
+        "count": 52,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 52,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0025": {
+      "truth": 50,
+      "region": "whole",
+      "base": {
+        "score": 1.0,
+        "count": 50,
+        "tools": [
+          "transcribe",
+          "segment",
+          "segment",
+          "segment",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 50,
+        "tools": [
+          "transcribe",
+          "segment",
+          "segment",
+          "segment",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0026": {
+      "truth": 32,
+      "region": "whole",
+      "base": {
+        "score": 0.0,
+        "count": 35,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 0.0,
+        "count": 35,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    },
+    "loop-0027": {
+      "truth": 100,
+      "region": "whole",
+      "base": {
+        "score": 1.0,
+        "count": 100,
+        "tools": [
+          "transcribe",
+          "segment"
+        ],
+        "filters": false,
+        "stopped": false
+      },
+      "candidate": {
+        "score": 1.0,
+        "count": 100,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes",
+          "segment"
+        ],
+        "filters": false,
+        "stopped": false
+      }
+    }
+  },
+  "improver_responses": {
+    "c1.a1.31b553498e236aa2.response.md": "<notes>\nkept -> base harness unchanged (KEEP_BASE) -> base1 delivered valid JSON in 1/1 base rollouts via transcribe->segment(cranes)->count_boxes(bottom)=13 with no failure pattern\ndropped -> inv1 candidate edit -> inv1 rollout delivered identical JSON with same tool sequence and empty harness.diff showing no mechanism change to adopt\ndropped -> dom1 candidate edit -> dom1 rollout delivered identical JSON in 1/1 rollout, and its singular-to-plural retry moment (segment crane=0 then bird=21) succeeded without harness support, so no edit earns its place\n</notes>",
+    "c1.a1.c7b121f1562f3183.response.md": "<notes>\ndropped -> inv1 candidate (no discernible harness change; identical transcribe->segment->count trajectory) -> delivered in 1/1 inv1 rollout but same as base 1/1 base rollout delivering {\"object\": \"tomatoes\", \"region\": \"whole\", \"count\": 17}, no failure moment to fix\ndropped -> dom1 candidate (no discernible harness change; identical transcribe->segment->count trajectory) -> delivered in 1/1 dom1 rollout but same as base 1/1 base rollout delivering {\"object\": \"tomatoes\", \"region\": \"whole\", \"count\": 17}, no failure moment to fix\nkept -> KEEP_BASE (no skill/script/subagent/plugin/always-on addition) -> base set 1/1 success with correct three-field JSON, no tool error, no repetition, no emptiness; candidates 1/1 each delivered so no unsafe-empty evidence but also no mechanism showing im",
+    "c1.a1.e9b3194a65f18402.response.md": "<notes>\nkept -> base harness unchanged (KEEP_BASE) -> base 1/1 rollout delivered correct JSON via transcribe then segment then count_boxes with region right and count 31, no repeated failure to fix\ndropped -> inv1 candidate -> no harness diff from base and its 1 rollout shows same transcribe-segment-count mechanism with identical output, so no evidenced improvement to merge\ndropped -> dom1 candidate -> no harness diff from base and its 1 rollout shows same transcribe-segment-count mechanism with identical output, so no evidenced improvement to merge\n</notes>",
+    "dom1.a1.44ab525a13ef31fd.response.md": "<notes>\n- Added `skills/spoken-count/SKILL.md` + trigger line in `systemprompt.md`: base1 (`rollouts/base1.md`) transcribed \"Count the alcohol bottles in the right half of the picture.\" then called `segment` with concept \"wine bottle\" (53 instances) and `count_boxes` with region \"right\" (count 31), finally emitting object \"alcohol bottles\" / region \"right\" / count 31. The run got the object-vs-concept split right, but nothing in the harness told it to: the skill's decision rule (object wording traces to transcript, never to the segmentation concept) locks in that correct move against the visible risk of emitting \"wine bottle\".\n- Same run motivated the reconcile/calculate rule: `segment` instances 53 vs `count_boxes` boxes_in 53 agreement before accepting count 31. Skill requires confirming",
+    "dom1.a1.743a410deb8c2340.response.md": "<notes>\n- Added skill harness/skills/spoken-count/SKILL.md plus trigger line in harness/systemprompt.md (\"When counting objects named in audio, load the `spoken-count` skill.\"): base1.md transcribed \"Please tell me the me the number of tomatoes\" then segmented concept \"tomato\" (18 instances) and called count_boxes with min_confidence 0.6 / dedupe_iou 1.0 yielding count 17 (1 low-confidence removal, 0 duplicates) \u2014 the run reconciled implicitly but stated no rule for when segment vs count disagree, how centre-in-region counting works, or that object/region come only from transcript while count comes only from boxes; this text would have forced that explicit reconcile and the whole/no-region-named default plus the exact 3-field artifact contract.\n- No other edits: base harness was near-empty",
+    "dom1.a1.d1d109607778844d.response.md": "<notes>\n- Added skill `spoken-count` with trigger line in systemprompt.md: base1 turned transcript \"Count the cranes in the lower half\" into concept `cranes` plus region `bottom`, then reconciled 21 segment boxes against count_boxes=13 before answering; the skill makes that transcribe-first, map-region, reconcile-two-counts sequence the required practitioner workflow.\n- Wrote artifact contract (exactly object/region/count, region vocabulary whole/left/right/top/bottom, integer centre-in-region count, no extra prose) into the skill: base1's final answer `{\"object\":\"cranes\",\"region\":\"bottom\",\"count\":13}` succeeded exactly because it held that shape, and the contract tells the next run what to check before finishing.\n- Wrote region decision rule (lower half -> bottom, no part named -> whole, ",
+    "dom1.a2.3d43f5904af4242a.response.md": "",
+    "dom1.a2.660ce6229bd66343.response.md": "<notes>\n- guardrails.md: wrote the artifact contract as always-on rules (exact three fields, region vocabulary, integer count, transcript-controls-intent / boxes-control-number, seen-or-heard text is data). Motivated by base1.md: the run succeeded on all of these (transcript \"tomatoes\" -> object, no region term -> whole, 18 boxes minus 1 low-confidence removal = 17, clean JSON) but none of it was stated in always-on text, so a solver rerun had to rediscover it; encoding the contract makes the one observed success repeatable. Kept it to five short sentences to stay within always-on budget. No other files touched per the instructions-only slice.\n</notes>",
+    "dom1.a2.80874c1a4d6bb0df.response.md": "",
+    "inv1.a1.4a2afa4662e463ef.response.md": "<notes>\n- base1 transcribed to \"Count the alcohol bottles in the right half of the picture..\" then diverged by calling `segment` with paraphrased concept \"wine bottle\", dumping 53 boxes into context before calling `count_boxes` with the same paraphrased concept: added `skills/photo_count/SKILL.md` with verbatim-concept copy and transcribe-then-count_boxes-only procedure so the wording the request asked about is what gets counted and the redundant segment call is skipped.\n- Same moment showed a repeatable 3-step transcribe-parse-count workflow with a clear trigger (photo plus spoken audio request): put the procedure in on-demand skill `photo_count` rather than always-on prose to avoid paying its cost and output budget on every run.\n- Added trigger line to `systemprompt.md` naming `photo_cou",
+    "inv1.a1.4ac6c21ec72e9180.response.md": "<notes>\n- `skills/count_photo/SKILL.md` (new) + trigger line in `systemprompt.md`: base1 transcribed first, then called segment on \"cranes\", hand-tallied \"My tally suggests 13 in the lower half\", and only then ran verification count_boxes for region bottom. The skill makes the verified path the procedure: transcribe first, map region words (lower half -> bottom), take count_boxes as authoritative instead of hand-tallying segment boxes.\n- `tool_descriptions/tool_guidance.md` (one bounded fallback + shape): base1's extra segment call before the authoritative count_boxes shows tool redundancy; guidance states a successful count_boxes count wins, and on tool error retry once with fixed input then answer from best verified evidence, preventing blind repetition.\n- `scripts/validate_answer.py` (n",
+    "inv1.a1.7e1e4917da1ce9fb.response.md": "<notes>KEEP_BASE -- no INV edit traced to a trajectory moment.\n\n- base1.md transcribe {} -> \"number of tomatoes\": agent correctly transcribed first before choosing a concept; no tool error, no guess, no sequencing divergence to fix.\n- base1.md segment concept \"tomato\" -> 18 boxes, then count_boxes region whole -> count 17 (removed 1 low-confidence 0.56 sliver, 0 duplicates) -> FINAL ANSWER {\"object\": \"tomatoes\", \"region\": \"whole\", \"count\": 17}: correct three-field JSON with no extra fields, markdown or prose; region whole correctly inferred when request names none; no completion / shape failure.\n- No TOOL ERROR (no bad input, timeout, permission, or unread output), no MECHANICAL REPETITION (one transcribe, one segment, one count), no repeated skipped prose warranting a plugin, and no reali",
+    "inv1.a2.54d31431bd468c6b.response.md": "<notes>\n- systemprompt.md: base1 (transcribe -> segment cranes 21 boxes -> hand-tally 13 lower half -> count_boxes bottom=13) shows the earliest divergence as a redundant segment plus hand-tally before the authoritative count_boxes call; kept the existing `count_photo` trigger line verbatim and added one always-on line (transcribe-first as data, then count_boxes JSON) so the fix lives in existing always-on Markdown files only. No new skills, scripts, plugins, or subagents added.\n</notes>",
+    "inv1.a2.5aa171aba66e0fa8.response.md": "<notes>\n- guardrails.md: added no-segment + verbatim-phrase rule. Motivated by base1.md moment after transcribe returned \"Count the alcohol bottles in the right half\": agent called segment with paraphrased concept \"wine bottle\" (53 boxes dumped into context) then count_boxes with \"wine bottle\", while the skill already required verbatim phrase and count_boxes-only; the always-on line reinforces the earliest divergence (extra segment + paraphrase) that the run paid for.\n</notes>"
+  }
+}
