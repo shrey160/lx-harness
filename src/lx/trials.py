@@ -131,7 +131,7 @@ def final_test(dataset, output, client, packages, *, mode="offline_preview", tas
 
 
 def run_trials(dataset, output, client_factory, *, trials=5, adaptation_count=1, live=False, task="records",
-               adapter_kwargs=None):
+               adapter_kwargs=None, approved_live=None):
     """Fresh optimization state per trial; shared inputs and fixed held-out set.
 
     One development item trains the harness by default; all development items
@@ -143,7 +143,9 @@ def run_trials(dataset, output, client_factory, *, trials=5, adaptation_count=1,
     if task not in TASKS:
         raise ValueError(f"task must be one of {sorted(TASKS)}")
     adapter_cls, _, label = TASKS[task]
-    if live:
+    # Live trials run only through a reviewed controller that passes its fixed
+    # limits (currently lx.voicecount_trials, S7); every other path stays offline.
+    if live and not (task == "voicecount" and isinstance(approved_live, dict)):
         raise ValueError("Live trial activation needs a passed calibration and separate E4b approval")
     if type(trials) is not int or not 1 <= trials <= 5:
         raise ValueError("Use five trials for a full experiment; offline smoke checks may use 1..5")
@@ -158,6 +160,8 @@ def run_trials(dataset, output, client_factory, *, trials=5, adaptation_count=1,
             "experiment_cap_usd": 2, "per_trial_cap_usd": 0.4,
             "per_trial_call_limit": 200, "experiment_call_limit": 200*trials,
             "mode": "live" if live else "offline_preview"}
+    if approved_live:
+        spec.update(approved_live)
     reports = []
     for index in range(trials):
         identifier = f"{task}-{experiment}-{index+1}"
