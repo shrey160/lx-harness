@@ -77,8 +77,9 @@ approved O-11 flow. The rejected generic application transport was not added.
 PROD-002 adds a text-only synthetic order-normalization domain, strict graded
 field checks and a five-trial offline runner. See [records contract](docs/records-contract.md).
 The truth-blind no-op preview checks the plumbing and records zero gains; it is
-not capability evidence. Live base-only calibration is [prepared for separate
-approval](docs/records-calibration-review.md); five live trials remain disabled.
+not capability evidence. The approved [live base-only calibration](docs/records-calibration-review.md)
+scored 100% on all 40 held-out records ($0.004790572). The task has no measured
+headroom, so five live trials remain disabled pending task redesign.
 
 Use Python 3.12 or 3.13 inside WSL/Linux with the existing Docker setup.
 Keep this repository beside `harness2_portable_core/`.

@@ -1,0 +1,159 @@
+{
+  "live": true,
+  "dataset_sha256": "c4c1917a69aa154fa304a936ec8bf9c1a5a6c596b64b2e95abeb047306ada47a",
+  "experiment_sha256": "d8bd6759014d6e767c62c951b676975fee0d0f7264c38f1f2219c3e70b229aa2",
+  "scores": {
+    "heldout-order-0001": 1.0,
+    "heldout-order-0002": 1.0,
+    "heldout-order-0003": 1.0,
+    "heldout-order-0004": 1.0,
+    "heldout-order-0005": 1.0,
+    "heldout-order-0006": 1.0,
+    "heldout-order-0007": 1.0,
+    "heldout-order-0008": 1.0,
+    "heldout-order-0009": 1.0,
+    "heldout-order-0010": 1.0,
+    "heldout-order-0011": 1.0,
+    "heldout-order-0012": 1.0,
+    "heldout-order-0013": 1.0,
+    "heldout-order-0014": 1.0,
+    "heldout-order-0015": 1.0,
+    "heldout-order-0016": 1.0,
+    "heldout-order-0017": 1.0,
+    "heldout-order-0018": 1.0,
+    "heldout-order-0019": 1.0,
+    "heldout-order-0020": 1.0,
+    "heldout-order-0021": 1.0,
+    "heldout-order-0022": 1.0,
+    "heldout-order-0023": 1.0,
+    "heldout-order-0024": 1.0,
+    "heldout-order-0025": 1.0,
+    "heldout-order-0026": 1.0,
+    "heldout-order-0027": 1.0,
+    "heldout-order-0028": 1.0,
+    "heldout-order-0029": 1.0,
+    "heldout-order-0030": 1.0,
+    "heldout-order-0031": 1.0,
+    "heldout-order-0032": 1.0,
+    "heldout-order-0033": 1.0,
+    "heldout-order-0034": 1.0,
+    "heldout-order-0035": 1.0,
+    "heldout-order-0036": 1.0,
+    "heldout-order-0037": 1.0,
+    "heldout-order-0038": 1.0,
+    "heldout-order-0039": 1.0,
+    "heldout-order-0040": 1.0
+  },
+  "summary": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0
+  },
+  "headroom": false,
+  "capability_evidence": true,
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 7680,
+        "output_tokens": 21331,
+        "spent_usd": 0.004790572
+      }
+    },
+    "per_phase": {
+      "worker/execute": {
+        "settled_calls": 40,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.004790572
+      }
+    },
+    "settled_calls": 40,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.004790572
+  },
+  "ledger_before": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.036492926,
+    "reserved_usd": 0.0,
+    "remaining_usd": 19.963507074,
+    "settled_calls": 154,
+    "reserved_calls": 0,
+    "unknown_count": 0,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.032802826,
+        "reserved_usd": 0.0,
+        "input_tokens": 728658,
+        "output_tokens": 56084,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.002504,
+        "reserved_usd": 0.0,
+        "input_tokens": 1142,
+        "output_tokens": 11949,
+        "settled_calls": 15,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.041283498,
+    "reserved_usd": 0.0,
+    "remaining_usd": 19.958716502,
+    "settled_calls": 194,
+    "reserved_calls": 0,
+    "unknown_count": 0,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.032802826,
+        "reserved_usd": 0.0,
+        "input_tokens": 728658,
+        "output_tokens": 56084,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.007294572,
+        "reserved_usd": 0.0,
+        "input_tokens": 8822,
+        "output_tokens": 33280,
+        "settled_calls": 55,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  }
+}

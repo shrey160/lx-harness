@@ -1,6 +1,14 @@
 # PROD-002 E4a calibration request — 28 October 2026
 
-**Prepared for user review; not yet approved or executed.**
+**Approved by user "go ahead" and executed once, 28 October 2026.**
+
+Result: 40/40 records accepted, 280/280 fields correct (mean/min/max 1.0).
+The base exceeds the 0.90 headroom ceiling, so E4b is not eligible on this task.
+No improver/trial calls were made. Cost: $0.004790572 from reported tokens;
+shared ledger now $0.041283498 spent / $19.958716502 remaining, 194 settled,
+zero reserved/unknown. See [calibration evidence](../evidence/2026-10-28-records-calibration/README.md).
+Return to offline task design and use fresh held-out examples before another
+concrete calibration request; this result demonstrates base performance only.
 
 Run the base harness once on the 40 held-out fictional orders in
 `evidence/2026-10-28-records-offline/worker_inputs/manifest.json`. All 60 worker
@@ -28,7 +36,7 @@ Experiment SHA256 (inputs + controller truth + task contract + base prompt +
 worker message builder + verifier source):
 `d8bd6759014d6e767c62c951b676975fee0d0f7264c38f1f2219c3e70b229aa2`
 
-After explicit user approval, the fixed controller command is:
+The approved controller command (already executed; do not repeat) was:
 
 ```bash
 .venv/bin/python -m lx.records_calibration --approve-dataset c4c1917a69aa154fa304a936ec8bf9c1a5a6c596b64b2e95abeb047306ada47a

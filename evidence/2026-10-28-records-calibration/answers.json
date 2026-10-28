@@ -1,0 +1,483 @@
+{
+  "heldout-order-0001": {
+    "order_id": "LX-33438915",
+    "customer": "Dev Rowan",
+    "date": "2023-12-28",
+    "currency": "INR",
+    "amount_minor": 643562,
+    "phone": "+12025550147",
+    "tags": [
+      "backorder",
+      "fragile"
+    ]
+  },
+  "heldout-order-0002": {
+    "order_id": "LX-66736284",
+    "customer": "Ezra Bloom",
+    "date": "2022-11-22",
+    "currency": "EUR",
+    "amount_minor": 768872,
+    "phone": "+12025550148",
+    "tags": [
+      "fragile",
+      "subscription"
+    ]
+  },
+  "heldout-order-0003": {
+    "order_id": "LX-64245011",
+    "customer": "Talia Fox",
+    "date": "2023-07-01",
+    "currency": "INR",
+    "amount_minor": 886093,
+    "phone": null,
+    "tags": [
+      "fragile"
+    ]
+  },
+  "heldout-order-0004": {
+    "order_id": "LX-24241325",
+    "customer": "Iris Cove",
+    "date": "2024-07-13",
+    "currency": "EUR",
+    "amount_minor": 24862,
+    "phone": "+12025550150",
+    "tags": [
+      "fragile",
+      "priority",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0005": {
+    "order_id": "LX-69906136",
+    "customer": "Ezra Bloom",
+    "date": "2024-01-24",
+    "currency": "USD",
+    "amount_minor": 984892,
+    "phone": "+12025550151",
+    "tags": [
+      "priority",
+      "subscription",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0006": {
+    "order_id": "LX-27815257",
+    "customer": "Dev Rowan",
+    "date": "2024-10-17",
+    "currency": "USD",
+    "amount_minor": 715917,
+    "phone": "+12025550152",
+    "tags": [
+      "gift"
+    ]
+  },
+  "heldout-order-0007": {
+    "order_id": "LX-32725062",
+    "customer": "Mira Solis",
+    "date": "2022-06-06",
+    "currency": "INR",
+    "amount_minor": 793026,
+    "phone": null,
+    "tags": [
+      "backorder",
+      "subscription",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0008": {
+    "order_id": "LX-43327662",
+    "customer": "Rhea Quinn",
+    "date": "2022-10-23",
+    "currency": "EUR",
+    "amount_minor": 34770,
+    "phone": "+12025550154",
+    "tags": [
+      "gift",
+      "priority",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0009": {
+    "order_id": "LX-55371828",
+    "customer": "Asha Bell",
+    "date": "2022-06-11",
+    "currency": "INR",
+    "amount_minor": 601771,
+    "phone": null,
+    "tags": [
+      "backorder",
+      "priority",
+      "subscription"
+    ]
+  },
+  "heldout-order-0010": {
+    "order_id": "LX-18411728",
+    "customer": "Theo Wren",
+    "date": "2022-03-30",
+    "currency": "USD",
+    "amount_minor": 749073,
+    "phone": null,
+    "tags": [
+      "backorder",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0011": {
+    "order_id": "LX-66849005",
+    "customer": "Kavi Dawn",
+    "date": "2022-01-23",
+    "currency": "EUR",
+    "amount_minor": 910873,
+    "phone": "+12025550157",
+    "tags": [
+      "subscription"
+    ]
+  },
+  "heldout-order-0012": {
+    "order_id": "LX-85923654",
+    "customer": "Nia Frost",
+    "date": "2022-03-19",
+    "currency": "USD",
+    "amount_minor": 622383,
+    "phone": "+12025550158",
+    "tags": [
+      "fragile",
+      "priority"
+    ]
+  },
+  "heldout-order-0013": {
+    "order_id": "LX-39195380",
+    "customer": "Rhea Quinn",
+    "date": "2025-01-06",
+    "currency": "INR",
+    "amount_minor": 389486,
+    "phone": "+12025550159",
+    "tags": [
+      "wholesale"
+    ]
+  },
+  "heldout-order-0014": {
+    "order_id": "LX-72133049",
+    "customer": "Omar Finch",
+    "date": "2024-08-06",
+    "currency": "EUR",
+    "amount_minor": 915315,
+    "phone": "+12025550160",
+    "tags": [
+      "priority",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0015": {
+    "order_id": "LX-94201109",
+    "customer": "Remy Stone",
+    "date": "2021-12-10",
+    "currency": "EUR",
+    "amount_minor": 176034,
+    "phone": null,
+    "tags": [
+      "gift",
+      "subscription"
+    ]
+  },
+  "heldout-order-0016": {
+    "order_id": "LX-27786321",
+    "customer": "Theo Wren",
+    "date": "2024-02-29",
+    "currency": "INR",
+    "amount_minor": 190472,
+    "phone": null,
+    "tags": [
+      "fragile",
+      "priority",
+      "subscription"
+    ]
+  },
+  "heldout-order-0017": {
+    "order_id": "LX-30760992",
+    "customer": "Zara North",
+    "date": "2021-05-20",
+    "currency": "USD",
+    "amount_minor": 719732,
+    "phone": null,
+    "tags": [
+      "fragile",
+      "gift",
+      "subscription"
+    ]
+  },
+  "heldout-order-0018": {
+    "order_id": "LX-45891966",
+    "customer": "Theo Wren",
+    "date": "2025-09-23",
+    "currency": "USD",
+    "amount_minor": 863639,
+    "phone": null,
+    "tags": [
+      "fragile"
+    ]
+  },
+  "heldout-order-0019": {
+    "order_id": "LX-81668091",
+    "customer": "Asha Bell",
+    "date": "2026-06-05",
+    "currency": "USD",
+    "amount_minor": 517186,
+    "phone": "+12025550165",
+    "tags": [
+      "fragile",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0020": {
+    "order_id": "LX-34674056",
+    "customer": "Talia Fox",
+    "date": "2024-08-04",
+    "currency": "EUR",
+    "amount_minor": 681700,
+    "phone": null,
+    "tags": [
+      "gift",
+      "subscription"
+    ]
+  },
+  "heldout-order-0021": {
+    "order_id": "LX-89508564",
+    "customer": "Kavi Dawn",
+    "date": "2023-10-14",
+    "currency": "EUR",
+    "amount_minor": 965509,
+    "phone": "+12025550167",
+    "tags": [
+      "fragile",
+      "gift"
+    ]
+  },
+  "heldout-order-0022": {
+    "order_id": "LX-78696555",
+    "customer": "Sana Pike",
+    "date": "2022-02-11",
+    "currency": "USD",
+    "amount_minor": 168244,
+    "phone": null,
+    "tags": [
+      "priority"
+    ]
+  },
+  "heldout-order-0023": {
+    "order_id": "LX-25688421",
+    "customer": "Sana Pike",
+    "date": "2026-01-03",
+    "currency": "EUR",
+    "amount_minor": 168703,
+    "phone": "+12025550169",
+    "tags": [
+      "priority"
+    ]
+  },
+  "heldout-order-0024": {
+    "order_id": "LX-15821707",
+    "customer": "Dev Rowan",
+    "date": "2026-03-18",
+    "currency": "USD",
+    "amount_minor": 553584,
+    "phone": "+12025550170",
+    "tags": [
+      "subscription"
+    ]
+  },
+  "heldout-order-0025": {
+    "order_id": "LX-72534346",
+    "customer": "Remy Stone",
+    "date": "2023-09-24",
+    "currency": "USD",
+    "amount_minor": 361785,
+    "phone": "+12025550171",
+    "tags": [
+      "backorder",
+      "gift",
+      "subscription"
+    ]
+  },
+  "heldout-order-0026": {
+    "order_id": "LX-14329441",
+    "customer": "Dev Rowan",
+    "date": "2021-01-09",
+    "currency": "USD",
+    "amount_minor": 26743,
+    "phone": "+12025550172",
+    "tags": [
+      "gift"
+    ]
+  },
+  "heldout-order-0027": {
+    "order_id": "LX-19469677",
+    "customer": "Arun Snow",
+    "date": "2022-08-26",
+    "currency": "USD",
+    "amount_minor": 131120,
+    "phone": "+12025550173",
+    "tags": [
+      "priority",
+      "subscription",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0028": {
+    "order_id": "LX-15829105",
+    "customer": "Zara North",
+    "date": "2024-01-08",
+    "currency": "USD",
+    "amount_minor": 334061,
+    "phone": "+12025550174",
+    "tags": [
+      "backorder",
+      "gift",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0029": {
+    "order_id": "LX-46343376",
+    "customer": "Nia Frost",
+    "date": "2024-08-07",
+    "currency": "USD",
+    "amount_minor": 221861,
+    "phone": null,
+    "tags": [
+      "backorder",
+      "fragile"
+    ]
+  },
+  "heldout-order-0030": {
+    "order_id": "LX-80877438",
+    "customer": "Rhea Quinn",
+    "date": "2021-03-09",
+    "currency": "EUR",
+    "amount_minor": 885658,
+    "phone": null,
+    "tags": [
+      "gift",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0031": {
+    "order_id": "LX-14875749",
+    "customer": "Ivo Reed",
+    "date": "2022-07-28",
+    "currency": "INR",
+    "amount_minor": 724290,
+    "phone": null,
+    "tags": [
+      "gift",
+      "priority",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0032": {
+    "order_id": "LX-92446126",
+    "customer": "Talia Fox",
+    "date": "2025-05-05",
+    "currency": "EUR",
+    "amount_minor": 554383,
+    "phone": "+12025550178",
+    "tags": [
+      "fragile",
+      "gift"
+    ]
+  },
+  "heldout-order-0033": {
+    "order_id": "LX-70647211",
+    "customer": "Remy Stone",
+    "date": "2026-03-06",
+    "currency": "INR",
+    "amount_minor": 613128,
+    "phone": "+12025550179",
+    "tags": [
+      "priority",
+      "subscription",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0034": {
+    "order_id": "LX-54364668",
+    "customer": "Mira Solis",
+    "date": "2023-06-11",
+    "currency": "USD",
+    "amount_minor": 487968,
+    "phone": "+12025550180",
+    "tags": [
+      "wholesale"
+    ]
+  },
+  "heldout-order-0035": {
+    "order_id": "LX-95900779",
+    "customer": "Asha Bell",
+    "date": "2021-12-01",
+    "currency": "USD",
+    "amount_minor": 447341,
+    "phone": "+12025550181",
+    "tags": [
+      "gift",
+      "subscription"
+    ]
+  },
+  "heldout-order-0036": {
+    "order_id": "LX-29996434",
+    "customer": "Zara North",
+    "date": "2022-06-21",
+    "currency": "USD",
+    "amount_minor": 73561,
+    "phone": null,
+    "tags": [
+      "wholesale"
+    ]
+  },
+  "heldout-order-0037": {
+    "order_id": "LX-52392634",
+    "customer": "Theo Wren",
+    "date": "2026-12-12",
+    "currency": "USD",
+    "amount_minor": 696039,
+    "phone": "+12025550183",
+    "tags": [
+      "fragile",
+      "priority",
+      "wholesale"
+    ]
+  },
+  "heldout-order-0038": {
+    "order_id": "LX-41540091",
+    "customer": "Dev Rowan",
+    "date": "2021-02-18",
+    "currency": "EUR",
+    "amount_minor": 478952,
+    "phone": "+12025550184",
+    "tags": [
+      "backorder",
+      "priority"
+    ]
+  },
+  "heldout-order-0039": {
+    "order_id": "LX-93728761",
+    "customer": "Ivo Reed",
+    "date": "2023-08-31",
+    "currency": "INR",
+    "amount_minor": 187346,
+    "phone": "+12025550185",
+    "tags": [
+      "gift",
+      "priority"
+    ]
+  },
+  "heldout-order-0040": {
+    "order_id": "LX-50883674",
+    "customer": "Arun Snow",
+    "date": "2025-11-27",
+    "currency": "USD",
+    "amount_minor": 475095,
+    "phone": "+12025550186",
+    "tags": [
+      "subscription"
+    ]
+  }
+}
