@@ -1,0 +1,9 @@
+{
+  "mode": "offline_core_regression",
+  "state": "passed",
+  "date": "2026-10-28",
+  "tests": "57/57 OK",
+  "demo": "9/9 checks passed (validation-20261028T001835714025Z)",
+  "reliability": "10/10 crash/recover/retry/stop cycles passed (reliability-20261028T001938738870Z)",
+  "note": "Raw WSL evidence stays in the core execution mirror; this is the sanitized summary."
+}

@@ -1,14 +1,19 @@
-# Application live data flow — approval pending
+# Application live data flow — O-11 approved and executed 28 Oct 2026
 
-The local React/Python/SQLite application is reviewable in controlled-preview
-mode. It runs real core jobs, checks the output independently, and saves/reuses
-packages. It currently loads no live credentials and opens no model network
-connection for application runs. The earlier JSON spike is separately approved
-and already passed; its shared budget is preserved.
+Status: APPROVED by the user's go-ahead to the reviewed continuation plan and
+EXECUTED. The constrained transport (`lx.live_transport`) implements exactly
+the flow below: fixed endpoint and model, approved payload shapes only, live
+mode recorded per approved spec, shared $20 ledger, new job identities.
+Result: the live run completed with an honest negative outcome — neither base
+nor improved harness produced pixel-accurate boxes, the base was retained,
+and held-out/fresh checks failed visibly. See
+`evidence/2026-10-28-live-app/live-report.json`. Specs still default to
+controlled preview; live requires an approved live spec.
 
-Automatic approval review rejected adding a generic application transport:
-the explicit live permission covered the fixed JSON spike, not application
-messages or multimodal inputs. That rejected transport was not added.
+Historical context: automatic approval review had rejected adding a generic
+application transport (the fixed JSON-spike permission did not cover app
+messages or multimodal inputs). That generic transport was never added; this
+constrained flow was approved instead.
 
 ## Specific requested activation
 

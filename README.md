@@ -6,9 +6,9 @@ a correct candidate through the actual engine in Docker: 35 calls, $0.008337338
 computed token cost, then zero-call/zero-execution resume. This establishes the
 small JSON integration, not broader multimodal capability. The local app uses
 the user-approved React + Python/SQLite architecture. The
-application is a **controlled preview**: its discussion/worker/improver responses
+application defaults to a **controlled preview**: its discussion/worker/improver responses
 are predetermined and never load credentials or spend credits. Application
-live activation is pending explicit approval of the reviewed data flow below.
+live flow (O-11) was approved 28 Oct 2026 and executed: a spec saved with mode `live` runs real Spark calls after spec/data/budget/Contributor approval under the shared $20 ledger. First live result was honestly negative (no pixel-accurate boxes; base retained). See `evidence/2026-10-28-live-app/live-report.json`.
 
 ## Open the app
 
@@ -54,8 +54,8 @@ inventoried and discussed; they are not silently treated as independently
 verifiable tasks. The app offers the demo as `data.zip` for testing both paths.
 Known-negative candidates retain the starting harness and show failed checks.
 
-See [application live review](docs/application-live-review.md) for the specific
-pending permission. The rejected generic application transport was not added.
+See [application live review](docs/application-live-review.md) for the
+approved O-11 flow. The rejected generic application transport was not added.
 
 ## Offline setup and checks
 

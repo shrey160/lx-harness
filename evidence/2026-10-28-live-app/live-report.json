@@ -1,0 +1,39 @@
+{
+  "mode": "live_application_spark",
+  "state": "completed_negative_result",
+  "date": "2026-10-28",
+  "approval": "O-11 application live data flow approved by user go-ahead to the reviewed plan",
+  "model": "muse-spark-1.3-contributor",
+  "endpoint": "https://api.meta.ai/v1/chat/completions",
+  "flow": ["project_created", "live_spec_saved", "live_discussion_done", "approved", "run_started", "fresh_reuse_done"],
+  "spec": {"version": 2, "mode": "live", "budget_usd": 5},
+  "job": {
+    "status": "completed",
+    "live": true,
+    "simulated_usage": false,
+    "improved": false,
+    "retained": "base",
+    "checks": {
+      "base": {"dev-sample-01": false, "dev-sample-02": false},
+      "selected_dev": {"dev-sample-01": false, "dev-sample-02": false},
+      "heldout": {"heldout-sample-01": false, "heldout-sample-02": false}
+    },
+    "executions_this_invocation": 14,
+    "usage": {
+      "settled_calls": 117,
+      "spent_usd": 0.026845888,
+      "per_role": {
+        "orchestrator": {"input_tokens": 21, "output_tokens": 125, "spent_usd": 0.0000271},
+        "improver": {"input_tokens": 539556, "output_tokens": 44357, "spent_usd": 0.024465488},
+        "worker": {"input_tokens": 1067, "output_tokens": 11233, "spent_usd": 0.0023533}
+      }
+    },
+    "usage_basis": "live Spark usage at verified Contributor list prices; not provider billing"
+  },
+  "fresh_reuse": {"mode": "live", "accepted": false, "errors": ["objects or pixel boxes do not match controller truth"]},
+  "ledger_before": {"spent_usd": 0.009337338, "remaining_usd": 19.990662662, "settled_calls": 35, "unknown_count": 0},
+  "ledger_after": {"spent_usd": 0.036492926, "remaining_usd": 19.963507074, "settled_calls": 154, "reserved_usd": 0.0, "unknown_count": 0},
+  "finding": "Live discussion, preflight, improver sessions and image worker calls all executed and reconciled. Neither the base nor the improved harness produced pixel-accurate boxes on the synthetic demo, so the base harness was retained and held-out/fresh checks failed visibly. Live precise-localization capability is not established.",
+  "containers_left": 0,
+  "cost_basis": "provider token usage at verified Contributor list prices; not an invoice"
+}
