@@ -1,0 +1,88 @@
+{
+  "trials": 5,
+  "adaptation_count": 3,
+  "chat_calls": {
+    "worker": 2720,
+    "improver": 90,
+    "reflection": 15
+  },
+  "tool_calls_live": {
+    "segment": 85,
+    "transcribe": 84
+  },
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 12600,
+        "output_tokens": 3360,
+        "spent_usd": 0.001932
+      },
+      "worker": {
+        "input_tokens": 326400,
+        "output_tokens": 87040,
+        "spent_usd": 0.050048
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.2245721
+      }
+    },
+    "per_phase": {
+      "worker/execute": {
+        "settled_calls": 2720,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.050048
+      },
+      "tool/transcribe": {
+        "settled_calls": 84,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0120721
+      },
+      "tool/segment": {
+        "settled_calls": 85,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.2125
+      },
+      "improver/improvement": {
+        "settled_calls": 90,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.001656
+      },
+      "improver/reflection": {
+        "settled_calls": 15,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.000276
+      }
+    },
+    "settled_calls": 2994,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.2765521
+  },
+  "criterion": {
+    "wins": 5,
+    "passed": true
+  },
+  "final_test": {
+    "base_mean": 0.1,
+    "gains": {
+      "voicecount-b3a8d26f13a440c6b8f4cec83345c0b6-1": 0.875,
+      "voicecount-b3a8d26f13a440c6b8f4cec83345c0b6-2": 0.875,
+      "voicecount-b3a8d26f13a440c6b8f4cec83345c0b6-3": 0.875,
+      "voicecount-b3a8d26f13a440c6b8f4cec83345c0b6-4": 0.875,
+      "voicecount-b3a8d26f13a440c6b8f4cec83345c0b6-5": 0.875
+    },
+    "executions": 240
+  }
+}

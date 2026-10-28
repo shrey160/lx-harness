@@ -1,0 +1,78 @@
+{
+  "dataset_sha256": "b306c42f11c867c6746ba9202dcd4208884610d836edcff5a1322460e4fa2146",
+  "experiment_sha256": "129449c2299be3acd8b38e1946c6ecd1039761c3e5fdf2327c6750d2eb0e779c",
+  "splits": {
+    "loop": {
+      "items": 40,
+      "regions": {
+        "whole": 28,
+        "bottom": 3,
+        "right": 3,
+        "left": 3,
+        "top": 3
+      },
+      "count_min": 10,
+      "count_median": 35,
+      "count_max": 120,
+      "classes": 31
+    },
+    "verify": {
+      "items": 5,
+      "regions": {
+        "whole": 4,
+        "left": 1
+      },
+      "count_min": 11,
+      "count_median": 29,
+      "count_max": 61,
+      "classes": 5
+    },
+    "test": {
+      "items": 40,
+      "regions": {
+        "whole": 28,
+        "top": 7,
+        "bottom": 2,
+        "right": 2,
+        "left": 1
+      },
+      "count_min": 10,
+      "count_median": 29,
+      "count_max": 117,
+      "classes": 25
+    },
+    "calibration": {
+      "items": 20,
+      "regions": {
+        "whole": 15,
+        "right": 2,
+        "bottom": 1,
+        "top": 1,
+        "left": 1
+      },
+      "count_min": 12,
+      "count_median": 28,
+      "count_max": 108,
+      "classes": 14
+    }
+  },
+  "files": {
+    "worker_inputs/manifest.json": "1116446af702b24e9ccad517a884bf749f28c85f7e27fa17a0fe76ffe91aa6cc",
+    "controller_truth/ground_truth.json": "2be494e20791d6fe4576ba14c27f96aefae5d7e21308d64a1845801441f89740",
+    "controller_truth/scripts.json": "e450cc01f1798aa0375917d4136d1f56698fbc6fdc24dba95512325c7bd80ec3",
+    "controller_truth/points.json": "aa38e6981083e355e753f76929b82d0b097cdc3d7038dadb93471aa3bc4329a4",
+    "controller_truth/media.json": "572467a3656d34089f47f166255df2ac7cd7f4e917208f8374f1f864a97f49eb",
+    "controller_truth/dataset.json": "39a134132f242ec33440ede0b51884810c1d1a5a0c9fc9bbfe365d008f1da97d"
+  },
+  "downloads": {
+    "fsc147/ImageClasses_FSC147.txt": "ba1bc6c6a21875919625adb851eaee1aab0ad1f88ecf64d017bebda891b5815e",
+    "fsc147/LICENSE": "42b158869d183025cd0be54ae50e00056bac02aff845d3029ffd0afa9f79c6c5",
+    "fsc147/README.md": "17ffb7080dfb4fc7e436c2ba98b0f34ba682a7f3a850a613f947eff0f20c9d88",
+    "fsc147/Train_Test_Val_FSC_147.json": "e281e2d9118cd9ae6f5a2852006b6a24e7a7ea5605d9a6e0fa946dcf93308271",
+    "fsc147/annotation_FSC147_384.json": "6a1d0f43d12274219a5307cb35b24c85fb275a34b3d5acf5b67f2066f9e0bfe1",
+    "fsc147/images.zip": "4f9eff24c39f956d614abdb8888f9f7ae84cce92f81842e4159de45cd54d965f",
+    "kokoro/kokoro-v1.0.int8.onnx": "6e742170d309016e5891a994e1ce1559c702a2ccd0075e67ef7157974f6406cb",
+    "kokoro/voices-v1.0.bin": "bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d"
+  },
+  "note": "Media and truth stay local under main_LX/.lx (gitignored); hashes pin them."
+}
