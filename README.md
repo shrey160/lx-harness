@@ -10,6 +10,21 @@ application defaults to a **controlled preview**: its discussion/worker/improver
 are predetermined and never load credentials or spend credits. Application
 live flow (O-11) was approved 28 Oct 2026 and executed: a spec saved with mode `live` runs real Spark calls after spec/data/budget/Contributor approval under the shared $20 ledger. First live result was honestly negative (no pixel-accurate boxes; base retained). See `evidence/2026-10-28-live-app/live-report.json`.
 
+## Get the code (two repos, side by side)
+
+This app depends on the sibling core repository; clone both under these
+exact folder names so the relative dependency path resolves:
+
+```bash
+git clone https://github.com/shrey160/lx-harness.git main_LX
+git clone https://github.com/shrey160/harness2-portable-core.git harness2_portable_core
+```
+
+Third-party disclosure: the core repo vendors a pinned copy of the
+harness2-cli engine (Apache-2.0; provenance in its `UPSTREAM.md`). That
+engine is pre-existing third-party code, not part of this project's own
+implementation.
+
 ## Open the app
 
 Inside WSL, from this repository:
