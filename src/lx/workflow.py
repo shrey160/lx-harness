@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import copy
 import hashlib
+import inspect
 import json
 from pathlib import Path, PurePosixPath
 
@@ -93,12 +94,15 @@ class PreviewTransport:
 
 
 class ImagesAdapter:
-    def __init__(self, snapshot, output, client, *, mode="controlled_preview"):
+    def __init__(self, snapshot, output, client, *, mode="controlled_preview", domain=None, truth=None):
         self.mode = mode
+        self.domain, self.truth = domain, truth
+        verifier = domain.verify if domain else verify_output
+        self.verifier_identity = hashlib.sha256(inspect.getsource(inspect.getmodule(verifier)).encode()).hexdigest()
         from harness2.core.spec import BenchSpec, BenchPrompts, ChannelSpec
         from harness2.substrate.opencode import OpencodeSubstrate
         from harness2.core import tree
-        self.input_root, self.samples = samples_from(snapshot)
+        self.input_root, self.samples = (domain.samples_from(snapshot) if domain else samples_from(snapshot))
         self.by_id = {s["sample_id"]: s for s in self.samples}
         self.root, self.client = Path(output), client
         self.substrate = OpencodeSubstrate()
@@ -108,11 +112,16 @@ class ImagesAdapter:
                 deliverable_word="structured JSON", selection_checks="Check pixel-edge conventions and exact transcript text."),
             channels={"proposer": ChannelSpec("opencode", "muse-spark-1.3-contributor", timeout=180),
                       "selector": ChannelSpec("opencode", "muse-spark-1.3-contributor", timeout=180)})
+        if domain:
+            from dataclasses import replace
+            self.spec = replace(self.spec, name=domain.name, prompts=domain.prompts())
         base = {name: "" for name in self.substrate.surface().always_on}
-        base["systemprompt.md"] = BASE_PROMPT
+        base["systemprompt.md"] = domain.base_prompt if domain else BASE_PROMPT
         if not self.base_harness().exists():
             tree.write_tree(self.substrate.surface(), base, self.base_harness(), stubs=False)
         for sample in self.samples:
+            if sample["split"] != "dev":
+                continue
             source = self.task_files(sample["sample_id"])
             source.mkdir(parents=True, exist_ok=True)
             # Only textual metadata is staged for the improver. Vision input stays in
@@ -123,8 +132,9 @@ class ImagesAdapter:
     def tasks(self, split="all"):
         return [s["sample_id"] for s in self.samples if split == "all" or s["split"] == split]
 
-    def domain_of(self, task): return "visual-annotation"
-    def task_prompt(self, task): return "Describe every colored shape with a color_shape label and pixel box; preserve the supplied transcript exactly."
+    def domain_of(self, task): return self.domain.name if self.domain else "visual-annotation"
+    def task_prompt(self, task):
+        return self.domain.task_prompt if self.domain else "Describe every colored shape with a color_shape label and pixel box; preserve the supplied transcript exactly."
     def task_files(self, task): return self.root/"sources"/task
     def base_harness(self): return self.root/"base"
 
@@ -137,8 +147,17 @@ class ImagesAdapter:
 
     def _identity(self, task, harness):
         sample = self.by_id[task]
-        prompt = ((harness or self.base_harness())/"systemprompt.md").read_text()
-        identity = {"sample": sample, "prompt": prompt, "mode": self.mode, "image_sha256": hashlib.sha256(sample_path(self.input_root, sample["image"]).read_bytes()).hexdigest()}
+        # Fingerprint the whole editable surface, not just systemprompt.md.
+        from harness2.core import tree
+        content = tree.read_tree(self.substrate.surface(), harness or self.base_harness())
+        identity = {"sample": sample, "harness": content, "mode": self.mode, "domain": self.domain_of(task),
+                    "task_contract": self.task_prompt(task),
+                    "worker_protocol": "lx-instructions-v2",
+                    "message_builder": inspect.getsource(self.domain.messages) if self.domain else "images-v2",
+                    "verifier_sha256": self.verifier_identity,
+                    "truth_sha256": hashlib.sha256(json.dumps(self.truth[task], sort_keys=True).encode()).hexdigest() if self.truth else None}
+        if not self.domain:
+            identity["image_sha256"] = hashlib.sha256(sample_path(self.input_root, sample["image"]).read_bytes()).hexdigest()
         return hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
 
     def execute(self, task, harness_dir, run_id, *, timeout=None):
@@ -150,17 +169,29 @@ class ImagesAdapter:
                 return run
         run.mkdir(parents=True, exist_ok=True)
         sample = self.by_id[task]
-        prompt = ((harness_dir or self.base_harness())/"systemprompt.md").read_text()
-        encoded = base64.b64encode(sample_path(self.input_root, sample["image"]).read_bytes()).decode()
-        message, usage = self.client.chat([
-            {"role": "developer", "content": "LX_WORKER\n"+prompt},
-            {"role": "user", "content": [{"type": "text", "text": json.dumps({"sample_id": task, "transcript": sample["transcript"], "image_size": [96,64]})},
-                {"type": "image_url", "image_url": {"url": "data:image/png;base64,"+encoded}}]}],
+        from harness2.core import tree
+        harness = tree.read_tree(self.substrate.surface(), harness_dir or self.base_harness())
+        prompt = "\n\n".join(f"{name}\n{body}" for name, body in sorted(harness.items()) if body.strip())
+        if self.domain:
+            messages = self.domain.messages(sample, prompt)
+        else:
+            encoded = base64.b64encode(sample_path(self.input_root, sample["image"]).read_bytes()).decode()
+            messages = [
+                {"role": "developer", "content": "LX_WORKER\n"+prompt},
+                {"role": "user", "content": [{"type": "text", "text": json.dumps({"sample_id": task, "transcript": sample["transcript"], "image_size": [96,64]})},
+                    {"type": "image_url", "image_url": {"url": "data:image/png;base64,"+encoded}}]}]
+        message, usage = self.client.chat(messages,
             role="worker", phase="execute", candidate=run_id, timeout=timeout or 90)
         content = message["content"].strip()
         if content.startswith("```"):
             content = "\n".join(content.splitlines()[1:-1])
-        answer = json.loads(content)
+        try:
+            def reject_constant(value):
+                raise ValueError("Nonfinite JSON number")
+            answer = json.loads(content, parse_constant=reject_constant)
+        except ValueError:
+            # An invalid answer is a failed item, not an omitted denominator.
+            answer = content
         (run/"answer.json").write_text(json.dumps(answer, allow_nan=False))
         (run/"execution.json").write_text(json.dumps({"task": task, "identity": identity,
             "harness": str(harness_dir) if harness_dir else None, "answer_sha256": hashlib.sha256((run/"answer.json").read_bytes()).hexdigest(),
@@ -180,49 +211,77 @@ class ImagesAdapter:
     def delivered(self, run): return (run/"answer.json").is_file()
     def deliverable_text(self, run): return (run/"answer.json").read_text()
     def deliverable_files(self, run): return {"answer.json": self.deliverable_text(run)}
-    def trajectory(self, run, *, obs_trunc): return "[ACTION] Image and transcript request\n[OBSERVATION]\n"+self.deliverable_text(run)
-    def score(self, run, task): return None
+    def trajectory(self, run, *, obs_trunc): return "[ACTION] Structured output request\n[OBSERVATION]\n"+self.deliverable_text(run)
+    def verify(self, task, answer):
+        return (self.domain.verify if self.domain else verify_output)(self.truth[task], answer)
+
+    def score(self, run, task):
+        if self.truth is None:
+            raise ValueError("Controller truth is required for independent grading")
+        result = self.verify(task, json.loads(self.deliverable_text(run)))
+        return {"n_passed": getattr(result, "n_passed", int(result.accepted)),
+                "n_criteria": getattr(result, "n_criteria", 1), "all_pass": result.accepted}
 
 
 def optimize_preview(snapshot, output, client, truth, spec, *, live=False):
+    adapter = ImagesAdapter(snapshot, output, client, mode="live" if live else "controlled_preview", truth=truth)
+    return optimize_adapter(adapter, output, client, spec, live=live)
+
+
+def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_count=None):
+    """Blind core adaptation, then controller-side mean-dev retention and evaluation."""
     from harness2.core.schedule import Namespace, run_domain
     from harness2.core import tree
-    adapter = ImagesAdapter(snapshot, output, client, mode="live" if live else "controlled_preview")
     proposer = SparkProposer(client, Path(output)/"proposer_audit")
     reflector = SparkProposer(client, Path(output)/"reflector_audit")
     dev = adapter.tasks("dev")
     if not dev or not adapter.tasks("heldout"):
-        raise ValueError("The demo needs separate dev and held-out source scenes")
-    result = run_domain("visual-annotation", dev, 1, adapter=adapter, prop=proposer,
+        raise ValueError("Separate development and held-out samples are required")
+    if adaptation_count is not None and (type(adaptation_count) is not int or not 1 <= adaptation_count <= len(dev)):
+        raise ValueError("Invalid adaptation item count")
+    practice = dev[:adaptation_count] if adaptation_count is not None else dev
+    result = run_domain(adapter.domain_of(dev[0]), practice, 1, adapter=adapter, prop=proposer,
         runs_root=adapter.spec.runs_root, library_root=Path(output)/"library", modes=("seq",), reflector_prop=reflector)
-    if result["done"] != len(dev):
+    if result["done"] != len(practice):
         raise ValueError("Improvement run did not complete; last working harness is retained")
     selected = []
-    for task in dev:
+    for task in practice:
         summary = json.loads((Namespace(adapter.spec.name, adapter.substrate.name, "agg", 1).task_dir(adapter.spec.runs_root,task)/"summary.json").read_text())
         selected.append(summary["selections"]["seq"])
-    final_dir = Namespace(adapter.spec.name, adapter.substrate.name, "seq", 1).task_dir(adapter.spec.runs_root,dev[-1])/"harnesses"/selected[-1]["chosen_label"]
+    final_dir = Namespace(adapter.spec.name, adapter.substrate.name, "seq", 1).task_dir(adapter.spec.runs_root,practice[-1])/"harnesses"/selected[-1]["chosen_label"]
     package = Path(output)/"package"
     package.mkdir(exist_ok=True)
     tree.write_tree(adapter.substrate.surface(), tree.read_tree(adapter.substrate.surface(),final_dir), package/"harness", stubs=False)
+    frozen = Path(output)/"frozen-candidate"
+    tree.write_tree(adapter.substrate.surface(), tree.read_tree(adapter.substrate.surface(),final_dir), frozen, stubs=False)
     checks = {"base": {}, "selected_dev": {}, "heldout": {}}
+    scores = {name: {} for name in ("base_dev", "candidate_dev", "base_heldout", "candidate_heldout", "retained_heldout")}
+    def evaluate(task, harness, run_id):
+        run = adapter.execute(task, harness, run_id)
+        checked = adapter.verify(task, json.loads(adapter.deliverable_text(run)))
+        return checked, getattr(checked, "score", float(checked.accepted))
     for task in dev:
-        base = adapter.execute(task, None, "independent/base/"+task)
-        candidate = adapter.execute(task, package/"harness", "independent/final/"+task)
-        checks["base"][task] = verify_output(truth[task], json.loads(adapter.deliverable_text(base))).accepted
-        checks["selected_dev"][task] = verify_output(truth[task], json.loads(adapter.deliverable_text(candidate))).accepted
-    improved = sum(checks["selected_dev"].values()) > sum(checks["base"].values())
+        base, scores["base_dev"][task] = evaluate(task, None, "independent/base/"+task)
+        candidate, scores["candidate_dev"][task] = evaluate(task, frozen, "independent/final/"+task)
+        checks["base"][task], checks["selected_dev"][task] = base.accepted, candidate.accepted
+    mean = lambda values: sum(values.values())/len(values)
+    improved = mean(scores["candidate_dev"]) > mean(scores["base_dev"])
+    # Freeze the candidate before opening held-out evaluation. Held-out grades
+    # never affect retention and never enter proposer/selector contexts.
     if not improved:
         tree.write_tree(adapter.substrate.surface(), tree.read_tree(adapter.substrate.surface(),adapter.base_harness()), package/"harness", stubs=False)
     for task in adapter.tasks("heldout"):
-        run = adapter.execute(task, package/"harness", "heldout/"+task)
-        checks["heldout"][task] = verify_output(truth[task], json.loads(adapter.deliverable_text(run))).accepted
+        base, scores["base_heldout"][task] = evaluate(task, None, "heldout/base/"+task)
+        candidate, scores["candidate_heldout"][task] = evaluate(task, frozen, "heldout/candidate/"+task)
+        checks["heldout"][task] = candidate.accepted if improved else base.accepted
+        scores["retained_heldout"][task] = scores["candidate_heldout" if improved else "base_heldout"][task]
     report = {"mode": "live" if live else "controlled_preview", "live": live, "simulated_usage": not live, "improved": improved,
-        "checks": checks, "retained": "candidate" if improved else "base", "limitations": ([
-            "Four synthetic scenes only; live Spark result for this bounded demo.",
+        "checks": checks, "scores": scores, "means": {name: mean(values) for name, values in scores.items()},
+        "adaptation_tasks": practice, "retention_basis": "mean development score only; strict gain required", "retained": "candidate" if improved else "base", "limitations": ([
+            "Synthetic task only; results do not establish general capability.",
             "Computed list-price cost from reported usage; not provider billing."] if live else [
             "Deterministic provider double; these gains do not establish model capability.",
-            "Four synthetic scenes only; live application calls await approval."]), "spec": spec,
+            "Synthetic task only; preview results cannot establish live capability."]), "spec": spec,
         "executions_this_invocation": adapter.executions}
     (package/"result.json").write_text(json.dumps(report, indent=2))
     (package/"spec.json").write_text(json.dumps(spec, indent=2))

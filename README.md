@@ -74,6 +74,12 @@ approved O-11 flow. The rejected generic application transport was not added.
 
 ## Offline setup and checks
 
+PROD-002 adds a text-only synthetic order-normalization domain, strict graded
+field checks and a five-trial offline runner. See [records contract](docs/records-contract.md).
+The truth-blind no-op preview checks the plumbing and records zero gains; it is
+not capability evidence. Live base-only calibration is [prepared for separate
+approval](docs/records-calibration-review.md); five live trials remain disabled.
+
 Use Python 3.12 or 3.13 inside WSL/Linux with the existing Docker setup.
 Keep this repository beside `harness2_portable_core/`.
 

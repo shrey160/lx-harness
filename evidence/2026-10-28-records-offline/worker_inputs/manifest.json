@@ -1,0 +1,364 @@
+{
+  "samples": [
+    {
+      "sample_id": "dev-order-0001",
+      "source_id": "dev-source-0001",
+      "split": "dev",
+      "text": "Order LX-26247078 | buyer=EMIL LAKE | placed 04 May 2024 | total USD 7,890.14 | phone 202.555.0100 | labels Fragile / GIFT."
+    },
+    {
+      "sample_id": "dev-order-0002",
+      "source_id": "dev-source-0002",
+      "split": "dev",
+      "text": "Please process LX-69369603. Customer: KAVI DAWN. Date of order: 12 December 2024. Charge EUR 6,608.93. Contact: 202.555.0101. Notes: Gift / Fragile / gift."
+    },
+    {
+      "sample_id": "dev-order-0003",
+      "source_id": "dev-source-0003",
+      "split": "dev",
+      "text": "[LX-52258144]   iris cove  ordered on 16 April 2026; payment was USD 8,992.94. Reach them at +1 (202) 555-0102. Categories: FRAGILE."
+    },
+    {
+      "sample_id": "dev-order-0004",
+      "source_id": "dev-source-0004",
+      "split": "dev",
+      "text": "Ref LX-75383291\nName ->   theo wren \nPurchase date -> 01 June 2021\nPaid -> USD 3,502.32\nTel -> +1 (202) 555-0103\nFlags -> backorder / Subscription / FRAGILE / Backorder"
+    },
+    {
+      "sample_id": "dev-order-0005",
+      "source_id": "dev-source-0005",
+      "split": "dev",
+      "text": "Order LX-40734244 | buyer=Talia   Fox | placed 05 August 2025 | total EUR 9,827.79 | phone +1-202-555-0104 | labels SUBSCRIPTION."
+    },
+    {
+      "sample_id": "dev-order-0006",
+      "source_id": "dev-source-0006",
+      "split": "dev",
+      "text": "Please process LX-93984122. Customer:   sana pike . Date of order: 29 December 2026. Charge INR 998.79. Contact: +1-202-555-0105. Notes: Backorder / backorder."
+    },
+    {
+      "sample_id": "dev-order-0007",
+      "source_id": "dev-source-0007",
+      "split": "dev",
+      "text": "[LX-78156310] Mira   Solis ordered on 15 March 2025; payment was INR 361.48. Reach them at +1 (202) 555-0106. Categories: Subscription / Backorder."
+    },
+    {
+      "sample_id": "dev-order-0008",
+      "source_id": "dev-source-0008",
+      "split": "dev",
+      "text": "Ref LX-70225623\nName ->   emil lake \nPurchase date -> 03 October 2026\nPaid -> INR 6,989.79\nTel -> 202.555.0107\nFlags -> GIFT / gift"
+    },
+    {
+      "sample_id": "dev-order-0009",
+      "source_id": "dev-source-0009",
+      "split": "dev",
+      "text": "Order LX-88438881 | buyer=SANA PIKE | placed 30 December 2023 | total USD 4,541.84 | phone 202.555.0108 | labels Subscription."
+    },
+    {
+      "sample_id": "dev-order-0010",
+      "source_id": "dev-source-0010",
+      "split": "dev",
+      "text": "Please process LX-87538405. Customer: Remy   Stone. Date of order: 29 October 2026. Charge INR 199.41. Contact: +1-202-555-0109. Notes: Backorder / PRIORITY / GIFT."
+    },
+    {
+      "sample_id": "dev-order-0011",
+      "source_id": "dev-source-0011",
+      "split": "dev",
+      "text": "[LX-72499706] OMAR FINCH ordered on 01 June 2024; payment was INR 5,513.81. Reach them at +1-202-555-0110. Categories: FRAGILE / Wholesale / Gift / wholesale."
+    },
+    {
+      "sample_id": "dev-order-0012",
+      "source_id": "dev-source-0012",
+      "split": "dev",
+      "text": "Ref LX-53654014\nName -> IVO REED\nPurchase date -> 03 January 2026\nPaid -> EUR 1,878.42\nTel -> +1 (202) 555-0111\nFlags -> Wholesale / Backorder / GIFT"
+    },
+    {
+      "sample_id": "dev-order-0013",
+      "source_id": "dev-source-0013",
+      "split": "dev",
+      "text": "Order LX-48649478 | buyer=LENA MOSS | placed 12 September 2021 | total EUR 880.84 | phone +1-202-555-0112 | labels WHOLESALE / Backorder / SUBSCRIPTION / backorder."
+    },
+    {
+      "sample_id": "dev-order-0014",
+      "source_id": "dev-source-0014",
+      "split": "dev",
+      "text": "Please process LX-28879486. Customer:   rhea quinn . Date of order: 01 March 2023. Charge INR 2,704.34. Contact: 202.555.0113. Notes: Wholesale."
+    },
+    {
+      "sample_id": "dev-order-0015",
+      "source_id": "dev-source-0015",
+      "split": "dev",
+      "text": "[LX-71373435] Cleo   Hart ordered on 01 October 2021; payment was INR 1,144.75. Reach them at not provided. Categories: FRAGILE / GIFT / wholesale / Wholesale."
+    },
+    {
+      "sample_id": "dev-order-0016",
+      "source_id": "dev-source-0016",
+      "split": "dev",
+      "text": "Ref LX-91306011\nName ->   cleo hart \nPurchase date -> 26 April 2024\nPaid -> EUR 10.99\nTel -> +1-202-555-0115\nFlags -> Wholesale / SUBSCRIPTION / Priority"
+    },
+    {
+      "sample_id": "dev-order-0017",
+      "source_id": "dev-source-0017",
+      "split": "dev",
+      "text": "Order LX-46582911 | buyer=Omar   Finch | placed 09 November 2026 | total INR 9,420.94 | phone +1 (202) 555-0116 | labels FRAGILE / GIFT."
+    },
+    {
+      "sample_id": "dev-order-0018",
+      "source_id": "dev-source-0018",
+      "split": "dev",
+      "text": "Please process LX-46343601. Customer:   niko vale . Date of order: 24 December 2021. Charge INR 1,614.08. Contact: 202.555.0117. Notes: FRAGILE / SUBSCRIPTION / BACKORDER."
+    },
+    {
+      "sample_id": "dev-order-0019",
+      "source_id": "dev-source-0019",
+      "split": "dev",
+      "text": "[LX-69266335] IRIS COVE ordered on 04 June 2025; payment was USD 9,572.11. Reach them at 202.555.0118. Categories: Gift / FRAGILE / Backorder / gift."
+    },
+    {
+      "sample_id": "dev-order-0020",
+      "source_id": "dev-source-0020",
+      "split": "dev",
+      "text": "Ref LX-24788851\nName -> Iris   Cove\nPurchase date -> 06 April 2024\nPaid -> EUR 229.25\nTel -> +1 (202) 555-0119\nFlags -> BACKORDER"
+    },
+    {
+      "sample_id": "heldout-order-0001",
+      "source_id": "heldout-source-0001",
+      "split": "heldout",
+      "text": "Fulfillment slip #LX-33438915: account holder DEV ROWAN; submitted 28 December 2023; collected INR 6,435.62; callback 202.555.0147; markers FRAGILE / Backorder."
+    },
+    {
+      "sample_id": "heldout-order-0002",
+      "source_id": "heldout-source-0002",
+      "split": "heldout",
+      "text": "Record LX-66736284 — 22 November 2022 / Ezra   Bloom / gross EUR 7,688.72 / dial +1-202-555-0148 / keywords Fragile / SUBSCRIPTION."
+    },
+    {
+      "sample_id": "heldout-order-0003",
+      "source_id": "heldout-source-0003",
+      "split": "heldout",
+      "text": "Ship request LX-64245011. Buyer name is Talia   Fox; the purchase day is 01 July 2023; tender INR 8,860.93; ring not provided; labels=Fragile."
+    },
+    {
+      "sample_id": "heldout-order-0004",
+      "source_id": "heldout-source-0004",
+      "split": "heldout",
+      "text": "<LX-24241325>\nClient ::   iris cove \nBooked :: 13 July 2024\nValue :: EUR 248.62\nNumber :: +1 (202) 555-0150\nKeywords :: Fragile / Wholesale / Priority"
+    },
+    {
+      "sample_id": "heldout-order-0005",
+      "source_id": "heldout-source-0005",
+      "split": "heldout",
+      "text": "Fulfillment slip #LX-69906136: account holder Ezra   Bloom; submitted 24 January 2024; collected USD 9,848.92; callback 202.555.0151; markers PRIORITY / Subscription / Wholesale."
+    },
+    {
+      "sample_id": "heldout-order-0006",
+      "source_id": "heldout-source-0006",
+      "split": "heldout",
+      "text": "Record LX-27815257 — 17 October 2024 /   dev rowan  / gross USD 7,159.17 / dial +1-202-555-0152 / keywords Gift."
+    },
+    {
+      "sample_id": "heldout-order-0007",
+      "source_id": "heldout-source-0007",
+      "split": "heldout",
+      "text": "Ship request LX-32725062. Buyer name is Mira   Solis; the purchase day is 06 June 2022; tender INR 7,930.26; ring not provided; labels=BACKORDER / Subscription / WHOLESALE."
+    },
+    {
+      "sample_id": "heldout-order-0008",
+      "source_id": "heldout-source-0008",
+      "split": "heldout",
+      "text": "<LX-43327662>\nClient :: Rhea   Quinn\nBooked :: 23 October 2022\nValue :: EUR 347.70\nNumber :: 202.555.0154\nKeywords :: Priority / Wholesale / GIFT"
+    },
+    {
+      "sample_id": "heldout-order-0009",
+      "source_id": "heldout-source-0009",
+      "split": "heldout",
+      "text": "Fulfillment slip #LX-55371828: account holder Asha   Bell; submitted 11 June 2022; collected INR 6,017.71; callback not provided; markers BACKORDER / Subscription / Priority."
+    },
+    {
+      "sample_id": "heldout-order-0010",
+      "source_id": "heldout-source-0010",
+      "split": "heldout",
+      "text": "Record LX-18411728 — 30 March 2022 / Theo   Wren / gross USD 7,490.73 / dial not provided / keywords Wholesale / Backorder / wholesale."
+    },
+    {
+      "sample_id": "heldout-order-0011",
+      "source_id": "heldout-source-0011",
+      "split": "heldout",
+      "text": "Ship request LX-66849005. Buyer name is KAVI DAWN; the purchase day is 23 January 2022; tender EUR 9,108.73; ring +1 (202) 555-0157; labels=subscription / SUBSCRIPTION."
+    },
+    {
+      "sample_id": "heldout-order-0012",
+      "source_id": "heldout-source-0012",
+      "split": "heldout",
+      "text": "<LX-85923654>\nClient :: Nia   Frost\nBooked :: 19 March 2022\nValue :: USD 6,223.83\nNumber :: +1 (202) 555-0158\nKeywords :: FRAGILE / PRIORITY"
+    },
+    {
+      "sample_id": "heldout-order-0013",
+      "source_id": "heldout-source-0013",
+      "split": "heldout",
+      "text": "Fulfillment slip #LX-39195380: account holder Rhea   Quinn; submitted 06 January 2025; collected INR 3,894.86; callback +1 (202) 555-0159; markers WHOLESALE."
+    },
+    {
+      "sample_id": "heldout-order-0014",
+      "source_id": "heldout-source-0014",
+      "split": "heldout",
+      "text": "Record LX-72133049 — 06 August 2024 / Omar   Finch / gross EUR 9,153.15 / dial 202.555.0160 / keywords WHOLESALE / Priority."
+    },
+    {
+      "sample_id": "heldout-order-0015",
+      "source_id": "heldout-source-0015",
+      "split": "heldout",
+      "text": "Ship request LX-94201109. Buyer name is Remy   Stone; the purchase day is 10 December 2021; tender EUR 1,760.34; ring not provided; labels=Gift / SUBSCRIPTION."
+    },
+    {
+      "sample_id": "heldout-order-0016",
+      "source_id": "heldout-source-0016",
+      "split": "heldout",
+      "text": "<LX-27786321>\nClient :: THEO WREN\nBooked :: 29 February 2024\nValue :: INR 1,904.72\nNumber :: not provided\nKeywords :: Priority / Subscription / FRAGILE"
+    },
+    {
+      "sample_id": "heldout-order-0017",
+      "source_id": "heldout-source-0017",
+      "split": "heldout",
+      "text": "Fulfillment slip #LX-30760992: account holder   zara north ; submitted 20 May 2021; collected USD 7,197.32; callback not provided; markers Gift / gift / FRAGILE / SUBSCRIPTION."
+    },
+    {
+      "sample_id": "heldout-order-0018",
+      "source_id": "heldout-source-0018",
+      "split": "heldout",
+      "text": "Record LX-45891966 — 23 September 2025 / THEO WREN / gross USD 8,636.39 / dial not provided / keywords Fragile."
+    },
+    {
+      "sample_id": "heldout-order-0019",
+      "source_id": "heldout-source-0019",
+      "split": "heldout",
+      "text": "Ship request LX-81668091. Buyer name is Asha   Bell; the purchase day is 05 June 2026; tender USD 5,171.86; ring +1 (202) 555-0165; labels=Wholesale / Fragile."
+    },
+    {
+      "sample_id": "heldout-order-0020",
+      "source_id": "heldout-source-0020",
+      "split": "heldout",
+      "text": "<LX-34674056>\nClient :: Talia   Fox\nBooked :: 04 August 2024\nValue :: EUR 6,817.00\nNumber :: not provided\nKeywords :: GIFT / Subscription"
+    },
+    {
+      "sample_id": "heldout-order-0021",
+      "source_id": "heldout-source-0021",
+      "split": "heldout",
+      "text": "Fulfillment slip #LX-89508564: account holder   kavi dawn ; submitted 14 October 2023; collected EUR 9,655.09; callback 202.555.0167; markers Fragile / Gift / gift."
+    },
+    {
+      "sample_id": "heldout-order-0022",
+      "source_id": "heldout-source-0022",
+      "split": "heldout",
+      "text": "Record LX-78696555 — 11 February 2022 / SANA PIKE / gross USD 1,682.44 / dial not provided / keywords PRIORITY."
+    },
+    {
+      "sample_id": "heldout-order-0023",
+      "source_id": "heldout-source-0023",
+      "split": "heldout",
+      "text": "Ship request LX-25688421. Buyer name is   sana pike ; the purchase day is 03 January 2026; tender EUR 1,687.03; ring +1 (202) 555-0169; labels=priority / Priority."
+    },
+    {
+      "sample_id": "heldout-order-0024",
+      "source_id": "heldout-source-0024",
+      "split": "heldout",
+      "text": "<LX-15821707>\nClient ::   dev rowan \nBooked :: 18 March 2026\nValue :: USD 5,535.84\nNumber :: +1-202-555-0170\nKeywords :: Subscription"
+    },
+    {
+      "sample_id": "heldout-order-0025",
+      "source_id": "heldout-source-0025",
+      "split": "heldout",
+      "text": "Fulfillment slip #LX-72534346: account holder   remy stone ; submitted 24 September 2023; collected USD 3,617.85; callback +1 (202) 555-0171; markers Gift / gift / Backorder / Subscription."
+    },
+    {
+      "sample_id": "heldout-order-0026",
+      "source_id": "heldout-source-0026",
+      "split": "heldout",
+      "text": "Record LX-14329441 — 09 January 2021 /   dev rowan  / gross USD 267.43 / dial +1-202-555-0172 / keywords GIFT."
+    },
+    {
+      "sample_id": "heldout-order-0027",
+      "source_id": "heldout-source-0027",
+      "split": "heldout",
+      "text": "Ship request LX-19469677. Buyer name is Arun   Snow; the purchase day is 26 August 2022; tender USD 1,311.20; ring +1 (202) 555-0173; labels=WHOLESALE / Priority / Subscription."
+    },
+    {
+      "sample_id": "heldout-order-0028",
+      "source_id": "heldout-source-0028",
+      "split": "heldout",
+      "text": "<LX-15829105>\nClient ::   zara north \nBooked :: 08 January 2024\nValue :: USD 3,340.61\nNumber :: +1-202-555-0174\nKeywords :: Backorder / Gift / WHOLESALE"
+    },
+    {
+      "sample_id": "heldout-order-0029",
+      "source_id": "heldout-source-0029",
+      "split": "heldout",
+      "text": "Fulfillment slip #LX-46343376: account holder   nia frost ; submitted 07 August 2024; collected USD 2,218.61; callback not provided; markers FRAGILE / BACKORDER."
+    },
+    {
+      "sample_id": "heldout-order-0030",
+      "source_id": "heldout-source-0030",
+      "split": "heldout",
+      "text": "Record LX-80877438 — 09 March 2021 / RHEA QUINN / gross EUR 8,856.58 / dial not provided / keywords GIFT / WHOLESALE."
+    },
+    {
+      "sample_id": "heldout-order-0031",
+      "source_id": "heldout-source-0031",
+      "split": "heldout",
+      "text": "Ship request LX-14875749. Buyer name is   ivo reed ; the purchase day is 28 July 2022; tender INR 7,242.90; ring not provided; labels=GIFT / Priority / Wholesale."
+    },
+    {
+      "sample_id": "heldout-order-0032",
+      "source_id": "heldout-source-0032",
+      "split": "heldout",
+      "text": "<LX-92446126>\nClient :: Talia   Fox\nBooked :: 05 May 2025\nValue :: EUR 5,543.83\nNumber :: +1 (202) 555-0178\nKeywords :: gift / Gift / Fragile"
+    },
+    {
+      "sample_id": "heldout-order-0033",
+      "source_id": "heldout-source-0033",
+      "split": "heldout",
+      "text": "Fulfillment slip #LX-70647211: account holder   remy stone ; submitted 06 March 2026; collected INR 6,131.28; callback +1-202-555-0179; markers Wholesale / SUBSCRIPTION / Priority."
+    },
+    {
+      "sample_id": "heldout-order-0034",
+      "source_id": "heldout-source-0034",
+      "split": "heldout",
+      "text": "Record LX-54364668 — 11 June 2023 /   mira solis  / gross USD 4,879.68 / dial +1 (202) 555-0180 / keywords WHOLESALE."
+    },
+    {
+      "sample_id": "heldout-order-0035",
+      "source_id": "heldout-source-0035",
+      "split": "heldout",
+      "text": "Ship request LX-95900779. Buyer name is ASHA BELL; the purchase day is 01 December 2021; tender USD 4,473.41; ring +1-202-555-0181; labels=GIFT / SUBSCRIPTION."
+    },
+    {
+      "sample_id": "heldout-order-0036",
+      "source_id": "heldout-source-0036",
+      "split": "heldout",
+      "text": "<LX-29996434>\nClient :: ZARA NORTH\nBooked :: 21 June 2022\nValue :: USD 735.61\nNumber :: not provided\nKeywords :: WHOLESALE / wholesale"
+    },
+    {
+      "sample_id": "heldout-order-0037",
+      "source_id": "heldout-source-0037",
+      "split": "heldout",
+      "text": "Fulfillment slip #LX-52392634: account holder Theo   Wren; submitted 12 December 2026; collected USD 6,960.39; callback 202.555.0183; markers fragile / Wholesale / Priority / Fragile."
+    },
+    {
+      "sample_id": "heldout-order-0038",
+      "source_id": "heldout-source-0038",
+      "split": "heldout",
+      "text": "Record LX-41540091 — 18 February 2021 / Dev   Rowan / gross EUR 4,789.52 / dial +1-202-555-0184 / keywords Backorder / PRIORITY."
+    },
+    {
+      "sample_id": "heldout-order-0039",
+      "source_id": "heldout-source-0039",
+      "split": "heldout",
+      "text": "Ship request LX-93728761. Buyer name is Ivo   Reed; the purchase day is 31 August 2023; tender INR 1,873.46; ring 202.555.0185; labels=GIFT / PRIORITY."
+    },
+    {
+      "sample_id": "heldout-order-0040",
+      "source_id": "heldout-source-0040",
+      "split": "heldout",
+      "text": "<LX-50883674>\nClient ::   arun snow \nBooked :: 27 November 2025\nValue :: USD 4,750.95\nNumber :: +1 (202) 555-0186\nKeywords :: SUBSCRIPTION"
+    }
+  ]
+}

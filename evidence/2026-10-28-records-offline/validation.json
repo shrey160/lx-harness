@@ -1,0 +1,13 @@
+{
+  "mode": "offline_controlled_responses",
+  "state": "passed",
+  "python": "3.12.3",
+  "live_calls": 0,
+  "live_spend_usd": 0,
+  "packages": {
+    "lx-harness": "0.1.0",
+    "h2portable": "0.1.0",
+    "harness2-cli": "0.1.0"
+  },
+  "log": "product-tests.log"
+}

@@ -19,7 +19,18 @@ def summarize(rows):
         roles[role] = {"input_tokens":sum(r["input_tokens"] or 0 for r in matching),
             "output_tokens":sum(r["output_tokens"] or 0 for r in matching),
             "spent_usd":sum(r["actual_nanos"] or 0 for r in matching if r["status"]=="settled")/1_000_000_000}
-    return {"per_role":roles,"settled_calls":sum(r["status"]=="settled" for r in rows),
+    phases = {}
+    for row in rows:
+        key = row["role"]+"/"+row["phase"]
+        entry = phases.setdefault(key, {"settled_calls": 0, "unknown_calls": 0, "reserved_calls": 0, "spent_usd": 0})
+        entry[row["status"]+"_calls"] += 1
+        if row["status"] == "settled":
+            entry["spent_usd"] += row["actual_nanos"] or 0
+    for entry in phases.values():
+        entry["spent_usd"] /= 1_000_000_000
+    return {"per_role":roles,"per_phase":phases,"settled_calls":sum(r["status"]=="settled" for r in rows),
+            "reserved_calls":sum(r["status"]=="reserved" for r in rows),
+            "unknown_calls":sum(r["status"]=="unknown" for r in rows),
             "spent_usd":sum(r["actual_nanos"] or 0 for r in rows if r["status"]=="settled")/1_000_000_000}
 
 
