@@ -93,7 +93,8 @@ class PreviewTransport:
 
 
 class ImagesAdapter:
-    def __init__(self, snapshot, output, client):
+    def __init__(self, snapshot, output, client, *, mode="controlled_preview"):
+        self.mode = mode
         from harness2.core.spec import BenchSpec, BenchPrompts, ChannelSpec
         from harness2.substrate.opencode import OpencodeSubstrate
         from harness2.core import tree
@@ -137,7 +138,7 @@ class ImagesAdapter:
     def _identity(self, task, harness):
         sample = self.by_id[task]
         prompt = ((harness or self.base_harness())/"systemprompt.md").read_text()
-        identity = {"sample": sample, "prompt": prompt, "image_sha256": hashlib.sha256(sample_path(self.input_root, sample["image"]).read_bytes()).hexdigest()}
+        identity = {"sample": sample, "prompt": prompt, "mode": self.mode, "image_sha256": hashlib.sha256(sample_path(self.input_root, sample["image"]).read_bytes()).hexdigest()}
         return hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
 
     def execute(self, task, harness_dir, run_id, *, timeout=None):
@@ -183,10 +184,10 @@ class ImagesAdapter:
     def score(self, run, task): return None
 
 
-def optimize_preview(snapshot, output, client, truth, spec):
+def optimize_preview(snapshot, output, client, truth, spec, *, live=False):
     from harness2.core.schedule import Namespace, run_domain
     from harness2.core import tree
-    adapter = ImagesAdapter(snapshot, output, client)
+    adapter = ImagesAdapter(snapshot, output, client, mode="live" if live else "controlled_preview")
     proposer = SparkProposer(client, Path(output)/"proposer_audit")
     reflector = SparkProposer(client, Path(output)/"reflector_audit")
     dev = adapter.tasks("dev")
@@ -216,10 +217,12 @@ def optimize_preview(snapshot, output, client, truth, spec):
     for task in adapter.tasks("heldout"):
         run = adapter.execute(task, package/"harness", "heldout/"+task)
         checks["heldout"][task] = verify_output(truth[task], json.loads(adapter.deliverable_text(run))).accepted
-    report = {"mode": "controlled_preview", "live": False, "simulated_usage": True, "improved": improved,
-        "checks": checks, "retained": "candidate" if improved else "base", "limitations": [
+    report = {"mode": "live" if live else "controlled_preview", "live": live, "simulated_usage": not live, "improved": improved,
+        "checks": checks, "retained": "candidate" if improved else "base", "limitations": ([
+            "Four synthetic scenes only; live Spark result for this bounded demo.",
+            "Computed list-price cost from reported usage; not provider billing."] if live else [
             "Deterministic provider double; these gains do not establish model capability.",
-            "Four synthetic scenes only; live application calls await approval."], "spec": spec,
+            "Four synthetic scenes only; live application calls await approval."]), "spec": spec,
         "executions_this_invocation": adapter.executions}
     (package/"result.json").write_text(json.dumps(report, indent=2))
     (package/"spec.json").write_text(json.dumps(spec, indent=2))

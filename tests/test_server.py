@@ -57,11 +57,12 @@ class ServerBoundaryTests(unittest.TestCase):
             value = payload
         return status, value, response_headers
 
-    def test_state_is_controlled_preview_and_has_no_secret_metadata(self):
+    def test_state_defaults_to_preview_with_gated_live_and_no_secret_metadata(self):
         status, state, _ = self.request("GET", "/api/state")
         self.assertEqual(status, 200)
         self.assertEqual(state["mode"], "controlled_preview")
-        self.assertFalse(state["live_application_enabled"])
+        self.assertTrue(state["live_application_enabled"])
+        self.assertEqual(state["live_flow"], "approval_gated_spark_only")
         self.assertIsNone(state["live_usage"])
         serialized = json.dumps(state)
         self.assertNotIn("secret_ref", serialized)

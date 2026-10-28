@@ -1,7 +1,8 @@
-"""Local application services. Live application egress is deliberately disabled.
+"""Local application services with approval-gated live Spark flow (O-11).
 
-The separately approved JSON live spike remains available in lx.live. This
-application currently exercises its real core lifecycle using controlled preview.
+Specs default to controlled preview. A spec saved with mode "live" runs real
+Spark calls only after versioned spec, data, budget and Contributor approval,
+under the shared $20 pilot ledger. The JSON live spike stays in lx.live.
 """
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ import zipfile
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
 from .intake import snapshot_folder, snapshot_zip, windows_to_wsl
+from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveMetaTransport
 from .registry import Registry
 from .spark import SparkClient
 from .store import Store
@@ -48,13 +50,31 @@ class Application:
         # Real pilot spend is never reset by creating the application or previews.
         self.live_ledger = BudgetLedger(ROOT/".lx"/"live-spike"/"pilot-budget.sqlite3") if self.root == DEFAULT_ROOT.resolve() else None
         self.preview_ledger = BudgetLedger(self.root/"preview-usage.sqlite3", initial_spend_usd=0)
+        self._live_transport_factory = None
         self.lock = threading.RLock()
+
+    def make_live_transport(self, call_limit=RUN_CALL_LIMIT, truth_hint=None):
+        if self._live_transport_factory is not None:
+            return self._live_transport_factory(truth_hint)
+        return LiveMetaTransport(lambda: self.registry.credential("spark-contributor"), call_limit=call_limit)
+
+    def build_client(self, mode, scope_id, cap_usd, *, call_limit=RUN_CALL_LIMIT):
+        """Live mode spends from the shared pilot ledger; preview never does."""
+        if mode == "live":
+            if self.live_ledger is None:
+                raise ValueError("Live runs are unavailable in this workspace; use the local app workspace")
+            transport = self.make_live_transport(call_limit, self.demo.controller_truth)
+            return SparkClient(transport, BudgetScope(self.live_ledger, scope_id, cap_usd))
+        if mode == "controlled_preview":
+            return SparkClient(PreviewTransport(self.demo.controller_truth), BudgetScope(self.preview_ledger, scope_id, cap_usd))
+        raise ValueError("Unknown run mode")
 
     def state(self):
         jobs = self.store.list("job")
         from h2portable.jobs import read_job
         for job in jobs:
-            job["usage"] = summarize(usage_rows(self.preview_ledger,job["id"]+"/"))
+            ledger = self.live_ledger if job.get("spec",{}).get("mode") == "live" and self.live_ledger is not None else self.preview_ledger
+            job["usage"] = summarize(usage_rows(ledger,job["id"]+"/"))
             if not job.get("launch_pending") and job["status"] in {"queued", "running", "interrupted", "cancelled", "failed"}:
                 try:
                     core = read_job(job["id"], self.root/"core-jobs")
@@ -69,10 +89,10 @@ class Application:
             result_file = self.root/"outputs"/job["id"]/"package"/"result.json"
             if job["status"] == "completed" and result_file.is_file():
                 job["result"] = json.loads(result_file.read_text())
-        return {"mode": "controlled_preview", "live_application_enabled": False,
+        return {"mode": "controlled_preview", "live_application_enabled": True, "live_flow": "approval_gated_spark_only",
                 "models": self.registry.list_models(), "projects": self.store.list("project"),
                 "jobs": jobs, "preview_usage": self.preview_ledger.summary(),
-                "usage_events": usage_rows(self.preview_ledger)[-80:],
+                "usage_events": (usage_rows(self.preview_ledger) + (usage_rows(self.live_ledger) if self.live_ledger else []))[-80:],
                 "live_usage": self.live_ledger.summary() if self.live_ledger else None}
 
     def project(self, identifier):
@@ -80,9 +100,13 @@ class Application:
             raise ValueError("Invalid project identity")
         return self.store.get("project", identifier)
 
-    def _draft(self, project, goal=None, budget=1):
+    def _draft(self, project, goal=None, budget=1, mode=None):
         if isinstance(budget, bool) or not isinstance(budget, (int,float)) or not math.isfinite(budget) or not 0.11 <= budget <= 20:
             raise ValueError("Budget must be between $0.11 and $20")
+        if mode is None:
+            mode = project.get("draft", {}).get("mode", "controlled_preview")
+        if mode not in {"controlled_preview", "live"}:
+            raise ValueError("Choose controlled preview or a live Spark run")
         goal = goal if goal is not None else project["goal"]
         if not isinstance(goal, str) or not goal.strip() or len(goal) > 4000:
             raise ValueError("Enter a goal of at most 4000 characters")
@@ -90,8 +114,9 @@ class Application:
         spec = {"version": len(versions)+1, "goal": goal.strip(), "budget_usd": budget,
                 "model": "spark-contributor", "roles": {r:"spark-contributor" for r in ("orchestrator","improver","worker")},
                 "domain": "images-and-supplied-transcripts", "output": {"objects": [{"label":"color_shape", "box":["x1","y1","x2","y2"]}], "text":"exact supplied transcript"},
-                "box_edge_tolerance_px": 1, "test_data": "synthetic/public only", "mode": "controlled_preview"}
-        spec["estimated_cost_usd"] = {"orchestrator":0.00002,"improver":0.0003,"worker":0.0003,"basis":"Approximate controlled preview only; live cost unknown"}
+                "box_edge_tolerance_px": 1, "test_data": "synthetic/public only", "mode": mode}
+        spec["estimated_cost_usd"] = ({"basis":"Live cost reserved before each call under the shared $20 cap; actual cost from reported usage, unknown until reported"}
+            if mode == "live" else {"orchestrator":0.00002,"improver":0.0003,"worker":0.0003,"basis":"Approximate controlled preview only; live cost unknown"})
         versions.append(spec)
         project.update(goal=goal.strip(), draft=spec, approved=None)
         return project
@@ -129,14 +154,16 @@ class Application:
             "inventory":inventory,"compatible_demo":compatible,"messages":[],"spec_versions":[],"approved":None}
         return self.store.save("project", self._draft(record))
 
-    def discuss(self, identifier, text, consent):
+    def discuss(self, identifier, text, consent, mode=None):
         if consent is not True:
             raise ValueError("Approve the discussion data disclosure first")
         if not isinstance(text,str) or not text.strip() or len(text)>4000:
             raise ValueError("Enter a short requirements message")
         with self.lock:
             project = self.project(identifier)
-            client = SparkClient(PreviewTransport(self.demo.controller_truth), BudgetScope(self.preview_ledger, "discussion-"+identifier, 1))
+            mode = mode or project["draft"].get("mode", "controlled_preview")
+            client = self.build_client(mode, "discussion-"+identifier, project["draft"]["budget_usd"],
+                                       call_limit=DISCUSSION_CALL_LIMIT if mode == "live" else RUN_CALL_LIMIT)
             history = [{"role":"developer","content":"LX_DISCUSSION\nUse inventory metadata first; ask only consequential questions."},
                 {"role":"user","content":json.dumps({"goal":project["goal"],"inventory":project["inventory"],"message":text})}]
             reply,_ = client.chat(history, role="orchestrator",phase="discussion",candidate=identifier)
@@ -150,7 +177,7 @@ class Application:
             project = self.project(identifier)
             if data.get("model", "spark-contributor") != "spark-contributor":
                 raise ValueError("Only Spark Contributor may fill a live role")
-            return self.store.save("project", self._draft(project, data.get("goal"), data.get("budget_usd",1)))
+            return self.store.save("project", self._draft(project, data.get("goal"), data.get("budget_usd",1), data.get("mode")))
 
     def approve(self, identifier, data):
         with self.lock:
@@ -171,7 +198,7 @@ class Application:
                 raise ValueError("One run is already active")
             job_id = uuid.uuid4().hex
             job = {"id":job_id,"project_id":identifier,"name":project["name"],"status":"queued","phase":"queued",
-                   "mode":"controlled_preview","spec":project["draft"],"approved":project["approved"],"launch_pending":True}
+                   "mode":project["draft"].get("mode","controlled_preview"),"spec":project["draft"],"approved":project["approved"],"launch_pending":True}
             inputs = self.root/"inputs"/job_id
             captured = snapshot_folder(self.root/"projects"/identifier/"snapshot",inputs)
             if captured["inventory"] != project["inventory"]["inventory"]:
@@ -266,13 +293,19 @@ class Application:
                   "transcript":"A red square is above a blue rectangle."}
         (root/"manifest.json").write_text(json.dumps({"samples":[sample]}))
         truth = {"fresh-scene":{"objects":[{"label":r.label,"box":list(r.box)} for r in rectangles],"text":sample["transcript"]}}
-        client = SparkClient(PreviewTransport(truth),BudgetScope(self.preview_ledger,"reuse-"+identifier,1))
-        adapter = ImagesAdapter(root,root/"execution",client)
+        mode = job["spec"].get("mode","controlled_preview")
+        if mode == "live":
+            if self.live_ledger is None:
+                raise ValueError("Live reuse is unavailable in this workspace; use the local app workspace")
+            client = SparkClient(self.make_live_transport(truth_hint=truth), BudgetScope(self.live_ledger,"reuse-"+identifier,job["spec"]["budget_usd"]))
+        else:
+            client = SparkClient(PreviewTransport(truth),BudgetScope(self.preview_ledger,"reuse-"+identifier,1))
+        adapter = ImagesAdapter(root,root/"execution",client,mode=mode)
         run = adapter.execute("fresh-scene",self.root/"outputs"/identifier/"package"/"harness","fresh")
         answer = json.loads(adapter.deliverable_text(run))
         checked = verify_output(truth["fresh-scene"],answer)
-        result = {"mode":"controlled_preview","accepted":checked.accepted,"errors":checked.errors,"answer":answer,
-                  "source_scene_id":sample["source_scene_id"],"note":"New constructed scene; controlled response, no live model call"}
+        result = {"mode":mode,"accepted":checked.accepted,"errors":checked.errors,"answer":answer,
+                  "source_scene_id":sample["source_scene_id"],"note":("New constructed scene; live Spark call" if mode=="live" else "New constructed scene; controlled response, no live model call")}
         job["fresh_result"] = result
         self.store.save("job",job)
         return result

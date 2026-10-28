@@ -92,7 +92,7 @@ def server_for(app, port=8765):
                     else: raise ValueError("Unknown model action")
                 elif len(route)==4 and route[:2]==["api","projects"]:
                     identifier,action = route[2:]
-                    if action=="discuss": result=app.discuss(identifier,data.get("text"),data.get("data_approved"))
+                    if action=="discuss": result=app.discuss(identifier,data.get("text"),data.get("data_approved"),data.get("mode"))
                     elif action=="spec": result=app.edit_spec(identifier,data)
                     elif action=="approve": result=app.approve(identifier,data)
                     elif action=="run": result=app.start(identifier)

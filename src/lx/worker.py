@@ -1,4 +1,4 @@
-"""Controller subprocess for managed preview jobs; never loads live credentials."""
+"""Controller subprocess for managed jobs; live credentials load only here, never in task workers."""
 import argparse
 import json
 from pathlib import Path
@@ -19,17 +19,20 @@ def execute(app, identifier, snapshot):
     job.update(status="running",phase="preflight",launch_pending=False)
     job.pop("error",None)
     app.store.save("job",job)
-    client = SparkClient(PreviewTransport(app.demo.controller_truth), BudgetScope(app.preview_ledger,identifier,job["spec"]["budget_usd"]))
+    mode = job["spec"].get("mode","controlled_preview")
+    live = mode == "live"
+    client = app.build_client(mode, identifier, job["spec"]["budget_usd"])
     message,_ = client.chat([{"role":"developer","content":"LX_PREFLIGHT"},{"role":"user","content":"Reply PREFLIGHT_OK"}],
                            role="orchestrator",phase="preflight",candidate=identifier)
-    if message["content"] != "PREFLIGHT_OK":
-        raise ValueError("Controlled preflight failed")
+    if (message["content"] or "").strip() != "PREFLIGHT_OK":
+        raise ValueError("Live preflight failed" if live else "Controlled preflight failed")
     job.update(phase="improving")
     app.store.save("job",job)
-    result = optimize_preview(snapshot,app.root/"outputs"/identifier,client,app.demo.controller_truth,job["spec"])
+    result = optimize_preview(snapshot,app.root/"outputs"/identifier,client,app.demo.controller_truth,job["spec"],live=live)
     package = app.root/"outputs"/identifier/"package"
-    result["usage"] = summarize(usage_rows(app.preview_ledger,identifier+"/"))
-    result["usage_basis"] = "simulated provider usage; no live calls or charges"
+    result["usage"] = summarize(usage_rows(app.live_ledger if live else app.preview_ledger,identifier+"/"))
+    result["usage_basis"] = ("live Spark usage at verified Contributor list prices; not provider billing"
+                             if live else "simulated provider usage; no live calls or charges")
     result["package_version"] = identifier+"-spec-v"+str(job["spec"]["version"])
     (package/"usage.json").write_text(json.dumps(result["usage"],indent=2))
     (package/"result.json").write_text(json.dumps(result,indent=2))
