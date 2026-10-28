@@ -1,0 +1,26 @@
+{
+  "purpose": "R2 offline measurement of calls per trial for the event-log task; no network, no credentials, no spend",
+  "date": "2026-10-29",
+  "command": ".venv/bin/python -m lx.trials --task eventlog --output <fresh dir> --trials 1 --adaptation-count K",
+  "dataset": {"task": "order_event_log_reconciliation", "difficulty": 3, "seed": 20261029,
+              "counts": {"loop": 40, "verify": 5, "test": 40, "calibration": 0}},
+  "provider": "EventLogPreviewTransport: truth-blind constant worker, single-turn no-op improver",
+  "measured": [
+    {"k": 1, "trial_calls": 98, "worker_execute": 94, "improver_improvement": 3, "improver_reflection": 1, "final_test_calls": 40},
+    {"k": 2, "trial_calls": 106, "worker_execute": 98, "improver_improvement": 6, "improver_reflection": 2, "final_test_calls": 40},
+    {"k": 4, "trial_calls": 122, "worker_execute": 106, "improver_improvement": 12, "improver_reflection": 4, "final_test_calls": 40}
+  ],
+  "derived": {
+    "fixed_eval_calls_per_trial": "2 x (40 loop + 5 verify) = 90",
+    "per_adaptation_item_offline": "4 worker rollouts + 3 improver sessions + 1 reflection session = 8 calls",
+    "final_test_calls": "40 for base + 40 per trial whose retained package differs from base; at most 240 for 5 trials"
+  },
+  "live_estimate": {
+    "basis": "Inference, not measurement. The 28 Oct live images job (evidence/2026-10-28-live-app/live-report.json) made 117 calls: 14 worker executions, about 102 improver calls over 2 adaptation items, i.e. about 8 sessions at roughly 13 calls each. Live sessions may take up to 12 model turns (spark.py) plus rate-limit retries.",
+    "per_adaptation_item": "about 4 + 4 x 13 = 56 calls",
+    "per_trial": {"k1": 146, "k2": 202, "k4": 314},
+    "existing_limit": "RUN_CALL_LIMIT = 200 per transport",
+    "cost_note": "Improver cost was about $0.012 per adaptation item on the old task; event-log worker cost is unmeasured until R3."
+  },
+  "capability_evidence": false
+}
