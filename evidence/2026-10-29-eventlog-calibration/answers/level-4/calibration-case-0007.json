@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-61605002",
+    "status": "cancelled",
+    "lines": [
+      {
+        "sku": "SKU-9489",
+        "qty": 1,
+        "unit_minor": 800
+      }
+    ],
+    "subtotal_minor": 800,
+    "discount_minor": 0,
+    "total_minor": 800,
+    "refunded_minor": 800
+  },
+  "usage": {
+    "input_tokens": 1192,
+    "output_tokens": 914,
+    "cost_usd": 0.000265838
+  }
+}

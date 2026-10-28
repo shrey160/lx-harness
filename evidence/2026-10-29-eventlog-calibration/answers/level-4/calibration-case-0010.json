@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-90803400",
+    "status": "cancelled",
+    "lines": [
+      {
+        "sku": "SKU-9971",
+        "qty": 1,
+        "unit_minor": 643
+      }
+    ],
+    "subtotal_minor": 643,
+    "discount_minor": 64,
+    "total_minor": 579,
+    "refunded_minor": 579
+  },
+  "usage": {
+    "input_tokens": 1124,
+    "output_tokens": 1044,
+    "cost_usd": 0.000285038
+  }
+}

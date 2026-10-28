@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "order_id": "LX-47914351",
+    "status": "open",
+    "lines": [
+      {
+        "qty": 3,
+        "sku": "SKU-9615",
+        "unit_minor": 21518
+      },
+      {
+        "qty": 9,
+        "sku": "SKU-9691",
+        "unit_minor": 12732
+      }
+    ],
+    "subtotal_minor": 179142,
+    "discount_minor": 0,
+    "total_minor": 179142,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 632,
+    "output_tokens": 429,
+    "cost_usd": 0.000149
+  }
+}

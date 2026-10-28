@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-39189391",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9141",
+        "qty": 2,
+        "unit_minor": 11733
+      }
+    ],
+    "subtotal_minor": 23466,
+    "discount_minor": 2347,
+    "total_minor": 21119,
+    "refunded_minor": 14070
+  },
+  "usage": {
+    "input_tokens": 839,
+    "output_tokens": 657,
+    "cost_usd": 0.000179138
+  }
+}

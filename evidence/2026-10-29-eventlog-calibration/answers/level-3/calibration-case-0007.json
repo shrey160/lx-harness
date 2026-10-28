@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-38233938",
+    "status": "cancelled",
+    "lines": [
+      {
+        "sku": "SKU-9659",
+        "qty": 1,
+        "unit_minor": 911
+      }
+    ],
+    "subtotal_minor": 911,
+    "discount_minor": 0,
+    "total_minor": 911,
+    "refunded_minor": 911
+  },
+  "usage": {
+    "input_tokens": 1000,
+    "output_tokens": 657,
+    "cost_usd": 0.000195238
+  }
+}

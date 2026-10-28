@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "order_id": "LX-27026953",
+    "status": "cancelled",
+    "lines": [
+      {
+        "sku": "SKU-9563",
+        "qty": 1,
+        "unit_minor": 9502
+      },
+      {
+        "sku": "SKU-9980",
+        "qty": 3,
+        "unit_minor": 18400
+      }
+    ],
+    "subtotal_minor": 64702,
+    "discount_minor": 6470,
+    "total_minor": 58232,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 1122,
+    "output_tokens": 951,
+    "cost_usd": 0.000266238
+  }
+}

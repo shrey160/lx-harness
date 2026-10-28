@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "order_id": "LX-25177026",
+    "status": "open",
+    "lines": [],
+    "subtotal_minor": 0,
+    "discount_minor": 0,
+    "total_minor": 0,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 1107,
+    "output_tokens": 788,
+    "cost_usd": 0.000232138
+  }
+}

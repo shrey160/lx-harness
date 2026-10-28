@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-41028226",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9162",
+        "qty": 5,
+        "unit_minor": 19936
+      }
+    ],
+    "subtotal_minor": 99680,
+    "discount_minor": 0,
+    "total_minor": 99680,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 768,
+    "output_tokens": 493,
+    "cost_usd": 0.0001754
+  }
+}

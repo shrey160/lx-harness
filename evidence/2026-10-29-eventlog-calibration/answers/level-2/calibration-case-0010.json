@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-20441885",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9089",
+        "qty": 4,
+        "unit_minor": 7132
+      }
+    ],
+    "subtotal_minor": 28528,
+    "discount_minor": 4279,
+    "total_minor": 24249,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 679,
+    "output_tokens": 403,
+    "cost_usd": 0.000112338
+  }
+}

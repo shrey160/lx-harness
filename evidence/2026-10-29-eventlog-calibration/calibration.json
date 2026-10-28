@@ -1,0 +1,280 @@
+{
+  "live": true,
+  "capability_evidence": false,
+  "dataset_sha256": "04455ea074864b87f614c2cb595080ce464c8c6181d2b59603e95354a7502822",
+  "experiment_sha256": "4399af14c327250bb8f5b32f633f9566742dd4bf50964393b3e83be57da246ef",
+  "headroom_band": [
+    0.3,
+    0.8
+  ],
+  "levels": {
+    "1": {
+      "scores": {
+        "calibration-case-0001": 1.0,
+        "calibration-case-0002": 1.0,
+        "calibration-case-0003": 1.0,
+        "calibration-case-0004": 1.0,
+        "calibration-case-0005": 1.0,
+        "calibration-case-0006": 1.0,
+        "calibration-case-0007": 1.0,
+        "calibration-case-0008": 1.0,
+        "calibration-case-0009": 1.0,
+        "calibration-case-0010": 1.0
+      },
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "accepted": 10,
+      "field_accuracy": {
+        "order_id": 1.0,
+        "status": 1.0,
+        "lines": 1.0,
+        "subtotal_minor": 1.0,
+        "discount_minor": 1.0,
+        "total_minor": 1.0,
+        "refunded_minor": 1.0
+      },
+      "output_tokens": {
+        "calibration-case-0001": 438,
+        "calibration-case-0002": 390,
+        "calibration-case-0003": 454,
+        "calibration-case-0004": 392,
+        "calibration-case-0005": 476,
+        "calibration-case-0006": 454,
+        "calibration-case-0007": 384,
+        "calibration-case-0008": 382,
+        "calibration-case-0009": 429,
+        "calibration-case-0010": 361
+      },
+      "headroom": false
+    },
+    "2": {
+      "scores": {
+        "calibration-case-0001": 1.0,
+        "calibration-case-0002": 1.0,
+        "calibration-case-0003": 1.0,
+        "calibration-case-0004": 1.0,
+        "calibration-case-0005": 1.0,
+        "calibration-case-0006": 1.0,
+        "calibration-case-0007": 1.0,
+        "calibration-case-0008": 1.0,
+        "calibration-case-0009": 1.0,
+        "calibration-case-0010": 1.0
+      },
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "accepted": 10,
+      "field_accuracy": {
+        "order_id": 1.0,
+        "status": 1.0,
+        "lines": 1.0,
+        "subtotal_minor": 1.0,
+        "discount_minor": 1.0,
+        "total_minor": 1.0,
+        "refunded_minor": 1.0
+      },
+      "output_tokens": {
+        "calibration-case-0001": 442,
+        "calibration-case-0002": 529,
+        "calibration-case-0003": 579,
+        "calibration-case-0004": 463,
+        "calibration-case-0005": 493,
+        "calibration-case-0006": 576,
+        "calibration-case-0007": 539,
+        "calibration-case-0008": 558,
+        "calibration-case-0009": 513,
+        "calibration-case-0010": 403
+      },
+      "headroom": false
+    },
+    "3": {
+      "scores": {
+        "calibration-case-0001": 1.0,
+        "calibration-case-0002": 1.0,
+        "calibration-case-0003": 1.0,
+        "calibration-case-0004": 1.0,
+        "calibration-case-0005": 1.0,
+        "calibration-case-0006": 1.0,
+        "calibration-case-0007": 1.0,
+        "calibration-case-0008": 1.0,
+        "calibration-case-0009": 1.0,
+        "calibration-case-0010": 1.0
+      },
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "accepted": 10,
+      "field_accuracy": {
+        "order_id": 1.0,
+        "status": 1.0,
+        "lines": 1.0,
+        "subtotal_minor": 1.0,
+        "discount_minor": 1.0,
+        "total_minor": 1.0,
+        "refunded_minor": 1.0
+      },
+      "output_tokens": {
+        "calibration-case-0001": 557,
+        "calibration-case-0002": 657,
+        "calibration-case-0003": 844,
+        "calibration-case-0004": 591,
+        "calibration-case-0005": 792,
+        "calibration-case-0006": 790,
+        "calibration-case-0007": 657,
+        "calibration-case-0008": 748,
+        "calibration-case-0009": 608,
+        "calibration-case-0010": 777
+      },
+      "headroom": false
+    },
+    "4": {
+      "scores": {
+        "calibration-case-0001": 1.0,
+        "calibration-case-0002": 1.0,
+        "calibration-case-0003": 1.0,
+        "calibration-case-0004": 1.0,
+        "calibration-case-0005": 1.0,
+        "calibration-case-0006": 1.0,
+        "calibration-case-0007": 1.0,
+        "calibration-case-0008": 1.0,
+        "calibration-case-0009": 1.0,
+        "calibration-case-0010": 1.0
+      },
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "accepted": 10,
+      "field_accuracy": {
+        "order_id": 1.0,
+        "status": 1.0,
+        "lines": 1.0,
+        "subtotal_minor": 1.0,
+        "discount_minor": 1.0,
+        "total_minor": 1.0,
+        "refunded_minor": 1.0
+      },
+      "output_tokens": {
+        "calibration-case-0001": 1059,
+        "calibration-case-0002": 988,
+        "calibration-case-0003": 929,
+        "calibration-case-0004": 771,
+        "calibration-case-0005": 1188,
+        "calibration-case-0006": 779,
+        "calibration-case-0007": 914,
+        "calibration-case-0008": 788,
+        "calibration-case-0009": 951,
+        "calibration-case-0010": 1044
+      },
+      "headroom": false
+    }
+  },
+  "chosen_level": null,
+  "errors": [],
+  "decision": "no level in band; revise generator (R1) before R4",
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 34031,
+        "output_tokens": 25687,
+        "spent_usd": 0.007781098
+      }
+    },
+    "per_phase": {
+      "worker/execute": {
+        "settled_calls": 40,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.007781098
+      }
+    },
+    "settled_calls": 40,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.007781098
+  },
+  "ledger_before": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.041283498,
+    "reserved_usd": 0.0,
+    "remaining_usd": 19.958716502,
+    "settled_calls": 194,
+    "reserved_calls": 0,
+    "unknown_count": 0,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.032802826,
+        "reserved_usd": 0.0,
+        "input_tokens": 728658,
+        "output_tokens": 56084,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.007294572,
+        "reserved_usd": 0.0,
+        "input_tokens": 8822,
+        "output_tokens": 33280,
+        "settled_calls": 55,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.049064596,
+    "reserved_usd": 0.0,
+    "remaining_usd": 19.950935404,
+    "settled_calls": 234,
+    "reserved_calls": 0,
+    "unknown_count": 0,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.032802826,
+        "reserved_usd": 0.0,
+        "input_tokens": 728658,
+        "output_tokens": 56084,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.01507567,
+        "reserved_usd": 0.0,
+        "input_tokens": 42853,
+        "output_tokens": 58967,
+        "settled_calls": 95,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-13782353",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9288",
+        "qty": 1,
+        "unit_minor": 800
+      }
+    ],
+    "subtotal_minor": 800,
+    "discount_minor": 120,
+    "total_minor": 680,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 951,
+    "output_tokens": 608,
+    "cost_usd": 0.000180538
+  }
+}

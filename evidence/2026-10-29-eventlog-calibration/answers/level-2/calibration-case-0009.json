@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-20156832",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9486",
+        "qty": 1,
+        "unit_minor": 15848
+      }
+    ],
+    "subtotal_minor": 15848,
+    "discount_minor": 0,
+    "total_minor": 15848,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 745,
+    "output_tokens": 513,
+    "cost_usd": 0.0001771
+  }
+}

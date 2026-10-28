@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-29189054",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9458",
+        "qty": 5,
+        "unit_minor": 4707
+      }
+    ],
+    "subtotal_minor": 23535,
+    "discount_minor": 0,
+    "total_minor": 23535,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 587,
+    "output_tokens": 382,
+    "cost_usd": 9.8938e-05
+  }
+}

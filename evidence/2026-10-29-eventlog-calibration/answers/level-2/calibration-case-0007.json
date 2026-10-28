@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "order_id": "LX-46834719",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9528",
+        "qty": 3,
+        "unit_minor": 3984
+      },
+      {
+        "sku": "SKU-9575",
+        "qty": 2,
+        "unit_minor": 7273
+      }
+    ],
+    "subtotal_minor": 26498,
+    "discount_minor": 0,
+    "total_minor": 26498,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 708,
+    "output_tokens": 539,
+    "cost_usd": 0.0001786
+  }
+}

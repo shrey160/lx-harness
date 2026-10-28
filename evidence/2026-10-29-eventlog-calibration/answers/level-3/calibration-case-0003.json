@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-25731872",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9309",
+        "qty": 5,
+        "unit_minor": 17457
+      }
+    ],
+    "subtotal_minor": 87285,
+    "discount_minor": 8728,
+    "total_minor": 78557,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 1029,
+    "output_tokens": 844,
+    "cost_usd": 0.000235538
+  }
+}

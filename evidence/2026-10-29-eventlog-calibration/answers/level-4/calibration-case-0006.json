@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-77948720",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9350",
+        "qty": 5,
+        "unit_minor": 13734
+      }
+    ],
+    "subtotal_minor": 68670,
+    "discount_minor": 0,
+    "total_minor": 68670,
+    "refunded_minor": 14778
+  },
+  "usage": {
+    "input_tokens": 1065,
+    "output_tokens": 779,
+    "cost_usd": 0.000226138
+  }
+}

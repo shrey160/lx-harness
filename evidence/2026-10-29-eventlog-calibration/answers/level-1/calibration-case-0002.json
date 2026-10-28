@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-45802035",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9623",
+        "qty": 1,
+        "unit_minor": 24585
+      }
+    ],
+    "subtotal_minor": 24585,
+    "discount_minor": 0,
+    "total_minor": 24585,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 591,
+    "output_tokens": 390,
+    "cost_usd": 0.0001371
+  }
+}

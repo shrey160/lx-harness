@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "order_id": "LX-58764339",
+    "status": "cancelled",
+    "lines": [
+      {
+        "sku": "SKU-9158",
+        "qty": 6,
+        "unit_minor": 36312
+      },
+      {
+        "sku": "SKU-9783",
+        "qty": 3,
+        "unit_minor": 362
+      }
+    ],
+    "subtotal_minor": 218958,
+    "discount_minor": 0,
+    "total_minor": 218958,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 1215,
+    "output_tokens": 1059,
+    "cost_usd": 0.0003333
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "order_id": "LX-85649810",
+    "status": "open",
+    "lines": [],
+    "subtotal_minor": 0,
+    "discount_minor": 0,
+    "total_minor": 0,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 1196,
+    "output_tokens": 929,
+    "cost_usd": 0.000269238
+  }
+}

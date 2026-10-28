@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-59249714",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9575",
+        "qty": 3,
+        "unit_minor": 24039
+      }
+    ],
+    "subtotal_minor": 72117,
+    "discount_minor": 0,
+    "total_minor": 72117,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 587,
+    "output_tokens": 361,
+    "cost_usd": 0.0001309
+  }
+}

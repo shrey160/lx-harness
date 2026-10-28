@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "order_id": "LX-64674011",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9377",
+        "qty": 3,
+        "unit_minor": 4618
+      },
+      {
+        "sku": "SKU-9711",
+        "qty": 8,
+        "unit_minor": 20512
+      }
+    ],
+    "subtotal_minor": 177950,
+    "discount_minor": 0,
+    "total_minor": 177950,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 632,
+    "output_tokens": 384,
+    "cost_usd": 0.000103838
+  }
+}

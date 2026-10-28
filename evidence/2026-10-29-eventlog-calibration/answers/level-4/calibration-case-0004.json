@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-84661443",
+    "status": "cancelled",
+    "lines": [
+      {
+        "sku": "SKU-9509",
+        "qty": 3,
+        "unit_minor": 12205
+      }
+    ],
+    "subtotal_minor": 36615,
+    "discount_minor": 1831,
+    "total_minor": 34784,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 1055,
+    "output_tokens": 771,
+    "cost_usd": 0.000223538
+  }
+}

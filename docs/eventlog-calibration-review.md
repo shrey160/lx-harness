@@ -1,7 +1,16 @@
 # PROD-002 R3 difficulty-ladder calibration request — 29 October 2026
 
-**Status: PREPARED, NOT APPROVED, NOT RUN.** Nothing here has been sent to a
-model. Running it requires the user's explicit approval of this exact request.
+**Status: APPROVED by the user ("Approve, run it") and EXECUTED ONCE on
+29 October 2026. Do not repeat.**
+
+**Result:** the base scored 1.000 at all four levels, 40/40 accepted, with no
+errors. No level fell in the 0.30-0.80 band, so R4 is not eligible; the next
+step is to revise the generator.
+
+**Cost:** $0.007781098 for 40 settled calls. The shared ledger stands at
+$0.049064596 spent and $19.950935404 remaining.
+
+See the [evidence](../evidence/2026-10-29-eventlog-calibration/README.md).
 
 ## Purpose
 

@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-56787887",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9870",
+        "qty": 3,
+        "unit_minor": 23917
+      }
+    ],
+    "subtotal_minor": 71751,
+    "discount_minor": 0,
+    "total_minor": 71751,
+    "refunded_minor": 22161
+  },
+  "usage": {
+    "input_tokens": 891,
+    "output_tokens": 748,
+    "cost_usd": 0.0002387
+  }
+}

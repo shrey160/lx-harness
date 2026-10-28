@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "order_id": "LX-92881470",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9961",
+        "qty": 4,
+        "unit_minor": 22180
+      }
+    ],
+    "subtotal_minor": 88720,
+    "discount_minor": 13308,
+    "total_minor": 75412,
+    "refunded_minor": 14580
+  },
+  "usage": {
+    "input_tokens": 1209,
+    "output_tokens": 1188,
+    "cost_usd": 0.0003585
+  }
+}

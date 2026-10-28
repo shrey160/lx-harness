@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "order_id": "LX-69882346",
+    "status": "cancelled",
+    "lines": [
+      {
+        "sku": "SKU-9054",
+        "qty": 4,
+        "unit_minor": 4819
+      },
+      {
+        "sku": "SKU-9242",
+        "qty": 5,
+        "unit_minor": 9514
+      }
+    ],
+    "subtotal_minor": 66846,
+    "discount_minor": 0,
+    "total_minor": 66846,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 1082,
+    "output_tokens": 988,
+    "cost_usd": 0.000269638
+  }
+}

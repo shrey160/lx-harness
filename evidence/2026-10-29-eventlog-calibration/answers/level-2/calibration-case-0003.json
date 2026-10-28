@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "order_id": "LX-30209738",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9148",
+        "qty": 6,
+        "unit_minor": 1836
+      },
+      {
+        "sku": "SKU-9456",
+        "qty": 4,
+        "unit_minor": 3939
+      }
+    ],
+    "subtotal_minor": 26772,
+    "discount_minor": 0,
+    "total_minor": 26772,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 699,
+    "output_tokens": 579,
+    "cost_usd": 0.0001857
+  }
+}

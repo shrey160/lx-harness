@@ -1,0 +1,32 @@
+{
+  "answer": {
+    "order_id": "LX-37307146",
+    "status": "open",
+    "lines": [
+      {
+        "sku": "SKU-9343",
+        "qty": 3,
+        "unit_minor": 22489
+      },
+      {
+        "sku": "SKU-9563",
+        "qty": 3,
+        "unit_minor": 19402
+      },
+      {
+        "sku": "SKU-9717",
+        "qty": 3,
+        "unit_minor": 22398
+      }
+    ],
+    "subtotal_minor": 192867,
+    "discount_minor": 0,
+    "total_minor": 192867,
+    "refunded_minor": 0
+  },
+  "usage": {
+    "input_tokens": 671,
+    "output_tokens": 476,
+    "cost_usd": 0.000126138
+  }
+}
