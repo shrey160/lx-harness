@@ -18,6 +18,8 @@ from .records import build_records_dataset
 from .records_workflow import CONTRACT, RecordsAdapter, RecordsDomain, RecordsPreviewTransport
 from .spark import SparkClient
 from .usage import BudgetScope, summarize, usage_rows
+from .voicecount import load_voicecount_dataset
+from .voicecount_workflow import VoiceCountAdapter, VoiceCountDomain, VoiceCountPreviewTransport, preview_perception
 from .workflow import optimize_adapter
 
 
@@ -33,7 +35,10 @@ def dataset_hash(dataset):
 TASKS = {
     "records": (RecordsAdapter, RecordsDomain, "noisy_order_normalization"),
     "eventlog": (EventLogAdapter, EventLogDomain, "order_event_log_reconciliation"),
+    "voicecount": (VoiceCountAdapter, VoiceCountDomain, "spoken_photo_counting"),
 }
+# Tasks whose success is judged once on a frozen test split after all trials.
+FINAL_TEST_TASKS = ("eventlog", "voicecount")
 
 
 def experiment_hash(dataset, task="records"):
@@ -44,6 +49,14 @@ def experiment_hash(dataset, task="records"):
                  "contract": CONTRACT, "base_prompt": RecordsDomain.base_prompt,
                  "message_builder": inspect.getsource(RecordsDomain.messages),
                  "verifier_source": inspect.getsource(records)}
+    elif task == "voicecount":
+        from . import voicecount, voicecount_workflow, agent
+        media = json.loads((dataset.root/"controller_truth"/"media.json").read_text(encoding="utf-8"))
+        value = {"inputs": dataset_hash(dataset), "media": media, "truth": dataset.controller_truth,
+                 "contract": VoiceCountDomain.task_prompt, "base_prompt": VoiceCountDomain.base_prompt,
+                 "message_builder": inspect.getsource(VoiceCountDomain.messages),
+                 "verifier_source": inspect.getsource(voicecount),
+                 "agent_source": inspect.getsource(agent), "caps": voicecount_workflow.CAPS}
     else:
         value = {"inputs": dataset_hash(dataset), "truth": dataset.controller_truth,
                  "difficulty": dataset.difficulty, "contract": EventLogDomain.task_prompt,
@@ -83,7 +96,7 @@ def calibrate(dataset, output, client, *, live=False):
     return report
 
 
-def final_test(dataset, output, client, packages, *, mode="offline_preview"):
+def final_test(dataset, output, client, packages, *, mode="offline_preview", task="eventlog", adapter_kwargs=None):
     """Score base and each retained package once on the frozen test split.
 
     Runs after every trial has finished, so test grades cannot influence any
@@ -91,7 +104,8 @@ def final_test(dataset, output, client, packages, *, mode="offline_preview"):
     base scores instead of spending calls on a duplicate evaluation.
     """
     from harness2.core import tree
-    adapter = EventLogAdapter(dataset.root/"worker_inputs", output, client, dataset.controller_truth, mode=mode)
+    adapter = TASKS[task][0](dataset.root/"worker_inputs", output, client, dataset.controller_truth, mode=mode,
+                             **(adapter_kwargs or {}))
     tasks = adapter.tasks("test")
     if not tasks:
         raise ValueError("The final test requires test items")
@@ -116,7 +130,8 @@ def final_test(dataset, output, client, packages, *, mode="offline_preview"):
             "executions": adapter.executions}
 
 
-def run_trials(dataset, output, client_factory, *, trials=5, adaptation_count=1, live=False, task="records"):
+def run_trials(dataset, output, client_factory, *, trials=5, adaptation_count=1, live=False, task="records",
+               adapter_kwargs=None):
     """Fresh optimization state per trial; shared inputs and fixed held-out set.
 
     One development item trains the harness by default; all development items
@@ -148,8 +163,10 @@ def run_trials(dataset, output, client_factory, *, trials=5, adaptation_count=1,
         identifier = f"{task}-{experiment}-{index+1}"
         root = output/identifier
         client = client_factory(identifier)
+        # adapter_kwargs(client) supplies task extras, e.g. voicecount's perception tools.
         adapter = adapter_cls(dataset.root/"worker_inputs", root, client,
-                              dataset.controller_truth, mode=spec["mode"])
+                              dataset.controller_truth, mode=spec["mode"],
+                              **(adapter_kwargs(client) if adapter_kwargs else {}))
         report = optimize_adapter(adapter, root, client, spec, live=live, adaptation_count=adaptation_count)
         ledger = client.ledger.ledger if isinstance(client.ledger, BudgetScope) else client.ledger
         report["usage"] = summarize(usage_rows(ledger, client.ledger.prefix if isinstance(client.ledger, BudgetScope) else ""))
@@ -162,11 +179,12 @@ def run_trials(dataset, output, client_factory, *, trials=5, adaptation_count=1,
         (output/"partial-trials.json").write_text(json.dumps({"spec": spec, "trials": reports}, indent=2)+"\n", encoding="utf-8")
     gains = [r["retained_gain"] for r in reports]
     test = None
-    if task == "eventlog":
+    if task in FINAL_TEST_TASKS:
         identifier = f"{task}-{experiment}-final-test"
         client = client_factory(identifier)
         test = final_test(dataset, output/identifier, client,
-                          {r["trial_id"]: output/r["trial_id"]/"package"/"harness" for r in reports}, mode=spec["mode"])
+                          {r["trial_id"]: output/r["trial_id"]/"package"/"harness" for r in reports}, mode=spec["mode"],
+                          task=task, adapter_kwargs=adapter_kwargs(client) if adapter_kwargs else None)
         ledger = client.ledger.ledger if isinstance(client.ledger, BudgetScope) else client.ledger
         test["usage"] = summarize(usage_rows(ledger, client.ledger.prefix if isinstance(client.ledger, BudgetScope) else ""))
         # The verify split is only a per-trial smoke check; success is judged on test.
@@ -193,7 +211,10 @@ def main():
     parser.add_argument("--verify-count", type=int, default=5, help="event-log task only")
     parser.add_argument("--test-count", type=int, default=40, help="event-log task only")
     parser.add_argument("--difficulty", type=int, default=3, help="event-log task only")
+    parser.add_argument("--dataset", type=Path, help="voicecount task only: a frozen dataset built offline")
     args = parser.parse_args()
+    if args.task == "voicecount":
+        return _voicecount_preview(parser, args)
     development, heldout = ((args.loop_count, args.verify_count) if args.task == "eventlog"
                             else (args.dev_count, args.heldout_count))
     if not 1 <= args.trials <= 5 or not 1 <= args.adaptation_count <= development or heldout < 1:
@@ -217,6 +238,48 @@ def main():
                         task=args.task)
     print(json.dumps({"live": False, "dataset_sha256": dataset_hash(dataset),
                       "trials": len(result["trials"]), "criterion": result["criterion"]}, indent=2))
+    return 0
+
+
+VOICECOUNT_CATALOG = [
+    {"kind": "segmentation", "name": "SAM 3.1", "capabilities": [
+        "Image segmentation: finds every instance of a short noun phrase in a photo and returns one box and mask per instance"]},
+    {"kind": "transcription", "name": "Muse Voice Transcribe", "capabilities": [
+        "Speech-to-text: transcribes spoken audio (mono WAV) into text"]},
+]
+
+
+def _voicecount_preview(parser, args):
+    """Offline voicecount trials with wire-format doubles for agent and tools."""
+    from .perception import PerceptionCache, PerceptionClient
+    if args.dataset is None:
+        parser.error("--dataset is required for the voicecount task")
+    if not 1 <= args.trials <= 5 or not 1 <= args.adaptation_count:
+        parser.error("Use 1..5 trials and a positive adaptation count")
+    if args.output.exists() and any(args.output.iterdir()):
+        parser.error("Use an empty output directory")
+    dataset = load_voicecount_dataset(args.dataset)
+    ledger = BudgetLedger(args.output/"simulated-usage.sqlite3", initial_spend_usd=0)
+    segmenter, transcriber = preview_perception(dataset)
+    transports = []
+
+    def factory(identifier):
+        transports.append(VoiceCountPreviewTransport())
+        return SparkClient(transports[-1], BudgetScope(ledger, identifier, "5"))
+
+    def extras(client):
+        return {"perception": PerceptionClient(segmenter, transcriber, client.ledger,
+                                               PerceptionCache(args.output/"perception-cache")),
+                "catalog": VOICECOUNT_CATALOG}
+    result = run_trials(dataset, args.output, factory, trials=args.trials, adaptation_count=args.adaptation_count,
+                        task="voicecount", adapter_kwargs=extras)
+    calls = {kind: sum(t.calls[kind] for t in transports) for kind in ("worker", "improver", "reflection")}
+    measurement = {"trials": args.trials, "adaptation_count": args.adaptation_count, "chat_calls": calls,
+                   "tool_calls_live": {"segment": segmenter.calls, "transcribe": transcriber.calls},
+                   "usage": summarize(usage_rows(ledger)), "criterion": result["criterion"],
+                   "final_test": {k: result["final_test"][k] for k in ("base_mean", "gains", "executions")}}
+    (args.output/"call-measurement.json").write_text(json.dumps(measurement, indent=2)+"\n", encoding="utf-8")
+    print(json.dumps({"live": False, "dataset_sha256": dataset_hash(dataset), **measurement}, indent=2))
     return 0
 
 
