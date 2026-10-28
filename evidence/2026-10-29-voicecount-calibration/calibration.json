@@ -1,0 +1,787 @@
+{
+  "live": true,
+  "capability_evidence": true,
+  "items": [
+    "calibration-0001",
+    "calibration-0002",
+    "calibration-0003",
+    "calibration-0004",
+    "calibration-0005",
+    "calibration-0006",
+    "calibration-0007",
+    "calibration-0008",
+    "calibration-0009",
+    "calibration-0010",
+    "calibration-0011",
+    "calibration-0012",
+    "calibration-0013",
+    "calibration-0014",
+    "calibration-0015",
+    "calibration-0016",
+    "calibration-0017",
+    "calibration-0018",
+    "calibration-0019",
+    "calibration-0020"
+  ],
+  "arms": {
+    "A0": {
+      "calibration-0001": {
+        "answer": {
+          "object": "books",
+          "region": "whole",
+          "count": 16
+        },
+        "score": 1.0,
+        "errors": [],
+        "output_tokens": 1857
+      },
+      "calibration-0002": {
+        "answer": {
+          "object": "donuts tray",
+          "region": "whole",
+          "count": 1
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 816
+      },
+      "calibration-0003": {
+        "answer": {
+          "object": "apples",
+          "region": "right",
+          "count": 18
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 1467
+      },
+      "calibration-0004": {
+        "answer": {
+          "object": "cashew nuts",
+          "region": "whole",
+          "count": 20
+        },
+        "score": 1.0,
+        "errors": [],
+        "output_tokens": 1800
+      },
+      "calibration-0005": {
+        "answer": {
+          "object": "bottle caps",
+          "region": "whole",
+          "count": 36
+        },
+        "score": 1.0,
+        "errors": [],
+        "output_tokens": 381
+      },
+      "calibration-0006": {
+        "answer": {
+          "object": "apples",
+          "region": "whole",
+          "count": 41
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 3137
+      },
+      "calibration-0007": {
+        "answer": {
+          "object": "milk cartons",
+          "region": "whole",
+          "count": 68
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 1998
+      },
+      "calibration-0008": {
+        "answer": {
+          "object": "seagulls",
+          "region": "whole",
+          "count": 16
+        },
+        "score": 1.0,
+        "errors": [],
+        "output_tokens": 793
+      },
+      "calibration-0009": {
+        "answer": {
+          "object": "deer",
+          "region": "whole",
+          "count": 17
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 1598
+      },
+      "calibration-0010": {
+        "answer": {
+          "object": "strawberries",
+          "region": "bottom",
+          "count": 13
+        },
+        "score": 1.0,
+        "errors": [],
+        "output_tokens": 1594
+      },
+      "calibration-0011": {
+        "answer": {
+          "object": "stamps",
+          "region": "whole",
+          "count": 28
+        },
+        "score": 1.0,
+        "errors": [],
+        "output_tokens": 663
+      },
+      "calibration-0012": {
+        "answer": {
+          "object": "stamps",
+          "region": "right",
+          "count": 27
+        },
+        "score": 1.0,
+        "errors": [],
+        "output_tokens": 1936
+      },
+      "calibration-0013": {
+        "answer": {
+          "object": "books",
+          "region": "top",
+          "count": 68
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 1758
+      },
+      "calibration-0014": {
+        "answer": {
+          "object": "bottle caps",
+          "region": "whole",
+          "count": 29
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 2601
+      },
+      "calibration-0015": {
+        "answer": {
+          "object": "grapes",
+          "region": "left",
+          "count": 20
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 1046
+      },
+      "calibration-0016": {
+        "answer": {
+          "object": "donuts tray",
+          "region": "whole",
+          "count": 12
+        },
+        "score": 1.0,
+        "errors": [],
+        "output_tokens": 421
+      },
+      "calibration-0017": {
+        "answer": {
+          "object": "eggs",
+          "region": "whole",
+          "count": 30
+        },
+        "score": 1.0,
+        "errors": [],
+        "output_tokens": 704
+      },
+      "calibration-0018": {
+        "answer": {
+          "object": "sheep",
+          "region": "whole",
+          "count": 46
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 3304
+      },
+      "calibration-0019": {
+        "answer": {
+          "object": "marbles",
+          "region": "whole",
+          "count": 75
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 2368
+      },
+      "calibration-0020": {
+        "answer": {
+          "object": "grapes",
+          "region": "whole",
+          "count": 44
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "output_tokens": 2733
+      }
+    },
+    "A1": {
+      "calibration-0001": {
+        "answer": {
+          "object": "books",
+          "region": "whole",
+          "count": 17
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0002": {
+        "answer": {
+          "object": "donut",
+          "region": "whole",
+          "count": 12
+        },
+        "score": 1.0,
+        "errors": [
+          "object: value does not match"
+        ],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0003": {
+        "answer": {
+          "object": "apples",
+          "region": "right",
+          "count": 28
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0004": {
+        "answer": {
+          "object": "cashew nut",
+          "region": "whole",
+          "count": 22
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0005": {
+        "answer": {
+          "object": "bottle caps",
+          "region": "whole",
+          "count": 36
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0006": {
+        "answer": {
+          "object": "apples",
+          "region": "whole",
+          "count": 62
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0007": {
+        "answer": {
+          "object": "milk cartons",
+          "region": "whole",
+          "count": 80
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0008": {
+        "answer": {
+          "object": "seagulls",
+          "region": "whole",
+          "count": 15
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0009": {
+        "answer": {
+          "object": "deer",
+          "region": "whole",
+          "count": 16
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0010": {
+        "answer": {
+          "object": "strawberries",
+          "region": "bottom",
+          "count": 16
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0011": {
+        "answer": {
+          "object": "stamps",
+          "region": "whole",
+          "count": 28
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0012": {
+        "answer": {
+          "object": "stamps",
+          "region": "right",
+          "count": 28
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0013": {
+        "answer": {
+          "object": "book",
+          "region": "top",
+          "count": 14
+        },
+        "score": 0.0,
+        "errors": [
+          "count: outside tolerance"
+        ],
+        "turns": 5,
+        "tools": [
+          "transcribe",
+          "segment",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0014": {
+        "answer": {
+          "object": "bottle cap",
+          "region": "whole",
+          "count": 34
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0015": {
+        "answer": {
+          "object": "grapes",
+          "region": "left",
+          "count": 25
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0016": {
+        "answer": {
+          "object": "donut",
+          "region": "whole",
+          "count": 12
+        },
+        "score": 1.0,
+        "errors": [
+          "object: value does not match"
+        ],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0017": {
+        "answer": {
+          "object": "egg",
+          "region": "whole",
+          "count": 30
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0018": {
+        "answer": {
+          "object": "sheep",
+          "region": "whole",
+          "count": 54
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0019": {
+        "answer": {
+          "object": "marbles",
+          "region": "whole",
+          "count": 112
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 5,
+        "tools": [
+          "transcribe",
+          "segment",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      },
+      "calibration-0020": {
+        "answer": {
+          "object": "grapes",
+          "region": "whole",
+          "count": 61
+        },
+        "score": 1.0,
+        "errors": [],
+        "turns": 4,
+        "tools": [
+          "transcribe",
+          "segment",
+          "count_boxes"
+        ],
+        "tool_errors": 0,
+        "stopped": null
+      }
+    }
+  },
+  "summary": {
+    "A0": {
+      "mean": 0.45,
+      "passed": 9.0,
+      "items": 20,
+      "by_region": {
+        "bottom": 1.0,
+        "left": 0.0,
+        "right": 0.5,
+        "top": 0.0,
+        "whole": 0.4666666666666667
+      }
+    },
+    "A1": {
+      "mean": 0.8,
+      "passed": 16.0,
+      "items": 20,
+      "by_region": {
+        "bottom": 1.0,
+        "left": 1.0,
+        "right": 1.0,
+        "top": 0.0,
+        "whole": 0.8
+      }
+    }
+  },
+  "headroom_band": [
+    0.3,
+    0.8
+  ],
+  "headroom": true,
+  "errors": [],
+  "decision": "A1 in band: prepare S7 trials",
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 157747,
+        "output_tokens": 53870,
+        "spent_usd": 0.01825006
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.05802
+      }
+    },
+    "per_phase": {
+      "worker/alone": {
+        "settled_calls": 20,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.007393808
+      },
+      "worker/execute": {
+        "settled_calls": 82,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.010856252
+      },
+      "tool/transcribe": {
+        "settled_calls": 20,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.00302
+      },
+      "tool/segment": {
+        "settled_calls": 22,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.055
+      }
+    },
+    "settled_calls": 144,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.07627006
+  },
+  "ledger_before": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.070598338,
+    "reserved_usd": 0.0,
+    "remaining_usd": 19.929401662,
+    "settled_calls": 257,
+    "reserved_calls": 0,
+    "unknown_count": 0,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.032802826,
+        "reserved_usd": 0.0,
+        "input_tokens": 728658,
+        "output_tokens": 56084,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 0.020212,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 10,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.016397412,
+        "reserved_usd": 0.0,
+        "input_tokens": 63025,
+        "output_tokens": 61269,
+        "settled_calls": 108,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.146868398,
+    "reserved_usd": 0.0,
+    "remaining_usd": 19.853131602,
+    "settled_calls": 401,
+    "reserved_calls": 0,
+    "unknown_count": 0,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.032802826,
+        "reserved_usd": 0.0,
+        "input_tokens": 728658,
+        "output_tokens": 56084,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 0.078232,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 52,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.034647472,
+        "reserved_usd": 0.0,
+        "input_tokens": 220772,
+        "output_tokens": 115139,
+        "settled_calls": 210,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "cache_hits": 0,
+  "live_tool_calls": 42
+}
