@@ -1,0 +1,64 @@
+{
+  "samples": [
+    {
+      "sample_id": "calibration-case-0001",
+      "source_id": "calibration-log-0001",
+      "split": "calibration",
+      "text": "Target order: LX-58764339\nEvent log:\ntime=2025-02-04T02:01:00Z id=E71575 order=LX-58764339 type=remove_line sku=SKU-9021\ntime=2025-02-03T21:55:00Z id=E34732 order=LX-58764339 type=refund amount=123.46\ntime=2025-02-04T05:10:00Z id=E30053 order=LX-58764339 type=set_qty sku=SKU-9158 qty=5\ntime=2025-02-03T22:09:00Z id=E65828 order=LX-58764339 type=set_qty sku=SKU-9764 qty=0\ntime=2025-02-03T20:24:00Z id=E39305 order=LX-58764307 type=cancel\ntime=2025-02-03T23:25:00Z id=E56391 order=LX-58764339 type=add_line sku=SKU-9021 qty=1 unit_price=67.31 price_ccy=INR\ntime=2025-02-03T21:55:00Z id=E34732 order=LX-58764339 type=refund amount=123.46\ntime=2025-02-04T06:05:00Z id=E38066 order=LX-58764339 type=cancel\ntime=2025-02-04T02:05:00Z id=E60907 order=LX-58764339 type=add_line sku=SKU-9158 qty=3 unit_price=29.35 price_ccy=INR\ntime=2025-02-03T20:00:00Z id=E59220 order=LX-58764339 type=create currency=INR\ntime=2025-02-03T21:18:00Z id=E84741 order=LX-58764339 type=add_line sku=SKU-9764 qty=3 unit_price=164.58 price_ccy=INR\ntime=2025-02-04T03:48:00Z id=E17953 order=LX-58764339 type=refund amount=119.89\ntime=2025-02-03T23:04:00Z id=E73408 order=LX-58764307 type=cancel"
+    },
+    {
+      "sample_id": "calibration-case-0002",
+      "source_id": "calibration-log-0002",
+      "split": "calibration",
+      "text": "Target order: LX-39189391\nEvent log:\n[E96284 @ 2025-10-13T10:15:00Z] LX-39189391 :: SET_QTY SKU-9141 -> 5\n[E95875 @ 2025-10-13T07:43:00Z] LX-39189330 :: DISCOUNT CLEAR\n[E18491 @ 2025-10-13T14:33:00Z] LX-39189391 :: ADD_LINE SKU-9141 x2 @ 117.33 USD\n[E88824 @ 2025-10-13T09:14:00Z] LX-39189391 :: REFUND 140.70\n[E89837 @ 2025-10-13T10:45:00Z] LX-39189391 :: DISCOUNT SAVE10\n[E78864 @ 2025-10-13T10:51:00Z] LX-39189391 :: DISCOUNT SAVE10\n[E63709 @ 2025-10-13T13:59:00Z] LX-39189330 :: SET_QTY SKU-9141 -> 3\n[E61462 @ 2025-10-13T09:39:00Z] LX-39189391 :: DISCOUNT CLEAR\n[E62827 @ 2025-10-13T12:30:00Z] LX-39189391 :: REMOVE_LINE SKU-9141\n[E96933 @ 2025-10-13T05:45:00Z] LX-39189391 :: CREATE currency USD\n[E69992 @ 2025-10-13T08:03:00Z] LX-39189391 :: ADD_LINE SKU-9141 x5 @ 27.09 USD\n[E78864 @ 2025-10-13T10:51:00Z] LX-39189391 :: DISCOUNT SAVE10"
+    },
+    {
+      "sample_id": "calibration-case-0003",
+      "source_id": "calibration-log-0003",
+      "split": "calibration",
+      "text": "Target order: LX-25731872\nEvent log:\ntime=2025-10-19T06:10:00Z id=E32824 order=LX-25731872 type=remove_line sku=SKU-9323\ntime=2025-10-19T06:10:00Z id=E32824 order=LX-25731872 type=remove_line sku=SKU-9323\ntime=2025-10-18T22:06:00Z id=E48822 order=LX-25731872 type=add_line sku=SKU-9323 qty=4 unit_price=155.87 price_ccy=USD\ntime=2025-10-19T04:29:00Z id=E71583 order=LX-25731872 type=add_line sku=SKU-9323 qty=1 unit_price=76.74 price_ccy=USD\ntime=2025-10-19T01:09:00Z id=E36269 order=LX-25731872 type=add_line sku=SKU-9680 qty=3 unit_price=182.10 price_ccy=USD\ntime=2025-10-19T03:42:00Z id=E10013 order=LX-25731872 type=set_qty sku=SKU-9680 qty=0\ntime=2025-10-19T08:50:00Z id=E37795 order=LX-25731872 type=add_line sku=SKU-9309 qty=2 unit_price=174.57 price_ccy=USD\ntime=2025-10-19T03:54:00Z id=E66249 order=LX-25731828 type=set_qty sku=SKU-9309 qty=2\ntime=2025-10-19T00:28:00Z id=E99197 order=LX-25731872 type=set_qty sku=SKU-9323 qty=0\ntime=2025-10-19T06:06:00Z id=E66281 order=LX-25731828 type=add_line sku=SKU-9178 qty=3 unit_price=133.83 price_ccy=USD\ntime=2025-10-19T09:57:00Z id=E90027 order=LX-25731872 type=reinstate\ntime=2025-10-18T20:57:00Z id=E98790 order=LX-25731872 type=create currency=USD\ntime=2025-10-19T03:13:00Z id=E10445 order=LX-25731872 type=discount code=SAVE10\ntime=2025-10-19T09:30:00Z id=E87212 order=LX-25731872 type=set_qty sku=SKU-9309 qty=5"
+    },
+    {
+      "sample_id": "calibration-case-0004",
+      "source_id": "calibration-log-0004",
+      "split": "calibration",
+      "text": "Target order: LX-85433767\nEvent log:\n[E31810 @ 2025-09-22T03:51:00Z] LX-85433767 :: REMOVE_LINE SKU-9113\n[E44601 @ 2025-09-22T00:10:00Z] LX-85433708 :: ADD_LINE SKU-9302 x1 @ 230.17 INR\n[E17534 @ 2025-09-22T06:01:00Z] LX-85433767 :: REINSTATE\n[E35217 @ 2025-09-21T22:40:00Z] LX-85433767 :: SET_QTY SKU-9113 -> 3\n[E21741 @ 2025-09-21T16:58:00Z] LX-85433767 :: ADD_LINE SKU-9113 x5 @ 186.10 INR\n[E97699 @ 2025-09-21T15:30:00Z] LX-85433767 :: CREATE currency INR\n[E43076 @ 2025-09-22T08:14:00Z] LX-85433767 :: REINSTATE\n[E86425 @ 2025-09-22T01:16:00Z] LX-85433767 :: ADD_LINE SKU-9477 x3 @ 142.33 INR\n[E38212 @ 2025-09-22T10:24:00Z] LX-85433767 :: REINSTATE\n[E23886 @ 2025-09-22T10:05:00Z] LX-85433767 :: ADD_LINE SKU-9686 x4 @ 193.45 INR\n[E31810 @ 2025-09-22T03:51:00Z] LX-85433767 :: REMOVE_LINE SKU-9113\n[E28435 @ 2025-09-21T21:15:00Z] LX-85433708 :: DISCOUNT VIP15\n[E90228 @ 2025-09-21T19:55:00Z] LX-85433767 :: REFUND 113.18"
+    },
+    {
+      "sample_id": "calibration-case-0005",
+      "source_id": "calibration-log-0005",
+      "split": "calibration",
+      "text": "Target order: LX-58144423\nEvent log:\ntime=2025-05-10T02:55:00Z id=E96203 order=LX-58144411 type=cancel\ntime=2025-05-10T04:40:00Z id=E99073 order=LX-58144423 type=add_line sku=SKU-9748 qty=3 unit_price=158.33 price_ccy=USD\ntime=2025-05-10T00:17:00Z id=E95505 order=LX-58144423 type=add_line sku=SKU-9052 qty=3 unit_price=39.84 price_ccy=USD\ntime=2025-05-09T21:33:00Z id=E82911 order=LX-58144423 type=create currency=USD\ntime=2025-05-09T21:42:00Z id=E30387 order=LX-58144423 type=add_line sku=SKU-9781 qty=2 unit_price=72.73 price_ccy=USD\ntime=2025-05-10T06:11:00Z id=E49612 order=LX-58144423 type=reinstate\ntime=2025-05-10T01:56:00Z id=E53347 order=LX-58144423 type=add_line sku=SKU-9092 qty=1 unit_price=176.98 price_ccy=USD\ntime=2025-05-10T04:58:00Z id=E59338 order=LX-58144423 type=set_qty sku=SKU-9723 qty=5\ntime=2025-05-10T09:01:00Z id=E52957 order=LX-58144423 type=discount code=SAVE5\ntime=2025-05-10T06:44:00Z id=E57201 order=LX-58144423 type=discount code=CLEAR\ntime=2025-05-10T06:13:00Z id=E81278 order=LX-58144423 type=set_qty sku=SKU-9781 qty=4\ntime=2025-05-09T23:11:00Z id=E75256 order=LX-58144411 type=cancel\ntime=2025-05-10T01:56:00Z id=E53347 order=LX-58144423 type=add_line sku=SKU-9092 qty=1 unit_price=176.98 price_ccy=USD"
+    },
+    {
+      "sample_id": "calibration-case-0006",
+      "source_id": "calibration-log-0006",
+      "split": "calibration",
+      "text": "Target order: LX-14962056\nEvent log:\n[E37520 @ 2025-02-15T14:16:00Z] LX-14962056 :: ADD_LINE SKU-9334 x5 @ 21.28 INR\n[E39707 @ 2025-02-16T01:40:00Z] LX-14962056 :: REINSTATE\n[E74107 @ 2025-02-15T15:01:00Z] LX-14962056 :: CANCEL\n[E52865 @ 2025-02-16T05:48:00Z] LX-14962056 :: SET_QTY SKU-9368 -> 1\n[E72333 @ 2025-02-16T03:10:00Z] LX-14962056 :: ADD_LINE SKU-9368 x2 @ 158.48 INR\n[E19918 @ 2025-02-15T20:25:00Z] LX-14962056 :: CANCEL\n[E19332 @ 2025-02-15T10:58:00Z] LX-14962056 :: CREATE currency INR\n[E65683 @ 2025-02-16T03:04:00Z] LX-14962056 :: ADD_LINE SKU-9753 x5 @ 171.08 INR\n[E70800 @ 2025-02-15T17:45:00Z] LX-14962056 :: DISCOUNT CLEAR\n[E72309 @ 2025-02-15T21:49:00Z] LX-14962016 :: DISCOUNT CLEAR\n[E28780 @ 2025-02-15T12:42:00Z] LX-14962056 :: ADD_LINE SKU-9753 x3 @ 163.23 INR\n[E64559 @ 2025-02-15T15:50:00Z] LX-14962016 :: ADD_LINE SKU-9987 x1 @ 247.24 INR\n[E18807 @ 2025-02-15T23:04:00Z] LX-14962056 :: REMOVE_LINE SKU-9334\n[E65683 @ 2025-02-16T03:04:00Z] LX-14962056 :: ADD_LINE SKU-9753 x5 @ 171.08 INR"
+    },
+    {
+      "sample_id": "calibration-case-0007",
+      "source_id": "calibration-log-0007",
+      "split": "calibration",
+      "text": "Target order: LX-38233938\nEvent log:\ntime=2025-08-23T01:21:00Z id=E55663 order=LX-38233982 type=set_qty sku=SKU-9085 qty=5\ntime=2025-08-22T18:19:00Z id=E10722 order=LX-38233938 type=set_qty sku=SKU-9709 qty=0\ntime=2025-08-22T23:36:00Z id=E34148 order=LX-38233982 type=add_line sku=SKU-9442 qty=2 unit_price=195.15 price_ccy=USD\ntime=2025-08-23T04:09:00Z id=E96589 order=LX-38233938 type=add_line sku=SKU-9085 qty=3 unit_price=101.37 price_ccy=USD\ntime=2025-08-22T22:55:00Z id=E97684 order=LX-38233938 type=cancel\ntime=2025-08-22T14:40:00Z id=E43350 order=LX-38233938 type=create currency=USD\ntime=2025-08-22T21:14:00Z id=E56825 order=LX-38233938 type=set_qty sku=SKU-9659 qty=1\ntime=2025-08-23T06:18:00Z id=E65102 order=LX-38233938 type=set_qty sku=SKU-9085 qty=3\ntime=2025-08-22T16:21:00Z id=E74209 order=LX-38233938 type=add_line sku=SKU-9659 qty=4 unit_price=9.11 price_ccy=USD\ntime=2025-08-23T00:58:00Z id=E60478 order=LX-38233938 type=discount code=SAVE10\ntime=2025-08-23T01:44:00Z id=E45018 order=LX-38233938 type=set_qty sku=SKU-9659 qty=0\ntime=2025-08-23T09:17:00Z id=E49139 order=LX-38233938 type=set_qty sku=SKU-9085 qty=4\ntime=2025-08-23T11:26:00Z id=E74929 order=LX-38233938 type=refund amount=17.73\ntime=2025-08-23T11:26:00Z id=E74929 order=LX-38233938 type=refund amount=17.73"
+    },
+    {
+      "sample_id": "calibration-case-0008",
+      "source_id": "calibration-log-0008",
+      "split": "calibration",
+      "text": "Target order: LX-56787887\nEvent log:\n[E21836 @ 2025-11-23T17:02:00Z] LX-56787887 :: REINSTATE\n[E19865 @ 2025-11-23T16:55:00Z] LX-56787887 :: DISCOUNT SAVE5\n[E24575 @ 2025-11-23T09:31:00Z] LX-56787887 :: ADD_LINE SKU-9104 x5 @ 137.34 USD\n[E26196 @ 2025-11-23T15:42:00Z] LX-56787887 :: ADD_LINE SKU-9916 x4 @ 96.53 USD\n[E21836 @ 2025-11-23T17:02:00Z] LX-56787887 :: REINSTATE\n[E33601 @ 2025-11-23T06:17:00Z] LX-56787887 :: CANCEL\n[E34870 @ 2025-11-23T11:43:00Z] LX-56787887 :: REFUND 71.87\n[E27297 @ 2025-11-23T15:40:00Z] LX-56787811 :: CANCEL\n[E91139 @ 2025-11-23T02:08:00Z] LX-56787887 :: ADD_LINE SKU-9870 x3 @ 239.17 USD\n[E79287 @ 2025-11-23T06:02:00Z] LX-56787811 :: CANCEL\n[E40678 @ 2025-11-23T01:17:00Z] LX-56787887 :: CREATE currency USD\n[E82060 @ 2025-11-23T13:18:00Z] LX-56787887 :: REFUND 149.74\n[E66395 @ 2025-11-23T03:37:00Z] LX-56787887 :: CANCEL\n[E93891 @ 2025-11-23T08:38:00Z] LX-56787887 :: REMOVE_LINE SKU-9870"
+    },
+    {
+      "sample_id": "calibration-case-0009",
+      "source_id": "calibration-log-0009",
+      "split": "calibration",
+      "text": "Target order: LX-13782353\nEvent log:\ntime=2025-01-18T23:35:00Z id=E83989 order=LX-13782353 type=reinstate\ntime=2025-01-19T03:32:00Z id=E72660 order=LX-13782353 type=remove_line sku=SKU-9681\ntime=2025-01-18T20:55:00Z id=E60395 order=LX-13782353 type=create currency=INR\ntime=2025-01-19T09:21:00Z id=E53051 order=LX-13782353 type=remove_line sku=SKU-9677\ntime=2025-01-19T09:36:00Z id=E25962 order=LX-13782353 type=add_line sku=SKU-9288 qty=1 unit_price=8.00 price_ccy=INR\ntime=2025-01-18T21:36:00Z id=E95020 order=LX-13782353 type=add_line sku=SKU-9681 qty=1 unit_price=187.89 price_ccy=INR\ntime=2025-01-19T01:40:00Z id=E74185 order=LX-13782353 type=remove_line sku=SKU-9681\ntime=2025-01-19T04:25:00Z id=E82231 order=LX-13782316 type=set_qty sku=SKU-9288 qty=1\ntime=2025-01-19T02:19:00Z id=E65394 order=LX-13782353 type=add_line sku=SKU-9677 qty=2 unit_price=154.42 price_ccy=INR\ntime=2025-01-19T06:25:00Z id=E87939 order=LX-13782353 type=discount code=VIP15\ntime=2025-01-19T09:18:00Z id=E18934 order=LX-13782316 type=set_qty sku=SKU-9288 qty=0\ntime=2025-01-19T06:25:00Z id=E87939 order=LX-13782353 type=discount code=VIP15\ntime=2025-01-19T07:38:00Z id=E37755 order=LX-13782353 type=reinstate"
+    },
+    {
+      "sample_id": "calibration-case-0010",
+      "source_id": "calibration-log-0010",
+      "split": "calibration",
+      "text": "Target order: LX-67346534\nEvent log:\n[E84201 @ 2025-11-02T13:25:00Z] LX-67346534 :: DISCOUNT VIP15\n[E97271 @ 2025-11-02T17:47:00Z] LX-67346534 :: SET_QTY SKU-9948 -> 3\n[E59265 @ 2025-11-02T13:57:00Z] LX-67346534 :: REMOVE_LINE SKU-9848\n[E59265 @ 2025-11-02T13:57:00Z] LX-67346534 :: REMOVE_LINE SKU-9848\n[E91868 @ 2025-11-02T15:49:00Z] LX-67346534 :: ADD_LINE SKU-9848 x5 @ 97.92 EUR\n[E14755 @ 2025-11-02T19:16:00Z] LX-67346534 :: CANCEL\n[E37841 @ 2025-11-02T17:05:00Z] LX-67346545 :: DISCOUNT SAVE10\n[E44271 @ 2025-11-02T13:52:00Z] LX-67346534 :: SET_QTY SKU-9848 -> 5\n[E65065 @ 2025-11-02T16:11:00Z] LX-67346534 :: ADD_LINE SKU-9421 x5 @ 157.75 EUR\n[E83105 @ 2025-11-02T17:05:00Z] LX-67346534 :: SET_QTY SKU-9421 -> 2\n[E19775 @ 2025-11-02T09:51:00Z] LX-67346534 :: ADD_LINE SKU-9848 x1 @ 83.53 EUR\n[E29924 @ 2025-11-02T10:38:00Z] LX-67346545 :: REFUND 11.23\n[E23497 @ 2025-11-02T12:23:00Z] LX-67346534 :: DISCOUNT VIP15\n[E82759 @ 2025-11-02T07:30:00Z] LX-67346534 :: CREATE currency EUR"
+    }
+  ]
+}
