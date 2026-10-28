@@ -1,0 +1,561 @@
+{
+  "transcribe": {
+    "loop-0005": {
+      "transcript": "How many geese are there in this picture??",
+      "duration_ms": 1760,
+      "wer": 0.0
+    },
+    "loop-0036": {
+      "transcript": "count the cans in the bottom half of the picture.",
+      "duration_ms": 2480,
+      "wer": 0.0
+    }
+  },
+  "segment": {
+    "loop-0005:geese": {
+      "instances": 10,
+      "truth_count": 30,
+      "with_confidence": 10,
+      "confidence_min_max": [
+        0.5038759708404541,
+        0.5428571701049805
+      ],
+      "image_size": [
+        512,
+        384
+      ],
+      "box_sizes_match_image": true
+    },
+    "loop-0036:cans": {
+      "instances": 66,
+      "truth_count": 36,
+      "with_confidence": 66,
+      "confidence_min_max": [
+        0.6332378387451172,
+        0.921951174736023
+      ],
+      "image_size": [
+        514,
+        384
+      ],
+      "box_sizes_match_image": true
+    },
+    "loop-0005:giraffes": {
+      "instances": 0,
+      "truth_count": 0,
+      "with_confidence": 0,
+      "confidence_min_max": [
+        null,
+        null
+      ],
+      "image_size": [
+        512,
+        384
+      ],
+      "box_sizes_match_image": true
+    }
+  },
+  "agent": {
+    "loop-0005": {
+      "answer": "",
+      "score": 0.0,
+      "errors": [
+        "output must be a JSON object"
+      ],
+      "turns": 5,
+      "tool_calls": [
+        {
+          "name": "transcribe",
+          "arguments": {},
+          "error": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "geese"
+          },
+          "error": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "bird"
+          },
+          "error": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "flying goose"
+          },
+          "error": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "goose in sky"
+          },
+          "error": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "bird silhouette"
+          },
+          "error": null
+        }
+      ],
+      "stopped": "more than 6 tool calls"
+    },
+    "loop-0036": {
+      "answer": {
+        "object": "cans",
+        "region": "bottom",
+        "count": 36
+      },
+      "score": 1.0,
+      "errors": [],
+      "turns": 4,
+      "tool_calls": [
+        {
+          "name": "transcribe",
+          "arguments": {},
+          "error": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "can"
+          },
+          "error": null
+        },
+        {
+          "name": "count_boxes",
+          "arguments": {
+            "concept": "can",
+            "region": "bottom"
+          },
+          "error": null
+        }
+      ],
+      "stopped": null
+    }
+  },
+  "raw_shapes": {
+    "segment": [
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae27139bdffcce87af84d7f\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793225017.0, \"completed_at\": 1793225017.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_91896b61-f25c-4763-ab3c-329c3d76493c\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"<0f>0<|box;x1=386;y1=113;x2=395;y2=122;w=512;h=384;c=0.5038759708404541|><|mask;x=0;y=0;c=0.5038759708404541;data=10,10,~!!!!^!O3(0bPV62:?]d5x=YgrMGH]2tw%p!h.S?9R'Qc.GAdmc83JKS:0ixkNCsk78pNH1y&p)|>,1<|box;x1=432;y1=120;x2=444;y2=129;w=512;h=384;c=0.507692277431488|><|mask;x=0;y=0;c=0.507692277431488;data=10,13,~!!!!q!kDv@EmxlI!F)?mt_R.Gy2=X_=4Q&:$AVrZ*D)(LWDMtd![6W:R+Dx8_uh?YacM!4$IqRSqtF=Vx*]10)Tly)]u0g7!!!|>,2<|box;x1=98;y1=106;x2=111;y2=111;w=512;h=384;c=0.518796980381012|><|mask;x=0;y=0;c=0.518796980381012;data=6,14,~!!!!`!kCo4qw7JM2GA*lkh'Wo1fu]5bKdMv_)tj.rC2jT/hKv_:z]3-uTnzUFP54Z&#h]pF%5(?!!|>,3<|box;x1=27;y1=133;x2=41;y2=144;w=512;h=384;c=0.5428571701049805|><|mask;x=0;y=0;c=0.5428571701049805;data=12,15,~!!!#7!kZWRsaMuzU?]FHGpp4gBb9Y^]p0-{sog2DUnE^ZL_Q_(R{SN^4(.g{m^+.v%CG[bU'+eWoz`d=$6hVwQ`Ia`XQb9SS`+k*)#7h%QsI:391m%nG1iwRJLVE&w'uR23`?E[!!|>,4<|box;x1=270;y1=108;x2=283;y2=116;w=512;h=384;c=0.5311355590820312|><|mask;x=0;y=0;c=0.5311355590820312;data=9,14,~!!!!s!kCo*8Sn={1ZNjFAeuAb0)DVb7Pu6.DA@[86UlUFOr$X48i52M6H%jdL)ON{UWlJ-0Ignxa%.1umB[@E/1IU&HlW1]k4d1&|>,5<|box;x1=124;y1=105;x2=137;y2=111;w=512;h=384;c=0.5276752710342407|><|mask;x=0;y=0;c=0.5276752710342407;data=7,14,~!!!!h!kDyTGGYY_T-57H+Kghf62'Rcw@yLQm_4D'e86A9X9[8vP9-_LDQu)WG:6=QbdtMVbLYTz_D8Cy96n=+!!|>,6<|box;x1=233;y1=107;x2=246;y2=117;w=512;h=384;c=0.518796980381012|><|mask;x=0;y=0;c=0.518796980381012;data=11,14,~!!!!w!kCo3q{WAD_4!Z`P&pubW1J8=+^kaIB3%Q9)=!Ar?Jw@ZjUpuAe&U?8O))RHx1CzPxaO?ohunmn[q/5s2]x@PR9hplp@nXWnWuD_|>,7<|box;x1=244;y1=115;x2=260;y2=121;w=512;h=384;c=0.5151515007019043|><|mask;x=0;y=0;c=0.5151515007019043;data=7,17,~!!!!g!kCmo_UpOBJEw4o_+w4S_kz.*syVge5adE-dbs?`q[f^9*kaB`E.sN9ls+T&YrtrN&mh2NSd=49Qa.xn|>,8<|box;x1=290;y1=109;x2=303;y2=116;w=512;h=384;c=0.518796980381012|><|mask;x=0;y=0;c=0.518796980381012;data=8,14,~!!!!`!O'`-P/Ks+@@sq^-r+]85))SWFB-o`?j9'73K8YUH(=YeJ{)T#&=U=)jiuV[7e*sZfN1m0!!|>,9<|box;x1=274;y1=130;x2=287;y2=136;w=512;h=384;c=0.5241636037826538|><|mask;x=0;y=0;c=0.5241636037826538;data=7,14,~!!!!Y!kFVq)QX?2'twqBmpu?!36`1w=*@F/=ov65dTkr!Ts{#L#uA'(R3#_O8MI5g?Rd#|>\\n\", \"annotations\": [], \"logprobs\": []}], \"status\": \"completed\"}], \"instructions\": null, \"usage\": {\"input_tokens\": 0, \"input_tokens_details\": {\"cached_tokens\": 0}, \"output_tokens\": 0, \"output_tokens_details\": {\"reasoning_tokens\": 0}, \"total_tokens\": 0, \"images_processed\": 1}, \"parallel_tool_calls\": true, \"store\": true}",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae2713b81f8d0ed8cc541a0\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793225019.0, \"completed_at\": 1793225019.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_99a9dc78-0d0d-4da3-bea7-ccfefe43307e\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"<0f>0<|box;x1=198;y1=224;x2=229;y2=281;w=514;h=384;c=0.9064327478408813|><|mask;x=0;y=0;c=0.9064327478408813;data=58,32,~!!!'P!0ergq@2n$)!*@e8?:[n5`N#^l4A-_6Vl.NRI_F#CV$N&dd'#pGAytwq4yP::wiameHl((hi#LQ^SUlaM?h%3MXQcaCgK'IFe4qw@18)N2+U!Aq9!u{X]qM9Qmke7r[l^m3b8:kRJLTO=@k(A6@u@V&]0@jOeuZ^Xe'@u*_Slu#2k)UtiDP*x&EqGTK*G?o%CiYA%[5z^$j]GIeBbz]Ysv'um#W)Ao*$/QtM&-[Cuy?WpOwWSBAsR-(keOSYC'e'CHK&G!+rigub=F4wf)Fqa^0%iDqes6DPwIB58fnVa2#T-kE1#[mGUk9bAu&[&cJq7HNcWq.GEWn{QuTZHO46HZ69^YB'gB0ObjN!JQ[LtHbm1^WY1pYj7Vca)r1_O]E8m1s/5ewzdpi^m^%V:tRh(kb?leelT43pwAQKcBP3A2:u3S`QCKL2A=TwTK%'6JlY/o^XCrXiVBqmtOBS6aH_SG3fF0ZYp0B&eaBJ3M.8jz8dBR+GOWr_i#XFW=0Ld!mIZtSZJBeN1_HG^JJ7G4P#A4V-dw#[!Jl'I@1:hxe@6FKEGW)ww1{ghntS6:)(2HDf2YFLK?DE|>,1<|box;x1=85;y1=185;x2=119;y2=231;w=514;h=384;c=0.9024390578269958|><|mask;x=0;y=0;c=0.9024390578269958;data=47,35,~!!!&U!0cZ!-F_JGh*XG.rs?uKg*kFX.w7So:i]!mM)x?FxCDmO)cZIfEGk1E$8r`07xQ1_/LmR$1Ax5TtVyM-B-D2.uwsp#Fe'*=!jZ-]@wz%.'Iu2uWi6wUdZ#Fsb0JS_a2L$]?7X6rL*_hxEmZh6tbUOo*cp1pempenPOcS$M*8?nH2ERw32p@]PUff3sjEh6%2+:/?SZ15Ph/$au.BwJsNi7VhdX^egzg{nx9u5D6oR^SdDkf@2#`Pze!Ynte2!S5kGB#8qWkYV1Nk^HU*je^..'cfbblp*Y7'mtIU{&9=nDR33I7wz2%:{`lZ'd8wvqw*?j/4asG=Ae16-Xp({=.wQ&o1115O:MevRUn9e.Y(6EZme6#n[lV1BzbWpD*kj*dCEX8$1Mx6UC6$[y9@+MEd{h/0AljJR/J-Tbb*Sy-Xk@wJFzon[Wz$yZvq*^aU+w&jn(aS=ERqk/'&8o]352hJ^`GPkd)O8{-N09!w|>,2<|box;x1=42;y1=152;x2=77;y2=193;w=514;h=384;c=0.8552036285400391|><|mask;x=0;y=0;c=0.8552036285400391;data=42,36,~!!!')!O'#^TTgD2E7lY%50y%cR_[o[SHuWq`7I/4!1r4hF?Itl04C[MS6uxn`9^)^onR$IGMH.3Y)Pkb.EIuG-X{n*X.%{'Dan6`0H$Wz5b(Gr6PU2ZN`%-IJk_*-ljqp@u17BIYJcNOMdgH[1l[8=WpiA=8ACTv3#)Rb]IzcsnUIp6qwM2G`IzKTrh+lx/_4Zj(rBh2ltTcK[mIxcAr]C3Lj=SXG?OJFN=+8&xo@0Q)=EVv6b'JRy9{OcqD{k0tP^d8C[FmK_^/5MEv.mm*^{YbVdSn4:moqg=B`h=E'LZcpo0fP.f`r6:PkX[M)S`J0:]Q/R-QDp)Q5rs!Zl[TbTN'r#n.!0Co0r2tn*ppf]?j5m]KsZP@Vg3eU++XTGh+iKEQlJiTzqXm$CA[n1-LjD0{#N)$9+Z#NXdQJ6-(SPEeE5ww(&&7]T]kB^eJ`&g'arm%QE4%Z.PDJ(-As.BQ9Lag9KAG6s=fHzsnU@{[wdx{lZDMMflvZd`tHq[A)%+at]!l)TK9Z?mHEE-dZZMU+86l4Mju6_6LR|>,3<|box;x1=204;y1=107;x2=232;y2=157;w=514;h=384;c=0.8865247964859009|><|mask;x=0;y=0;c=0.8865247964859009;data=51,29,~!!!&&!2$5Wkth:hc6O&BO*-Gk93@:xs.u&)].d8Dn(GEJ]#ywz1#KvWdAcrzNR%t(W6%=YUbM2Q(&{0DjeFbXF1nUYoNSZndi$-M#ErF0aWbeK#fU+L68+GC9SNDh8@tOeS%`@$[vn8aWsnF=WipFUw)9d3L%TkH^%ipZ?1$1&SP7J{wa{rHe{(A%No0$`WM]!yjT)lhe8m'f(4G`dscI5s#Hj)?CW^i-8+l3BP+GdLvsT]1O7BIgC)IU/I=-RXinf#UjY+8O*hWf@+(f.5+eSiw%k.a]iKg1z-+7:[$v:Pgwuik2SR06_=zE3eIR8x-V67l0L8xb#49n7kcR2sgu#",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae2713d38cf71f985ad43b4\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793225021.0, \"completed_at\": 1793225021.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_19e98be6-47cd-413a-9ac8-395891cd33c8\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"\", \"annotations\": [], \"logprobs\": []}], \"status\": \"completed\"}], \"instructions\": null, \"usage\": {\"input_tokens\": 0, \"input_tokens_details\": {\"cached_tokens\": 0}, \"output_tokens\": 0, \"output_tokens_details\": {\"reasoning_tokens\": 0}, \"total_tokens\": 0, \"images_processed\": 1}, \"parallel_tool_calls\": true, \"store\": true}",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae27146f57fa79ec841403f\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793225030.0, \"completed_at\": 1793225030.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_a0292f1e-a12a-4cbf-abfd-4cfde1a979ee\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"<0f>0<|box;x1=432;y1=120;x2=444;y2=129;w=512;h=384;c=0.507692277431488|><|mask;x=0;y=0;c=0.507692277431488;data=10,13,~!!!!m!kDxhqkUzQsd[jfu$ptsB({jvT&':oBnYLzS'l#iwq$](IKQj2Z*6H7q@p[3J&-*=_@a5iZ)/uqvnffU:sw6GW1j|>,1<|box;x1=98;y1=106;x2=111;y2=111;w=512;h=384;c=0.5151515007019043|><|mask;x=0;y=0;c=0.5151515007019043;data=6,14,~!!!!a!kCo3Ue'RVy.[DXE5/E&2G6FGRtg{+M.b2vbL]IM`5A_b=FV7X1.RzWV`Pd-v$CVN_WXQu!!!|>,2<|box;x1=27;y1=133;x2=41;y2=144;w=512;h=384;c=0.5395683646202087|><|mask;x=0;y=0;c=0.5395683646202087;data=12,15,~!!!#6!kmPf.6mb8J`GEdO3oRPcFi0`a4[Zmo'K0B4m7oHVsIelYtnXSW:B{f/(gci$$bAEC:@:/e4io:4)n=_k@4JbG7!U^gOBw@_^I'Z]Vk10B%T!8iW[cH'p#V8atRhS6$J{A|>,3<|box;x1=270;y1=108;x2=283;y2=116;w=512;h=384;c=0.5241636037826538|><|mask;x=0;y=0;c=0.5241636037826538;data=9,14,~!!!!s!kCo*Vv5H^0+I5KNC]Kh[QdAc9tLVz:.DXNk((_GbwvgFW-OR&@6=+EXz/c[Pvj5ZFsJ)7!pu+x0^QFEr=q=E'233X2z3oy|>,4<|box;x1=124;y1=105;x2=137;y2=111;w=512;h=384;c=0.5276752710342407|><|mask;x=0;y=0;c=0.5276752710342407;data=7,14,~!!!!d!kDyTCGKn(Gk`a_*1#Y2p?#[Ua*K1z@@1zO9mAvZ0Wvce!N6{L9:{WCeK+Ot9/-URbRWq6Ywg`j!!|>,5<|box;x1=233;y1=107;x2=246;y2=117;w=512;h=384;c=0.5151515007019043|><|mask;x=0;y=0;c=0.5151515007019043;data=11,14,~!!!!w!kCo4qm-_0$4ff0OVa]CIDQVCe*%3^'EPv0rr)JY@_bkzRWlzrd@COoX-VfxHj(R[3Q*_tjbg:hd26MRPtyJ?`0P/55ezEj.n*ku|>,6<|box;x1=244;y1=115;x2=260;y2=121;w=512;h=384;c=0.5114504098892212|><|mask;x=0;y=0;c=0.5114504098892212;data=7,17,~!!!!i!kCmp294fgUYy8co{v!JGX@2R0s1@6/&YLFwITwuQ=FpM+avlqMlWdXl[/mEI)1@-5{KSWFSm%dL-WN7!!!|>,7<|box;x1=290;y1=109;x2=303;y2=116;w=512;h=384;c=0.5114504098892212|><|mask;x=0;y=0;c=0.5114504098892212;data=8,14,~!!!!`!O'c%/Ue#I&vAZ6rdn#']BrFCF$a4qcO0BKA#2a?#oU$IkfFZ6.OV#1HaH5T/#oo6A%SdT!!|>,8<|box;x1=274;y1=130;x2=287;y2=136;w=512;h=384;c=0.5241636037826538|><|mask;x=0;y=0;c=0.5241636037826538;data=7,14,~!!!!T!kF]c6lFF+sN=U9JVz(yQ@6#ohsvmkPSxNE%KRUG?@wA@*cMnYl(Ae!jOy|>\\n\", \"annotations\": [], \"logprobs\": []}], \"status\": \"completed\"}], \"instructions\": null, \"usage\": {\"input_tokens\": 0, \"input_tokens_details\": {\"cached_tokens\": 0}, \"output_tokens\": 0, \"output_tokens_details\": {\"reasoning_tokens\": 0}, \"total_tokens\": 0, \"images_processed\": 1}, \"parallel_tool_calls\": true, \"store\": true}",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae2714dff95a98a8a3d4d5a\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793225037.0, \"completed_at\": 1793225037.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_4cebb453-29d7-441b-be4a-4eb3b7857bbb\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"\", \"annotations\": [], \"logprobs\": []}], \"status\": \"completed\"}], \"instructions\": null, \"usage\": {\"input_tokens\": 0, \"input_tokens_details\": {\"cached_tokens\": 0}, \"output_tokens\": 0, \"output_tokens_details\": {\"reasoning_tokens\": 0}, \"total_tokens\": 0, \"images_processed\": 1}, \"parallel_tool_calls\": true, \"store\": true}",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae2714f6a1c20e1a77b435a\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793225039.0, \"completed_at\": 1793225039.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_4a29801f-2c8f-4096-9a21-2c48fcf36e3c\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"\", \"annotations\": [], \"logprobs\": []}], \"status\": \"completed\"}], \"instructions\": null, \"usage\": {\"input_tokens\": 0, \"input_tokens_details\": {\"cached_tokens\": 0}, \"output_tokens\": 0, \"output_tokens_details\": {\"reasoning_tokens\": 0}, \"total_tokens\": 0, \"images_processed\": 1}, \"parallel_tool_calls\": true, \"store\": true}",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae27152e4d4e58e798b48d1\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793225041.0, \"completed_at\": 1793225042.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_ac995a20-7bb1-4c87-b979-39c019b66ac7\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"\", \"annotations\": [], \"logprobs\": []}], \"status\": \"completed\"}], \"instructions\": null, \"usage\": {\"input_tokens\": 0, \"input_tokens_details\": {\"cached_tokens\": 0}, \"output_tokens\": 0, \"output_tokens_details\": {\"reasoning_tokens\": 0}, \"total_tokens\": 0, \"images_processed\": 1}, \"parallel_tool_calls\": true, \"store\": true}",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae27163b0734fe6d0e3428d\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793225059.0, \"completed_at\": 1793225059.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_565d0528-9a4f-4c51-b419-ea8de69fbf97\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"<0f>0<|box;x1=198;y1=224;x2=229;y2=281;w=514;h=384;c=0.9139785170555115|><|mask;x=0;y=0;c=0.9139785170555115;data=58,32,~!!!'.!0cb%n:ID+A9fi=%Uq`_^6y8^U7V)6c0byz4LFnxvps/4?ILosx#1(?KzC_LX2nz$gNzKv9{u'6NUgqe*V-St43DfeqSbm*?FMNqBya{lOR04-@)9VP6T$l0:'slT)UA0*3aVZ#DhhL1TG6AIeSjgql!Dq.Eo3R{gBOj35{2-FOVkPK`3`+g5b*aBM!r_D9gFc1F7IE$#O:D7sesCZ[)*O)=@9=B[v7g:v_AI(a7S-sPor#=Ae{IFKB`{ctrZcj?(WePB'bck(#j*]QQF7@GQDSQZLE?e^Tr[]x0?g)'bv4R&QRks=D5ywBb9gk2)f0X+Q-oPwpM6gaPA^RxT'6nUzsTqv/).CbjITGbiJNY:^OS=`16enZ+78bZ`iEs_?0LQNqgn$7f9nVQJsRpgvB5IK'btw]k3(z)MfkO8'pKoG6C:Q)VtYauDDUVFaF@#_{ksy2-tD(vyrcxud$x1ONTDt']O-C&car=sTOqKO13o(sO*R&.CyjdBmr2J_O]0-9JVk?mT:q&g4o*WSkb#&a`JIo2z[0s#91he|>,1<|box;x1=84;y1=185;x2=119;y2=231;w=514;h=384;c=0.9101123809814453|><|mask;x=0;y=0;c=0.9101123809814453;data=47,36,~!!!&K!0cYxhLm9HoI36NTl+G-EH5GMXrj5`-1wv`G[14&24ar[A!a40BL+aP_=qb(Yf9{GSP?(KOl+O!=#$0uo6eoD*E99FJlqfI@LzlW7n6gDPS'TrC{LXLj!ouQvxxmS0eCpH`/23V[(3T2nH.-2akW7x0UHzk=OD5ypap6Fn%r?1dK@9:'A7WgoilhE%jg@e*{]_:?vg4{KiU6*_T=F6bR?gst&DWY/dn4cq!g!MF3ji:^v#uGu1lSML&]jEpz)l+rwGor2SAk$6f%v_&xvZ%QlS:haNURRRvSWK5x5N^xmWn??2oOeYNH7dIU{grNuWy^qvyN&LuO8dXK3nQ`L1q$u--V^JIq{Ewqz26ddLu^Z=c=jQ{IfV_'O/J8NY43=Sle'_rY+We4x5HRmDGv(M*'U+W8Bte1A-ajKVM{*IgM_f{gQaFrJ#g*%^@huLWuCtuCz7'qxc2kdnv.$n_H3m%hA1!!|>,2<|box;x1=42;y1=152;x2=78;y2=193;w=514;h=384;c=0.8827838897705078|><|mask;x=0;y=0;c=0.8827838897705078;data=42,37,~!!!&{!O'#_+#[lo!yTOci0XYzm6+(VTN1b?xT9o&Qa#I:fvy8w!TPui&MXL]x0I.CX6dOIcezHg[OaF#bZuAlel'V2SYO7:-=FS1!0=8K^o*Bw8OS.+91WQ7uzHqY4Y6u$ub6F3wlzGd`d!MCaVA_FFp?X6x7Nm?xp'e`ld2K)$.V/:0m-5ug53)_ruZ:0oT@jFbn$.Rm?/phpFROnNSH'_$gaQMa?Vat8FFC7@&KA%X0G6-+4]R^2bR?R&eh7_A?qM*rP!id.NE=Ck%gFSoK*rV(UA{EaiGEn=6V_O22(q?f)0TD^qcSnbb@@:(Fs)p+8[531=Q&%RA^SMoH4Y&vP]D2B6?!PLa7oEF+/:F0Pze_[ypoK'rYhT!FFV==6sdD[!#{(=(ib-xpX/!LOvuO7qnfGEzRh$)TP8iWaAeo!S&5Ws3$(bjU[FhN@avRx9[o#2T#W&1p%?'/J(:k7:&eB:G1tM$?N%a8.E.kwo_Za7n'MYH^4g:P1F6z#25gXMf{-b#R=*a.!MjxE)&niB2el-|>,3<|box;x1=192;y1=154;x2=218;y2=187;w=514;h=384;c=0.8632478713989258|><|mask;x=0;y=0;c=0.8632478713989258;data=34,27,~!!!%-!0yLZ+HS&wV$[0q'55FEu:N4E(ag.lU%Ja+100NnUF{UuEO#dvP'm@@tn.bv`@vgXKy4Ssl:6w)5Zksg'/?1.M[Ob.]mt8nk*mcNZC.Pz1xw%{GsJOvfbX+]d2yL%j#x5(t8+vPnqi1bA6e86Oc!Q=8JCbOs.AHldM)Ew]XNcaaYf#)4?^RuIX&x6#7YRQ[*#%2cBv?KO`2?z'pU$76@EmIC67t'nDwDXfbqGTe'YGrv4y6wfDJkR@0G5c#zwbMDR$RoL0Z%aUYO.Q^3oJ-6Xt28Q-FtvAT]''C.bFdT8uK0#9+!K.yK=i]m$2be1*t:X9JEZRf0%t!!|>,4<|box;x1=204;y1=107;x2=233;y2=157;w=514;h=384;c=0.855203628540",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      }
+    ],
+    "transcribe": [
+      {
+        "keys": [
+          "audioDurationMs",
+          "sessionId",
+          "transcript",
+          "turns"
+        ],
+        "excerpt": "{\"sessionId\": \"voyager/transcribe/6A788453002D44D2B0F0AC551BEA0505\", \"transcript\": \"How many geese are there in this picture??\", \"audioDurationMs\": 1760, \"turns\": []}",
+        "turns_type": "list"
+      },
+      {
+        "keys": [
+          "audioDurationMs",
+          "sessionId",
+          "transcript",
+          "turns"
+        ],
+        "excerpt": "{\"sessionId\": \"voyager/transcribe/060FD025632448CA8473A25B4DE27DBE\", \"transcript\": \"count the cans in the bottom half of the picture.\", \"audioDurationMs\": 2480, \"turns\": []}",
+        "turns_type": "list"
+      }
+    ]
+  },
+  "part": "meta",
+  "live": true,
+  "capability_evidence": false,
+  "dataset_sha256": "b306c42f11c867c6746ba9202dcd4208884610d836edcff5a1322460e4fa2146",
+  "limits": {
+    "scope": "voicecount-probe-v1",
+    "cap_usd": "0.50",
+    "chat": 16,
+    "segment": 15,
+    "transcribe": 4
+  },
+  "cache_hits": 3,
+  "live_tool_calls": 10,
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 16764,
+        "output_tokens": 1765,
+        "spent_usd": 0.001321742
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.020212
+      }
+    },
+    "per_phase": {
+      "tool/transcribe": {
+        "settled_calls": 2,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.000212
+      },
+      "tool/segment": {
+        "settled_calls": 8,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.02
+      },
+      "worker/execute": {
+        "settled_calls": 9,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.001321742
+      }
+    },
+    "settled_calls": 19,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.021533742
+  },
+  "ledger_before": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.049064596,
+    "reserved_usd": 0.0,
+    "remaining_usd": 19.950935404,
+    "settled_calls": 234,
+    "reserved_calls": 0,
+    "unknown_count": 0,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.032802826,
+        "reserved_usd": 0.0,
+        "input_tokens": 728658,
+        "output_tokens": 56084,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 0.0,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 0,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.01507567,
+        "reserved_usd": 0.0,
+        "input_tokens": 42853,
+        "output_tokens": 58967,
+        "settled_calls": 95,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.070598338,
+    "reserved_usd": 0.0,
+    "remaining_usd": 19.929401662,
+    "settled_calls": 253,
+    "reserved_calls": 0,
+    "unknown_count": 0,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.032802826,
+        "reserved_usd": 0.0,
+        "input_tokens": 728658,
+        "output_tokens": 56084,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 0.020212,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 10,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.016397412,
+        "reserved_usd": 0.0,
+        "input_tokens": 59617,
+        "output_tokens": 60732,
+        "settled_calls": 104,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  }
+}
