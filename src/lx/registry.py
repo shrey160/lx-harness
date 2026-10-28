@@ -1,9 +1,16 @@
-"""SQLite model catalog with API credentials kept in separate private files."""
+"""SQLite model catalog with API credentials kept in separate private files.
+
+Each entry is a provider: what it does (kind and plain-language
+capabilities), where it is called (base URL) and what it costs. Built-in Meta
+entries use the shared runtime credential configuration (D-008); every other
+entry, local or hosted, is registered the same way with an optional key.
+"""
 
 from __future__ import annotations
 
 import json
 import os
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import sqlite3
 import stat
@@ -11,6 +18,7 @@ import uuid
 from contextlib import contextmanager
 from typing import Any
 
+from .providers import META_API, SAM, SPARK, TRANSCRIBE, ProviderProfile, chat_endpoint, validate_endpoint
 from .spark import MODEL
 
 
@@ -18,16 +26,28 @@ class RegistryError(ValueError):
     """Invalid registry operation or unavailable runtime credential."""
 
 
+# id, name, model_id, capabilities, profile. Non-Spark built-ins are re-applied
+# on every open so older databases pick up the current catalog.
 _BUILTINS = (
     (
         "spark-contributor",
         "Muse Spark 1.3 Contributor",
         MODEL,
         ["General reasoning and task execution"],
+        SPARK,
     ),
-    ("sam-catalog", "SAM", "meta/sam", ["Image segmentation and object masks"]),
-    ("transcribe-catalog", "Transcribe", "meta/transcribe", ["Speech-to-text transcription"]),
+    ("sam-catalog", "SAM 3.1", SAM.model,
+     ["Image segmentation: finds every instance of a short noun phrase in a photo and returns one box and mask per instance"],
+     SAM),
+    ("transcribe-catalog", "Muse Voice Transcribe", TRANSCRIBE.model,
+     ["Speech-to-text: transcribes spoken audio (mono WAV) into text"],
+     TRANSCRIBE),
 )
+_PROFILES = {entry[0]: entry[4] for entry in _BUILTINS}
+_COLUMNS = {"kind": "TEXT NOT NULL DEFAULT 'chat'", "base_url": "TEXT",
+            "accepts_images": "INTEGER NOT NULL DEFAULT 0", "supports_tools": "INTEGER NOT NULL DEFAULT 0",
+            "pricing": "TEXT NOT NULL DEFAULT '{}'"}
+_PRICE_FIELDS = ("input_per_million", "output_per_million")
 _MAX_NAME = 120
 _MAX_MODEL_ID = 200
 _MAX_CAPABILITY = 240
@@ -56,13 +76,22 @@ class Registry:
                 );
                 """
             )
+            present = {row["name"] for row in db.execute("PRAGMA table_info(models)")}
+            for column, definition in _COLUMNS.items():
+                if column not in present:
+                    db.execute(f"ALTER TABLE models ADD COLUMN {column} {definition}")
             db.execute("BEGIN IMMEDIATE")
-            for model_id, name, upstream_id, capabilities in _BUILTINS:
+            for model_id, name, upstream_id, capabilities, profile in _BUILTINS:
                 db.execute(
                     "INSERT OR IGNORE INTO models "
                     "(id,name,model_id,capabilities,builtin,secret_ref) VALUES (?,?,?,?,1,NULL)",
                     (model_id, name, upstream_id, json.dumps(capabilities)),
                 )
+                db.execute("UPDATE models SET kind=?, base_url=?, accepts_images=?, supports_tools=? WHERE id=?",
+                           (profile.kind, META_API, int(profile.accepts_images), int(profile.supports_tools), model_id))
+                if upstream_id != MODEL:
+                    db.execute("UPDATE models SET name=?, model_id=?, capabilities=? WHERE id=?",
+                               (name, upstream_id, json.dumps(capabilities), model_id))
             db.commit()
 
     @contextmanager
@@ -100,17 +129,48 @@ class Registry:
             raise RegistryError("invalid API key")
         return value
 
+    @staticmethod
+    def _base_url(value: Any) -> str | None:
+        if value is None:
+            return None
+        try:
+            return validate_endpoint(value.strip() if isinstance(value, str) else value).rstrip("/")
+        except ValueError as exc:
+            raise RegistryError(str(exc)) from None
+
+    @staticmethod
+    def _pricing(value: Any) -> dict[str, str]:
+        if value is None:
+            return {}
+        if not isinstance(value, dict) or not set(value) <= set(_PRICE_FIELDS):
+            raise RegistryError("invalid pricing")
+        result = {}
+        for field, amount in value.items():
+            try:
+                price = Decimal(str(amount))
+            except (InvalidOperation, ValueError):
+                raise RegistryError("invalid pricing") from None
+            if isinstance(amount, bool) or not price.is_finite() or price < 0 or price > 1000:
+                raise RegistryError("invalid pricing")
+            result[field] = str(price)
+        return result
+
     def _public(self, row: sqlite3.Row) -> dict[str, Any]:
         return {
             "id": row["id"],
             "name": row["name"],
             "model_id": row["model_id"],
             "capabilities": json.loads(row["capabilities"]),
+            "kind": row["kind"],
+            "base_url": row["base_url"],
+            "accepts_images": bool(row["accepts_images"]),
+            "supports_tools": bool(row["supports_tools"]),
+            "pricing": json.loads(row["pricing"]),
             "live_eligible": row["model_id"] == MODEL,
             "has_key": row["secret_ref"] is not None,
             "credential_source": (
                 "registered" if row["secret_ref"] is not None
-                else "runtime configuration" if row["model_id"] == MODEL
+                else "runtime configuration" if row["builtin"]
                 else None
             ),
         }
@@ -126,6 +186,12 @@ class Registry:
         model_id: str,
         capabilities: Any,
         api_key: str | None = None,
+        *,
+        kind: str = "chat",
+        base_url: str | None = None,
+        accepts_images: bool = False,
+        supports_tools: bool = False,
+        pricing: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         name = self._text(name, "name", _MAX_NAME)
         model_id = self._text(model_id, "model_id", _MAX_MODEL_ID)
@@ -133,15 +199,24 @@ class Registry:
         key = self._api_key(api_key)
         if model_id == MODEL:
             raise RegistryError("the Spark model uses its runtime credential configuration")
+        # Only chat providers have a client; segmentation and transcription are the fixed Meta tools.
+        if kind != "chat":
+            raise RegistryError("registered models must be chat providers")
+        url = self._base_url(base_url)
+        prices = self._pricing(pricing)
+        if type(accepts_images) is not bool or type(supports_tools) is not bool:
+            raise RegistryError("invalid model flags")
         record_id = uuid.uuid4().hex
         secret_ref = self._write_secret(key) if key is not None else None
         try:
             with self._connect() as db:
                 db.execute("BEGIN IMMEDIATE")
                 db.execute(
-                    "INSERT INTO models (id,name,model_id,capabilities,builtin,secret_ref) "
-                    "VALUES (?,?,?,?,0,?)",
-                    (record_id, name, model_id, json.dumps(caps), secret_ref),
+                    "INSERT INTO models (id,name,model_id,capabilities,builtin,secret_ref,"
+                    "kind,base_url,accepts_images,supports_tools,pricing) "
+                    "VALUES (?,?,?,?,0,?,?,?,?,?,?)",
+                    (record_id, name, model_id, json.dumps(caps), secret_ref,
+                     kind, url, int(accepts_images), int(supports_tools), json.dumps(prices)),
                 )
                 row = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
                 db.commit()
@@ -162,10 +237,19 @@ class Registry:
         name: str | None = None,
         capabilities: Any = None,
         api_key: str | None = None,
+        base_url: str | None = None,
+        accepts_images: bool | None = None,
+        supports_tools: bool | None = None,
+        pricing: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if name is not None:
             name = self._text(name, "name", _MAX_NAME)
         caps = None if capabilities is None else self._capabilities(capabilities)
+        url = self._base_url(base_url)
+        prices = None if pricing is None else self._pricing(pricing)
+        if any(flag is not None and type(flag) is not bool for flag in (accepts_images, supports_tools)):
+            raise RegistryError("invalid model flags")
+        provider_change = any(v is not None for v in (base_url, accepts_images, supports_tools, pricing))
         key = self._api_key(api_key)
         new_ref = self._write_secret(key) if key is not None else None
         old_ref: str | None = None
@@ -175,15 +259,19 @@ class Registry:
                 row = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
                 if row is None:
                     raise RegistryError("unknown model id")
-                if row["builtin"] and row["model_id"] != MODEL:
+                if row["builtin"] and (row["model_id"] != MODEL or provider_change):
                     raise RegistryError("catalog models are immutable")
                 old_ref = row["secret_ref"]
                 next_name = name if name is not None else row["name"]
                 next_caps = json.dumps(caps) if caps is not None else row["capabilities"]
                 next_ref = new_ref if key is not None else old_ref
                 db.execute(
-                    "UPDATE models SET name=?, capabilities=?, secret_ref=? WHERE id=?",
-                    (next_name, next_caps, next_ref, record_id),
+                    "UPDATE models SET name=?, capabilities=?, secret_ref=?, base_url=?, "
+                    "accepts_images=?, supports_tools=?, pricing=? WHERE id=?",
+                    (next_name, next_caps, next_ref, url if url is not None else row["base_url"],
+                     int(accepts_images) if accepts_images is not None else row["accepts_images"],
+                     int(supports_tools) if supports_tools is not None else row["supports_tools"],
+                     json.dumps(prices) if prices is not None else row["pricing"], record_id),
                 )
                 result = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
                 db.commit()
@@ -214,22 +302,44 @@ class Registry:
 
     def credential(self, record_id: str) -> str:
         with self._connect() as db:
-            row = db.execute("SELECT model_id, secret_ref FROM models WHERE id=?", (record_id,)).fetchone()
+            row = db.execute("SELECT model_id, secret_ref, builtin FROM models WHERE id=?", (record_id,)).fetchone()
         if row is None:
             raise RegistryError("unknown model id")
-        if row["model_id"] == MODEL and row["secret_ref"]:
+        if row["secret_ref"]:
             try:
                 return (self.secrets_dir / row["secret_ref"]).read_text(encoding="utf-8")
             except OSError:
                 raise RegistryError("registered credential unavailable") from None
-        if row["model_id"] == MODEL:
+        if row["builtin"]:
+            # Spark, SAM and Transcribe share the Meta runtime configuration (D-008).
             try:
                 from .live import _runtime_key
 
                 return _runtime_key()
             except Exception:
                 raise RegistryError("runtime credential unavailable") from None
-        raise RegistryError("live credentials are available only for the Spark model")
+        raise RegistryError("no API key is registered for this model")
+
+    def profile(self, record_id: str) -> ProviderProfile:
+        """Where and how to call an entry; never includes the credential."""
+        if record_id in _PROFILES:
+            return _PROFILES[record_id]
+        with self._connect() as db:
+            row = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
+        if row is None:
+            raise RegistryError("unknown model id")
+        if not row["base_url"]:
+            raise RegistryError("this model has no endpoint; add its base URL first")
+        prices = json.loads(row["pricing"])
+        per_token = lambda field: Decimal(prices.get(field, "0")) / 1_000_000
+        try:
+            return ProviderProfile(
+                kind=row["kind"], endpoint=chat_endpoint(row["base_url"]), model=row["model_id"],
+                input_price=per_token("input_per_million"), cached_price=per_token("input_per_million"),
+                output_price=per_token("output_per_million"), token_param="max_tokens",
+                accepts_images=bool(row["accepts_images"]), supports_tools=bool(row["supports_tools"]))
+        except ValueError as exc:
+            raise RegistryError(str(exc)) from None
 
     def _write_secret(self, key: str | None) -> str | None:
         if key is None:

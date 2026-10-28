@@ -18,7 +18,8 @@ class BudgetExceeded(BudgetError):
     """A reservation would exceed the configured cap, or actual spend did."""
 
 
-_ROLES = frozenset({"orchestrator", "improver", "worker"})
+# "tool" covers the fixed Meta services (SAM, Transcribe) the agent calls.
+_ROLES = frozenset({"orchestrator", "improver", "worker", "tool"})
 _NANO = Decimal("1000000000")
 
 

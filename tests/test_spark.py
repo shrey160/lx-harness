@@ -37,6 +37,31 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(totals["output_tokens"], 64)
         self.assertEqual(self.ledger.summary()["reserved_usd"], 0)
 
+    def test_spark_wire_body_is_unchanged(self):
+        seen = []
+        SparkClient(lambda body, timeout: seen.append(body) or wire_reply("ok"), self.ledger).chat(
+            [{"role": "user", "content": "hi"}])
+        self.assertEqual(json.dumps(seen[0]), json.dumps({
+            "model": "muse-spark-1.3-contributor", "messages": [{"role": "user", "content": "hi"}],
+            "max_completion_tokens": 4096, "reasoning_effort": "low"}))
+
+    def test_local_profile_uses_its_own_shape_and_settles_at_zero_cost(self):
+        from lx.providers import ProviderProfile
+        local = ProviderProfile(kind="chat", endpoint="http://127.0.0.1:8888/v1/chat/completions",
+                                model="gemma-4-E4B-it-GGUF", token_param="max_tokens")
+        seen = []
+        client = SparkClient(lambda body, timeout: seen.append(body) or wire_reply("ok"), self.ledger,
+                             max_tokens=2048, profile=local)
+        message, usage = client.chat([{"role": "user", "content": "hi"}], role="worker")
+        self.assertEqual(message["content"], "ok")
+        self.assertEqual(seen[0], {"model": "gemma-4-E4B-it-GGUF",
+                                   "messages": [{"role": "user", "content": "hi"}], "max_tokens": 2048})
+        self.assertEqual(usage["cost_usd"], 0)
+        worker = self.ledger.summary()["per_role"]["worker"]
+        self.assertEqual((worker["settled_calls"], worker["spent_usd"]), (1, 0))
+        with self.assertRaises(ValueError):
+            SparkClient(lambda *a: None, self.ledger, profile=__import__("lx.providers").providers.SAM)
+
     def test_cap_rejects_before_transport(self):
         ledger = BudgetLedger(self.root/"small.sqlite3", cap_usd="0.01", initial_spend_usd=0)
         client = SparkClient(lambda *a: self.fail("transport invoked after cap"), ledger)

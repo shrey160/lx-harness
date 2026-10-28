@@ -85,9 +85,13 @@ def server_for(app, port=8765):
                     blob = base64.b64decode(data.pop("zip_base64"),validate=True) if data.get("source")=="zip" else None
                     result = app.create_project(data,blob)
                 elif route == ["api","models"]:
-                    result = app.registry.create(data.get("name"),data.get("model_id"),data.get("capabilities"),data.get("api_key"))
+                    result = app.registry.create(data.get("name"),data.get("model_id"),data.get("capabilities"),data.get("api_key"),
+                        base_url=data.get("base_url"),accepts_images=data.get("accepts_images",False),
+                        supports_tools=data.get("supports_tools",False),pricing=data.get("pricing"))
                 elif len(route)==4 and route[:2]==["api","models"]:
-                    if route[3]=="update": result = app.registry.update(route[2],name=data.get("name"),capabilities=data.get("capabilities"),api_key=data.get("api_key"))
+                    if route[3]=="update": result = app.registry.update(route[2],name=data.get("name"),capabilities=data.get("capabilities"),api_key=data.get("api_key"),
+                        base_url=data.get("base_url"),accepts_images=data.get("accepts_images"),
+                        supports_tools=data.get("supports_tools"),pricing=data.get("pricing"))
                     elif route[3]=="delete": app.registry.delete(route[2]); result={"deleted":True}
                     else: raise ValueError("Unknown model action")
                 elif len(route)==4 and route[:2]==["api","projects"]:

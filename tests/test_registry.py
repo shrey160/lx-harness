@@ -36,13 +36,73 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(spark["credential_source"], "runtime configuration")
         for model in models:
             self.assertEqual(set(model), {
-                "id", "name", "model_id", "capabilities", "live_eligible", "has_key",
-                "credential_source",
+                "id", "name", "model_id", "capabilities", "kind", "base_url", "accepts_images",
+                "supports_tools", "pricing", "live_eligible", "has_key", "credential_source",
             })
             self.assertNotIn("secret", json.dumps(model).lower())
-        self.assertFalse(next(m for m in models if m["id"] == "sam-catalog")["live_eligible"])
-        self.assertFalse(next(m for m in models if m["id"] == "transcribe-catalog")["live_eligible"])
+            self.assertEqual(model["base_url"], "https://api.meta.ai/v1")
+            self.assertEqual(model["credential_source"], "runtime configuration")
+        sam = next(m for m in models if m["id"] == "sam-catalog")
+        transcribe = next(m for m in models if m["id"] == "transcribe-catalog")
+        self.assertEqual((sam["kind"], sam["model_id"]), ("segmentation", "sam-3.1"))
+        self.assertEqual((transcribe["kind"], transcribe["model_id"]), ("transcription", "muse-voice-transcribe-1.0"))
+        self.assertEqual((spark["kind"], spark["accepts_images"], spark["supports_tools"]), ("chat", True, True))
+        self.assertFalse(sam["live_eligible"])
+        self.assertFalse(transcribe["live_eligible"])
         loader.assert_not_called()
+
+    def test_existing_database_is_migrated_to_provider_fields(self):
+        root = Path(self.tempdir.name)
+        old = root / "old.sqlite3"
+        db = sqlite3.connect(old)
+        db.executescript(
+            "CREATE TABLE models (id TEXT PRIMARY KEY, name TEXT NOT NULL, model_id TEXT NOT NULL,"
+            " capabilities TEXT NOT NULL, builtin INTEGER NOT NULL DEFAULT 0, secret_ref TEXT);"
+            "INSERT INTO models VALUES ('sam-catalog','SAM','meta/sam','[\"old\"]',1,NULL);"
+            "INSERT INTO models VALUES ('custom','Custom','test/m','[\"x\"]',0,NULL);")
+        db.commit()
+        db.close()
+        models = {m["id"]: m for m in Registry(old, root / "old-secrets").list_models()}
+        self.assertEqual(models["sam-catalog"]["model_id"], "sam-3.1")
+        self.assertEqual(models["custom"]["kind"], "chat")
+        self.assertIsNone(models["custom"]["base_url"])
+        self.assertEqual(models["custom"]["pricing"], {})
+
+    def test_local_provider_is_an_ordinary_entry_with_a_profile(self):
+        record = self.registry.create("Gemma local", "gemma-4-E4B-it-GGUF", ["Small local chat model"],
+                                      base_url="http://127.0.0.1:8888/v1/", accepts_images=True,
+                                      supports_tools=True)
+        self.assertEqual(record["base_url"], "http://127.0.0.1:8888/v1")
+        self.assertFalse(record["has_key"])
+        self.assertIsNone(record["credential_source"])
+        profile = self.registry.profile(record["id"])
+        self.assertEqual(profile.endpoint, "http://127.0.0.1:8888/v1/chat/completions")
+        self.assertEqual((profile.model, profile.token_param, profile.reasoning_effort),
+                         ("gemma-4-E4B-it-GGUF", "max_tokens", None))
+        self.assertEqual(profile.input_price + profile.output_price, 0)
+        with self.assertRaisesRegex(RegistryError, "no API key"):
+            self.registry.credential(record["id"])
+        priced = self.registry.update(record["id"], pricing={"input_per_million": "0.5", "output_per_million": 2})
+        self.assertEqual(priced["pricing"], {"input_per_million": "0.5", "output_per_million": "2"})
+        self.assertEqual(self.registry.profile(record["id"]).output_price * 1_000_000, 2)
+
+    def test_provider_fields_are_validated(self):
+        for kwargs in ({"base_url": "http://example.com/v1"}, {"base_url": "https://x.test/v1?key=1"},
+                       {"kind": "segmentation"}, {"pricing": {"input_per_million": -1}},
+                       {"pricing": {"per_image": "1"}}, {"supports_tools": "yes"}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(RegistryError):
+                self.registry.create("Bad", "test/bad", ["x"], **kwargs)
+        no_url = self.registry.create("No URL", "test/no-url", ["x"])
+        with self.assertRaisesRegex(RegistryError, "no endpoint"):
+            self.registry.profile(no_url["id"])
+        with self.assertRaisesRegex(RegistryError, "immutable"):
+            self.registry.update("spark-contributor", base_url="http://127.0.0.1:1/v1")
+
+    def test_builtin_profiles_are_the_fixed_meta_services(self):
+        from lx.providers import SAM, SPARK, TRANSCRIBE
+        self.assertIs(self.registry.profile("spark-contributor"), SPARK)
+        self.assertIs(self.registry.profile("sam-catalog"), SAM)
+        self.assertIs(self.registry.profile("transcribe-catalog"), TRANSCRIBE)
 
     def test_custom_key_is_separate_private_and_never_returned(self):
         dummy = "synthetic-dummy-key-123"
@@ -61,8 +121,8 @@ class RegistryTests(unittest.TestCase):
         self.assertNotEqual(secret_files[0].name, dummy)
         if os.name != "nt":
             self.assertEqual(stat.S_IMODE(secret_files[0].stat().st_mode), 0o600)
-        with self.assertRaisesRegex(RegistryError, "only for the Spark"):
-            self.registry.credential(record["id"])
+        # Runtime code may load a registered key; it is never part of the public record.
+        self.assertEqual(self.registry.credential(record["id"]), dummy)
 
     def test_key_rotation_removes_old_secret_and_delete_removes_rotated_secret(self):
         first = "dummy-first-secret"
@@ -71,8 +131,7 @@ class RegistryTests(unittest.TestCase):
         original_path = next(self.secrets_dir.iterdir())
         updated = self.registry.update(record["id"], name="Rotated name", api_key=second)
         self.assertEqual(updated["name"], "Rotated name")
-        with self.assertRaisesRegex(RegistryError, "only for the Spark"):
-            self.registry.credential(record["id"])
+        self.assertEqual(self.registry.credential(record["id"]), second)
         self.assertFalse(original_path.exists())
         self.assertEqual(len(list(self.secrets_dir.iterdir())), 1)
         current_path = next(self.secrets_dir.iterdir())
@@ -105,11 +164,13 @@ class RegistryTests(unittest.TestCase):
             )
         loader.assert_not_called()
 
-    def test_non_spark_catalog_credential_does_not_load_runtime_key(self):
-        with patch("lx.live._runtime_key") as loader:
-            with self.assertRaisesRegex(RegistryError, "only for the Spark"):
-                self.registry.credential("sam-catalog")
-        loader.assert_not_called()
+    def test_meta_tools_share_the_runtime_credential_only_on_request(self):
+        with patch("lx.live._runtime_key", return_value="dummy-runtime-key") as loader:
+            self.registry.list_models()
+            loader.assert_not_called()
+            self.assertEqual(self.registry.credential("sam-catalog"), "dummy-runtime-key")
+            self.assertEqual(self.registry.credential("transcribe-catalog"), "dummy-runtime-key")
+        self.assertEqual(loader.call_count, 2)
 
     def test_non_spark_catalog_is_immutable_and_spark_model_id_cannot_be_created(self):
         with self.assertRaisesRegex(RegistryError, "immutable"):

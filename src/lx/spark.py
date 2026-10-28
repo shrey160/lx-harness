@@ -1,7 +1,8 @@
-"""Offline-testable Spark protocol. A transport is injected; no network/key loading.
+"""Offline-testable chat protocol. A transport is injected; no network/key loading.
 
-Contributor prices checked at https://dev.meta.ai/docs/pricing-rate-limits
-on 2026-10-28. Costs are computed from token usage, not an invoice.
+Spark is the default profile. Contributor prices checked at
+https://dev.meta.ai/docs/pricing-rate-limits on 2026-10-28. Costs are computed
+from token usage, not an invoice. Other chat providers use their own profile.
 """
 from __future__ import annotations
 
@@ -12,11 +13,13 @@ import threading
 import time
 from decimal import Decimal
 
-MODEL = "muse-spark-1.3-contributor"
-INPUT_PRICE = Decimal("0.10") / 1_000_000
-CACHED_PRICE = Decimal("0.002") / 1_000_000
-OUTPUT_PRICE = Decimal("0.20") / 1_000_000
-CONTEXT_LIMIT = 1_048_576
+from .providers import SPARK
+
+MODEL = SPARK.model
+INPUT_PRICE = SPARK.input_price
+CACHED_PRICE = SPARK.cached_price
+OUTPUT_PRICE = SPARK.output_price
+CONTEXT_LIMIT = SPARK.context_limit
 
 
 class ModelError(RuntimeError):
@@ -35,7 +38,7 @@ def _integer(value, name):
     return value
 
 
-def usage_of(raw):
+def usage_of(raw, profile=SPARK):
     """Extract billable usage separately from content validation."""
     if not isinstance(raw, dict) or not isinstance(raw.get("usage"), dict):
         raise ModelError("provider usage missing; cost unknown")
@@ -48,14 +51,14 @@ def usage_of(raw):
     cached = _integer(details.get("cached_tokens", 0), "cached tokens")
     if cached > inputs:
         raise ModelError("cached token count exceeds input tokens")
-    cost = (inputs-cached)*INPUT_PRICE + cached*CACHED_PRICE + outputs*OUTPUT_PRICE
+    cost = (inputs-cached)*profile.input_price + cached*profile.cached_price + outputs*profile.output_price
     return {"input_tokens": inputs, "output_tokens": outputs, "cost_usd": cost}
 
 
-def normalize(raw: dict, *, max_tokens: int) -> tuple[dict, dict]:
+def normalize(raw: dict, *, max_tokens: int, profile=SPARK) -> tuple[dict, dict]:
     """Validate wire data and normalize function arguments before tool dispatch."""
-    computed = usage_of(raw)
-    if computed["input_tokens"] > CONTEXT_LIMIT or computed["output_tokens"] > max_tokens:
+    computed = usage_of(raw, profile)
+    if computed["input_tokens"] > profile.context_limit or computed["output_tokens"] > max_tokens:
         raise ModelError("provider usage exceeded the declared request bounds")
     choices = raw.get("choices")
     if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
@@ -100,20 +103,24 @@ def normalize(raw: dict, *, max_tokens: int) -> tuple[dict, dict]:
 
 
 class SparkClient:
-    def __init__(self, transport, ledger, *, max_tokens=4096, retries=2, cancel=None):
+    def __init__(self, transport, ledger, *, max_tokens=4096, retries=2, cancel=None, profile=SPARK):
         if type(max_tokens) is not int or not 1 <= max_tokens <= 8192:
             raise ValueError("max_tokens outside supported bounds")
-        self.transport, self.ledger = transport, ledger
+        if profile.kind != "chat":
+            raise ValueError("a chat client needs a chat provider profile")
+        self.transport, self.ledger, self.profile = transport, ledger, profile
         self.max_tokens, self.retries = max_tokens, retries
         self.cancel = cancel or threading.Event()
 
     def chat(self, messages, *, tools=None, role="improver", phase="session", candidate="", timeout=120):
-        body = {"model": MODEL, "messages": copy.deepcopy(messages),
-                "max_completion_tokens": self.max_tokens, "reasoning_effort": "low"}
+        profile = self.profile
+        body = {"model": profile.model, "messages": copy.deepcopy(messages), profile.token_param: self.max_tokens}
+        if profile.reasoning_effort:
+            body["reasoning_effort"] = profile.reasoning_effort
         if tools:
             body["tools"] = tools
         # Reserve the entire context ceiling instead of relying on a guessed tokenizer.
-        maximum = CONTEXT_LIMIT*INPUT_PRICE + self.max_tokens*OUTPUT_PRICE
+        maximum = profile.context_limit*profile.input_price + self.max_tokens*profile.output_price
         deadline = time.monotonic()+timeout
         for attempt in range(self.retries+1):
             if self.cancel.is_set() or time.monotonic() >= deadline:
@@ -133,7 +140,7 @@ class SparkClient:
                 self.ledger.unknown(reservation)
                 raise
             try:
-                usage = usage_of(raw)
+                usage = usage_of(raw, profile)
             except BaseException:
                 # Missing/malformed usage cannot establish what was billed.
                 self.ledger.unknown(reservation)
@@ -141,7 +148,7 @@ class SparkClient:
             self.ledger.settle(reservation, **usage)
             # Account for a charged response even if its content is malformed or
             # reported usage violates the requested bounds. Ledger detects overruns.
-            message, _ = normalize(raw, max_tokens=self.max_tokens)
+            message, _ = normalize(raw, max_tokens=self.max_tokens, profile=profile)
             if self.cancel.is_set() or time.monotonic() >= deadline:
                 raise ModelError("model session stopped or timed out after dispatch; usage recorded")
             return message, usage
