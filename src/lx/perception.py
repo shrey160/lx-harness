@@ -161,8 +161,10 @@ def format_boxes(boxes, frame=0):
 
 def transcribe_parts(audio):
     wav_duration_ms(audio)
-    # UNVERIFIED request settings; the docs name the part, the probe confirms fields.
-    return {"request": json.dumps({"model": TRANSCRIBE.model}), "audio": audio}
+    # Settings from the documented example (speech-to-text guide, read 29 Oct);
+    # PUSH_TO_TALK returns the whole transcript without turns. Confirmed by the S5 probe.
+    return {"request": json.dumps({"model": TRANSCRIBE.model, "audioEncoding": "WAV", "mode": "PUSH_TO_TALK"}),
+            "audio": audio}
 
 
 def multipart(parts, boundary=None):
