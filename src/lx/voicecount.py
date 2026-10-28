@@ -31,7 +31,11 @@ from .records import RecordVerificationResult
 SPLITS = ("loop", "verify", "test", "calibration")
 SOURCE_SPLITS = {"loop": ("train",), "verify": ("val", "test"), "test": ("val", "test"), "calibration": ("val", "test")}
 MIN_COUNT, MAX_COUNT = 10, 120
-MARGIN = 0.04
+# Dots within MARGIN of the dividing line are ambiguous for half regions; at
+# most MAX_BAND are allowed and each one widens that item's tolerance by one.
+MARGIN, MAX_BAND = 0.02, 3
+# Every split draws the same share of items from each count band.
+COUNT_BINS = ((10, 25), (25, 50), (50, 121))
 MAX_IMAGE_BYTES = 1_000_000
 PER_CLASS = 2
 VOICES = ("af_sarah", "af_bella", "am_adam", "am_michael", "bf_emma", "bm_george")
@@ -56,9 +60,9 @@ CONTRACT = (
 FIELDS = ("object", "region", "count")
 
 
-def tolerance(count):
-    """Pre-registered (29 Oct 2026): within max(1, floor(5% of truth))."""
-    return max(1, count * 5 // 100)
+def tolerance(count, band=0):
+    """Pre-registered (29 Oct 2026): max(1, floor(5% of truth)) plus one per ambiguous boundary dot."""
+    return max(1, count * 5 // 100) + band
 
 
 def jpeg_size(data):
@@ -89,12 +93,15 @@ def in_region(x, y, width, height, region):
 
 
 def region_count(points, width, height, region):
-    """Dots inside the region, or None when a dot sits in the ambiguous band."""
-    if region in ("left", "right") and any(abs(x - width / 2) < MARGIN * width for x, _ in points):
+    """(dots inside the region, ambiguous dots near the line), or None when too many are ambiguous."""
+    band = 0
+    if region in ("left", "right"):
+        band = sum(abs(x - width / 2) < MARGIN * width for x, _ in points)
+    elif region in ("top", "bottom"):
+        band = sum(abs(y - height / 2) < MARGIN * height for _, y in points)
+    if band > MAX_BAND:
         return None
-    if region in ("top", "bottom") and any(abs(y - height / 2) < MARGIN * height for _, y in points):
-        return None
-    return sum(in_region(x, y, width, height, region) for x, y in points)
+    return sum(in_region(x, y, width, height, region) for x, y in points), band
 
 
 def aliases(name):
@@ -147,12 +154,14 @@ def build_voicecount_dataset(root, fsc_root, images_dir, loop_count=40, verify_c
         pool = sorted({name for s in SOURCE_SPLITS[split] for name in source_splits[s]} - used)
         rng.shuffle(pool)
         per_class, chosen = {}, 0
+        quota = [counts[split] // len(COUNT_BINS) + (i < counts[split] % len(COUNT_BINS)) for i in range(len(COUNT_BINS))]
         for image_name in pool:
             if chosen == counts[split]:
                 break
             item = _candidate(image_name, annotations, classes, images_dir, rng)
-            if item is None or per_class.get(item["class"], 0) >= PER_CLASS:
+            if item is None or per_class.get(item["class"], 0) >= PER_CLASS or not quota[_bin(item["count"])]:
                 continue
+            quota[_bin(item["count"])] -= 1
             used.add(image_name)
             per_class[item["class"]] = per_class.get(item["class"], 0) + 1
             chosen += 1
@@ -164,7 +173,7 @@ def build_voicecount_dataset(root, fsc_root, images_dir, loop_count=40, verify_c
                            "image": f"media/{sample_id}.jpg", "audio": f"media/{sample_id}.wav"})
             truth[sample_id] = {"object": item["class"], "aliases": aliases(item["class"]),
                                 "region": item["region"], "count": item["count"],
-                                "tolerance": tolerance(item["count"]), "size": item["size"]}
+                                "tolerance": tolerance(item["count"], item["band"]), "size": item["size"]}
             scripts[sample_id] = {"text": text, "voice": rng.choice(VOICES)}
             sources[sample_id] = {"image": image_name, "image_sha256": hashlib.sha256(item["bytes"]).hexdigest()}
             points[sample_id] = item["points"]
@@ -177,6 +186,7 @@ def build_voicecount_dataset(root, fsc_root, images_dir, loop_count=40, verify_c
                 controller / "points.json": points,
                 controller / "dataset.json": {"seed": seed, "counts": counts, "sources": sources,
                                               "selection": {"count_range": [MIN_COUNT, MAX_COUNT], "margin": MARGIN,
+                                                            "max_band": MAX_BAND, "count_bins": COUNT_BINS,
                                                             "per_class": PER_CLASS}}}
     for path, payload in payloads.items():
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -201,11 +211,16 @@ def _candidate(image_name, annotations, classes, images_dir, rng):
     regions = list(REGION_WEIGHTS)
     first = rng.choices(regions, weights=[REGION_WEIGHTS[r] for r in regions])[0]
     for region in [first] + [r for r in regions if r != first]:
-        count = region_count(points, width, height, region)
-        if count is not None and MIN_COUNT <= count <= MAX_COUNT:
-            return {"class": name.lower(), "region": region, "count": count, "size": [width, height], "bytes": data,
+        counted = region_count(points, width, height, region)
+        if counted is not None and MIN_COUNT <= counted[0] <= MAX_COUNT:
+            return {"class": name.lower(), "region": region, "count": counted[0], "band": counted[1],
+                    "size": [width, height], "bytes": data,
                     "points": [[round(x, 1), round(y, 1)] for x, y in points]}
     return None
+
+
+def _bin(count):
+    return next(i for i, (low, high) in enumerate(COUNT_BINS) if low <= count < high)
 
 
 def finalize_voicecount(root):

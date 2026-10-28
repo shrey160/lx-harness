@@ -84,20 +84,20 @@ class VoiceCountVerifyTests(unittest.TestCase):
 
     def test_region_count_and_ambiguous_band(self):
         points = [(10, 10), (390, 290), (100, 250)]
-        self.assertEqual(region_count(points, 400, 300, "whole"), 3)
-        self.assertEqual(region_count(points, 400, 300, "left"), 2)
-        self.assertEqual(region_count(points, 400, 300, "right"), 1)
-        self.assertEqual(region_count(points, 400, 300, "top"), 1)
-        self.assertEqual(region_count(points, 400, 300, "bottom"), 2)
+        self.assertEqual(region_count(points, 400, 300, "whole"), (3, 0))
+        self.assertEqual(region_count(points, 400, 300, "left"), (2, 0))
+        self.assertEqual(region_count(points, 400, 300, "right"), (1, 0))
+        self.assertEqual(region_count(points, 400, 300, "top"), (1, 0))
+        self.assertEqual(region_count(points, 400, 300, "bottom"), (2, 0))
 
+        # Within 2% of the line a dot is ambiguous: counted, and it widens tolerance.
         vertical_band = [(10, 10), (205, 250), (390, 290)]
-        self.assertIsNone(region_count(vertical_band, 400, 300, "left"))
-        self.assertIsNone(region_count(vertical_band, 400, 300, "right"))
-        self.assertEqual(region_count(vertical_band, 400, 300, "whole"), 3)
-
-        horizontal_band = [(10, 10), (100, 152), (390, 290)]
-        self.assertIsNone(region_count(horizontal_band, 400, 300, "top"))
-        self.assertIsNone(region_count(horizontal_band, 400, 300, "bottom"))
+        self.assertEqual(region_count(vertical_band, 400, 300, "right"), (2, 1))
+        self.assertEqual(region_count(vertical_band, 400, 300, "whole"), (3, 0))
+        crowded = vertical_band + [(198, 20), (201, 40), (195, 60)]
+        self.assertIsNone(region_count(crowded, 400, 300, "left"))
+        self.assertEqual(region_count([(10, 10), (100, 160)], 400, 300, "top"), (1, 0))
+        self.assertEqual(tolerance(40, 2), 4)
 
     def test_midline_counts_as_right(self):
         self.assertTrue(in_region(200, 10, 400, 300, "right"))

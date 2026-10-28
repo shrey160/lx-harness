@@ -45,8 +45,9 @@ def fsc_fixture(root, per_split=12):
             index += 1
             name = f"{index}.jpg"
             (images/name).write_bytes(jpeg(400, 300, name))
-            points = [[rng.uniform(5, 180), rng.uniform(5, 140)] for _ in range(14)]
-            points += [[rng.uniform(220, 395), rng.uniform(160, 295)] for _ in range(rng.randint(12, 30))]
+            # Totals fall in each of the builder's count bands (about 15, 30 and 55).
+            points = [[rng.uniform(5, 180), rng.uniform(5, 140)] for _ in range((6, 20, 45)[i % 3])]
+            points += [[rng.uniform(220, 395), rng.uniform(160, 295)] for _ in range(rng.randint(6, 12))]
             annotations[name] = {"points": points, "H": 300, "W": 400}
             classes.append(f"{name}\t{names[i % len(names)]}")
             splits[split].append(name)
