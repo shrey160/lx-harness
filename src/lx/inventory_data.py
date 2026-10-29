@@ -1,0 +1,292 @@
+"""Inventory datasets: user-made samples (D1) and COCO-built held-out samples (D2).
+
+Layout of a dataset root (frozen by `finalize_inventory`):
+
+- `worker_inputs/manifest.json`: samples [{sample_id, split, photos: [...],
+  audio}] with paths under `worker_inputs/`; the only part a worker sees.
+- `worker_inputs/media/<sample_id>/<k>.jpg`, `worker_inputs/media/<sample_id>.wav`.
+- `controller_truth/ground_truth.json` (truth per sample, `lx.inventory`
+  schema), `requests.json` (request text and audio origin), `scripts.json`
+  (requests still to be voiced by `scripts/synthesize_voicecount.py`),
+  `sources.json` (origin, licence, attribution), `media.json` (hashes).
+
+Intake normalises every photo (EXIF orientation applied, then all metadata
+dropped, RGB JPEG, longest side at most 1024 px). User samples must show
+everyday objects only (D-010): no people, faces, screens, documents or
+addresses; intake cannot check this, so the user confirms it per run.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import random
+import re
+from io import BytesIO
+from pathlib import Path
+
+from .inventory import MAX_PHOTOS, MIN_PHOTOS, request_text, validate_truth
+from .perception import wav_duration_ms
+from .voicecount import VOICES
+
+SPLITS = ("stream", "heldout", "calibration")
+MAX_SIDE = 1024
+JPEG_QUALITY = 90
+_PHOTO = re.compile(r"([1-9])\.(jpg|jpeg|png)", re.I)
+_SAMPLE = re.compile(r"sample-[A-Za-z0-9_-]{1,40}")
+
+
+def normalize_photo(data, *, max_side=MAX_SIDE):
+    """JPEG bytes with orientation applied and no metadata; raises ValueError for unreadable input."""
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
+    try:
+        with Image.open(BytesIO(data)) as source:
+            if source.format not in ("JPEG", "PNG", "MPO"):
+                raise ValueError(f"photos must be JPEG or PNG, not {source.format}")
+            image = ImageOps.exif_transpose(source).convert("RGB")
+    except (UnidentifiedImageError, OSError):
+        raise ValueError("photo could not be read as an image (export HEIC as JPEG)") from None
+    scale = max_side / max(image.size)
+    if scale < 1:
+        image = image.resize((max(1, round(image.width * scale)), max(1, round(image.height * scale))),
+                             Image.Resampling.LANCZOS)
+    out = BytesIO()
+    image.save(out, "JPEG", quality=JPEG_QUALITY)
+    return out.getvalue()
+
+
+def check_sample_folder(folder):
+    """Validate a user sample folder; returns (photo paths in order, truth, wav path or None, text or None)."""
+    folder = Path(folder)
+    photos_dir = folder / "photos"
+    if not photos_dir.is_dir():
+        raise ValueError(f"{folder.name}: missing photos/ folder")
+    photos = {}
+    for path in photos_dir.iterdir():
+        match = _PHOTO.fullmatch(path.name)
+        if not match:
+            raise ValueError(f"{folder.name}: unexpected file photos/{path.name} (use 1.jpg ... 7.jpg)")
+        if match.group(1) in photos:
+            raise ValueError(f"{folder.name}: two files for photo {match.group(1)}")
+        photos[match.group(1)] = path
+    numbers = sorted(int(n) for n in photos)
+    if not MIN_PHOTOS <= len(numbers) <= MAX_PHOTOS or numbers != list(range(1, len(numbers) + 1)):
+        raise ValueError(f"{folder.name}: photos must be numbered 1..N with N from {MIN_PHOTOS} to {MAX_PHOTOS}")
+    try:
+        truth = json.loads((folder / "truth.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{folder.name}: missing truth.json") from None
+    except ValueError as exc:
+        raise ValueError(f"{folder.name}: truth.json is not valid JSON ({exc})") from None
+    try:
+        validate_truth(truth)
+    except ValueError as exc:
+        raise ValueError(f"{folder.name}: {exc}") from None
+    if len(truth["photos"]) != len(numbers):
+        raise ValueError(f"{folder.name}: truth.json lists {len(truth['photos'])} photos, folder has {len(numbers)}")
+    wav = folder / "request.wav"
+    txt = folder / "request.txt"
+    text = txt.read_text(encoding="utf-8").strip() if txt.is_file() else None
+    if not wav.is_file() and not text:
+        raise ValueError(f"{folder.name}: add request.wav (your voice) or request.txt (to be voiced)")
+    if wav.is_file():
+        try:
+            wav_duration_ms(wav.read_bytes())
+        except Exception:
+            raise ValueError(f"{folder.name}: request.wav must be mono 16-bit PCM at 16 or 24 kHz, e.g. "
+                             "ffmpeg -i in.m4a -ac 1 -ar 16000 -sample_fmt s16 request.wav") from None
+    return [photos[str(n)] for n in numbers], truth, (wav if wav.is_file() else None), text
+
+
+class _Dataset:
+    """Staging access to an unfrozen dataset root."""
+
+    def __init__(self, root):
+        self.root = Path(root)
+        self.inputs = self.root / "worker_inputs"
+        self.controller = self.root / "controller_truth"
+        if (self.controller / "media.json").exists():
+            raise ValueError("dataset is frozen; build a new one instead of adding samples")
+        self.inputs.mkdir(parents=True, exist_ok=True)
+        self.controller.mkdir(parents=True, exist_ok=True)
+        self.manifest = self._read(self.inputs / "manifest.json", {"samples": []})
+        self.truth = self._read(self.controller / "ground_truth.json", {})
+        self.requests = self._read(self.controller / "requests.json", {})
+        self.scripts = self._read(self.controller / "scripts.json", {})
+        self.sources = self._read(self.controller / "sources.json", {})
+
+    @staticmethod
+    def _read(path, default):
+        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
+
+    def add(self, sample_id, split, photos, truth, *, audio=None, text=None, voice=None, source):
+        if split not in SPLITS:
+            raise ValueError(f"split must be one of {SPLITS}")
+        if sample_id in self.truth:
+            raise ValueError(f"sample {sample_id} already exists")
+        media = self.inputs / "media" / sample_id
+        media.mkdir(parents=True)
+        paths = []
+        for number, data in enumerate(photos, 1):
+            (media / f"{number}.jpg").write_bytes(data)
+            paths.append(f"media/{sample_id}/{number}.jpg")
+        if audio is not None:
+            (self.inputs / "media" / f"{sample_id}.wav").write_bytes(audio)
+        else:
+            self.scripts[sample_id] = {"text": text, "voice": voice}
+        self.manifest["samples"].append({"sample_id": sample_id, "split": split, "photos": paths,
+                                         "audio": f"media/{sample_id}.wav"})
+        self.truth[sample_id] = truth
+        self.requests[sample_id] = {"text": text, "audio": "recorded" if audio is not None else "kokoro"}
+        self.sources[sample_id] = source
+
+    def save(self):
+        payloads = {self.inputs / "manifest.json": self.manifest, self.controller / "ground_truth.json": self.truth,
+                    self.controller / "requests.json": self.requests, self.controller / "scripts.json": self.scripts,
+                    self.controller / "sources.json": self.sources}
+        for path, payload in payloads.items():
+            path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def add_user_samples(dataset_root, source_root, *, stream_count=6, seed=20261029, prefix="user"):
+    """Copy user sample folders in sorted order: the first `stream_count` form the stream, the rest held-out."""
+    folders = sorted(p for p in Path(source_root).iterdir() if p.is_dir() and _SAMPLE.fullmatch(p.name))
+    if not folders:
+        raise ValueError("no sample-* folders found")
+    checked = [(folder, *check_sample_folder(folder)) for folder in folders]
+    # Normalise everything before writing, so a bad photo leaves the dataset untouched.
+    normalized = [[normalize_photo(path.read_bytes()) for path in paths] for _, paths, _, _, _ in checked]
+    dataset = _Dataset(dataset_root)
+    rng = random.Random(f"{seed}:user")
+    added = []
+    for index, ((folder, photo_paths, truth, wav, text), photos) in enumerate(zip(checked, normalized), 1):
+        sample_id = f"{prefix}-{index:02d}"
+        dataset.add(sample_id, "stream" if index <= stream_count else "heldout", photos, truth,
+                    audio=wav.read_bytes() if wav else None, text=text,
+                    voice=None if wav else rng.choice(VOICES),
+                    source={"origin": "user", "folder": folder.name,
+                            "original_sha256": [hashlib.sha256(p.read_bytes()).hexdigest() for p in photo_paths]})
+        added.append(sample_id)
+    dataset.save()
+    return added
+
+
+# --- D2: COCO count samples ---------------------------------------------------
+
+# COCO category -> kind for everyday movable objects.
+COCO_KINDS = {"cup": "cup", "bottle": "bottle", "bowl": "bowl", "wine glass": "glass", "fork": "fork",
+              "knife": "knife", "spoon": "spoon", "banana": "banana", "apple": "apple", "orange": "orange",
+              "book": "book", "scissors": "scissors", "teddy bear": "teddy bear", "vase": "vase", "remote": "remote"}
+# COCO licence ids allowing reuse with attribution: CC BY, CC BY-SA, no known copyright, US government.
+COCO_LICENCES = {4, 5, 7, 8}
+MIN_AREA = 24 * 24
+MAX_PER_PHOTO = 15
+
+
+def coco_index(annotations):
+    """Per image: licence, size, url and {kind: (count, ok)}; ok is False for crowd or tiny instances."""
+    categories = {c["id"]: c["name"] for c in annotations["categories"]}
+    images = {i["id"]: {"file_name": i["file_name"], "license": i["license"], "size": [i["width"], i["height"]],
+                        "url": i.get("coco_url"), "flickr_url": i.get("flickr_url"), "kinds": {}}
+              for i in annotations["images"]}
+    for a in annotations["annotations"]:
+        name = categories.get(a["category_id"])
+        if name not in COCO_KINDS or a["image_id"] not in images:
+            continue
+        kinds = images[a["image_id"]]["kinds"]
+        count, ok = kinds.get(COCO_KINDS[name], (0, True))
+        kinds[COCO_KINDS[name]] = (count + 1, ok and not a.get("iscrowd") and a["area"] >= MIN_AREA)
+    return images
+
+
+def add_coco_samples(dataset_root, annotations, load_image, count, *, split="heldout", seed=20261029,
+                     prefix="coco", licences=None):
+    """Build `count` count-requests over COCO photos; each photo is used once.
+
+    A sample asks about one kind across 3-7 photos; at most one photo lacks
+    the kind entirely. Photos are skipped when that kind has crowd or tiny
+    instances, when they have more than MAX_PER_PHOTO of it, or when their
+    licence is not reusable. Truth lists only the asked kind, so D2 serves
+    count requests only (`truth_scope: target`).
+    """
+    names = {lic["id"]: lic["name"] for lic in annotations.get("licenses", [])}
+    images = coco_index(annotations)
+    allowed = COCO_LICENCES if licences is None else set(licences)
+    rng = random.Random(f"{seed}:coco:{split}")
+    usable = sorted(i for i, image in images.items() if image["license"] in allowed)
+    rng.shuffle(usable)
+    dataset = _Dataset(dataset_root)
+    used = {int(s["coco_id"]) for src in dataset.sources.values() for s in src.get("photos", []) if "coco_id" in s}
+    kinds = sorted(set(COCO_KINDS.values()))
+    added = []
+    attempts = 0
+    while len(added) < count:
+        attempts += 1
+        if attempts > 50 * max(1, count):
+            raise ValueError(f"only {len(added)} usable COCO samples for split {split}")
+        kind = rng.choice(kinds)
+        n_photos = rng.randint(MIN_PHOTOS, MAX_PHOTOS)
+        with_kind = [i for i in usable if i not in used and kind in images[i]["kinds"]
+                     and images[i]["kinds"][kind][1] and images[i]["kinds"][kind][0] <= MAX_PER_PHOTO]
+        without = [i for i in usable if i not in used and kind not in images[i]["kinds"]]
+        empty = 1 if without and rng.random() < 0.3 else 0
+        if len(with_kind) < n_photos - empty:
+            continue
+        chosen = with_kind[:n_photos - empty] + without[:empty]
+        rng.shuffle(chosen)
+        truth = {"request_type": "count", "kind": kind, "colour": None,
+                 "photos": {str(k): ([{"kind": kind, "count": images[i]["kinds"][kind][0]}] if kind in images[i]["kinds"]
+                                     else []) for k, i in enumerate(chosen, 1)}}
+        validate_truth(truth)
+        photos = [normalize_photo(load_image(images[i]["file_name"])) for i in chosen]
+        sample_id = f"{prefix}-{split}-{len(added) + 1:02d}"
+        dataset.add(sample_id, split, photos, truth, text=request_text(truth, rng), voice=rng.choice(VOICES),
+                    source={"origin": "coco", "truth_scope": "target",
+                            "photos": [{"coco_id": i, "file_name": images[i]["file_name"],
+                                        "license": names.get(images[i]["license"], images[i]["license"]),
+                                        "flickr_url": images[i]["flickr_url"]} for i in chosen]})
+        used.update(chosen)
+        added.append(sample_id)
+    dataset.save()
+    return added
+
+
+# --- freeze and load ---------------------------------------------------------
+
+def _media_hashes(root, manifest):
+    hashes = {}
+    for sample in manifest["samples"]:
+        for path in sample["photos"] + [sample["audio"]]:
+            hashes[path] = hashlib.sha256((Path(root) / "worker_inputs" / path).read_bytes()).hexdigest()
+    return hashes
+
+
+def finalize_inventory(root):
+    """Check every photo and audio file and record hashes; the dataset is then frozen."""
+    root = Path(root)
+    manifest = json.loads((root / "worker_inputs" / "manifest.json").read_text(encoding="utf-8"))
+    truth = json.loads((root / "controller_truth" / "ground_truth.json").read_text(encoding="utf-8"))
+    for sample in manifest["samples"]:
+        validate_truth(truth[sample["sample_id"]])
+        if len(sample["photos"]) != len(truth[sample["sample_id"]]["photos"]):
+            raise ValueError(f"{sample['sample_id']}: photo count does not match truth")
+        audio = root / "worker_inputs" / sample["audio"]
+        if not audio.is_file():
+            raise ValueError(f"{sample['sample_id']}: audio missing; run the speech synthesis first")
+        wav_duration_ms(audio.read_bytes())
+    hashes = _media_hashes(root, manifest)
+    (root / "controller_truth" / "media.json").write_text(json.dumps(hashes, indent=2) + "\n", encoding="utf-8")
+    return hashes
+
+
+def load_inventory_dataset(root):
+    """(manifest samples, truth, requests); refuses a dataset whose media changed since freezing."""
+    root = Path(root)
+    manifest = json.loads((root / "worker_inputs" / "manifest.json").read_text(encoding="utf-8"))
+    controller = root / "controller_truth"
+    recorded = json.loads((controller / "media.json").read_text(encoding="utf-8"))
+    if _media_hashes(root, manifest) != recorded:
+        raise ValueError("dataset media changed since it was frozen")
+    truth = json.loads((controller / "ground_truth.json").read_text(encoding="utf-8"))
+    requests = json.loads((controller / "requests.json").read_text(encoding="utf-8"))
+    return tuple(manifest["samples"]), truth, requests
