@@ -1,0 +1,114 @@
+{
+  "experiment": "E-A",
+  "k": 1,
+  "mode": "seq",
+  "stream": [
+    "synth-01",
+    "synth-02",
+    "synth-03"
+  ],
+  "per_sample": {
+    "synth-01": {
+      "base": {
+        "score": 0.625,
+        "passed": 5,
+        "checks": 8
+      },
+      "harness2": {
+        "score": 0.75,
+        "passed": 6,
+        "checks": 8
+      },
+      "chosen_label": "c1",
+      "chosen_is_base": false,
+      "files_added": [
+        "scripts/sum_counts.py",
+        "skills/inventory-check/SKILL.md"
+      ],
+      "status": "ok"
+    },
+    "synth-02": {
+      "base": {
+        "score": 0.625,
+        "passed": 5,
+        "checks": 8
+      },
+      "harness2": {
+        "score": 1.0,
+        "passed": 8,
+        "checks": 8
+      },
+      "chosen_label": "c1",
+      "chosen_is_base": false,
+      "files_added": [
+        "scripts/sum_counts.py",
+        "skills/inventory-check/SKILL.md"
+      ],
+      "status": "ok"
+    },
+    "synth-03": {
+      "base": {
+        "score": 0.6666666666666666,
+        "passed": 8,
+        "checks": 12
+      },
+      "harness2": {
+        "score": 1.0,
+        "passed": 12,
+        "checks": 12
+      },
+      "chosen_label": "c1",
+      "chosen_is_base": false,
+      "files_added": [
+        "scripts/sum_counts.py",
+        "skills/inventory-check/SKILL.md"
+      ],
+      "status": "ok"
+    }
+  },
+  "means": {
+    "base": 0.6388888888888888,
+    "harness2": 0.9166666666666666
+  },
+  "grading": "controller-side checklist after the run; never shown to the improver",
+  "preview": {
+    "live": false,
+    "chat_calls": {
+      "worker": 91,
+      "reflection": 3,
+      "improver": 18
+    },
+    "note": "deterministic doubles; plumbing evidence only"
+  },
+  "executions_this_invocation": 12,
+  "run": {
+    "domain": "lx_inventory",
+    "n_tasks": 3,
+    "seed": null,
+    "done": 3,
+    "failed": 0,
+    "tasks": [
+      {
+        "task": "synth-01",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 0
+        }
+      },
+      {
+        "task": "synth-02",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 1
+        }
+      },
+      {
+        "task": "synth-03",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 2
+        }
+      }
+    ]
+  }
+}
