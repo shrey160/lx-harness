@@ -41,7 +41,7 @@ MAX_USES = 2  # a cutout may appear in two samples of one split group, never twi
 # Colour pairs a person could name either way; a colour request never mixes them within the asked kind.
 CONFUSABLE = ({"orange", "brown"}, {"orange", "yellow"}, {"orange", "red"}, {"red", "pink"}, {"red", "brown"},
               {"pink", "purple"}, {"blue", "purple"}, {"grey", "white"}, {"grey", "black"}, {"grey", "silver"},
-              {"white", "silver"}, {"yellow", "gold"}, {"brown", "gold"}, {"yellow", "brown"})
+              {"white", "silver"}, {"yellow", "gold"}, {"brown", "gold"}, {"yellow", "brown"}, {"black", "brown"})
 
 
 def split_group(split):
@@ -203,11 +203,12 @@ def _plan_sample(request_type, pool, rng):
 
 
 def add_composite_samples(dataset_root, cutouts, count, *, request_type, split="heldout", seed=20261029,
-                          prefix="mix"):
+                          prefix="mix", max_uses=MAX_USES, separate_groups=True):
     """Build `count` composite samples of one request type from prepared cutouts.
 
-    Each cutout appears at most once per sample, in at most MAX_USES samples,
-    and only within one split group (bundle or hidden; see `split_group`).
+    Each cutout appears at most once per sample and in at most `max_uses`
+    samples; with `separate_groups` only within one split group (bundle or
+    hidden; see `split_group`). Every composite photo is new either way.
     """
     if request_type not in REQUEST_TYPES:
         raise ValueError(f"request_type must be one of {REQUEST_TYPES}")
@@ -225,7 +226,8 @@ def add_composite_samples(dataset_root, cutouts, count, *, request_type, split="
         attempts += 1
         if attempts > 50 * max(1, count):
             raise ValueError(f"only {len(planned)} usable {request_type} composites for split {split}")
-        pool = [c for c in cutouts if uses.get(c["ann_id"], 0) < MAX_USES and groups.get(c["ann_id"], group) == group]
+        pool = [c for c in cutouts if uses.get(c["ann_id"], 0) < max_uses
+                and (not separate_groups or groups.get(c["ann_id"], group) == group)]
         plan = _plan_sample(request_type, pool, rng)
         if plan is None:
             continue
