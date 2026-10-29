@@ -7,7 +7,10 @@ name = "lx-harness"
 version = "0.1.0"
 description = "Local harness workflow on the pinned portable core"
 requires-python = ">=3.12,<3.14"
-dependencies = ["h2portable==0.1.0"]
+dependencies = [
+    "h2portable==0.1.0",
+    "pillow==11.3.0",
+]
 
 [tool.uv.sources]
 h2portable = { path = "../harness2_portable_core", editable = true }
