@@ -77,6 +77,15 @@ class LoopTests(unittest.TestCase):
         roles = self.ledger.summary()["per_role"]
         self.assertEqual((roles["worker"]["settled_calls"], roles["tool"]["settled_calls"]), (4, 2))
 
+    def test_cut_off_reply_stops_the_item_and_keeps_the_trace(self):
+        cut = wire_reply(content="counting " * 50)
+        cut["choices"][0]["finish_reason"] = "length"
+        answer, trace, _ = self.run_script(wire_reply(calls=[call("transcribe", {}, "t1")]), cut)
+        self.assertEqual(answer, "")
+        self.assertEqual([s["type"] for s in trace], ["tools", "assistant", "tool", "stopped"])
+        self.assertIn("cut off", trace[-1]["reason"])
+        self.assertEqual(self.ledger.summary()["per_role"]["worker"]["settled_calls"], 2)  # the cut reply is billed
+
     def test_tool_errors_are_returned_to_the_agent(self):
         answer, trace, transport = self.run_script(
             wire_reply(calls=[call("count_boxes", {}, "c1"), call("zoom", {"x": 1}, "z1"),

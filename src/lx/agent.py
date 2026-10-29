@@ -12,6 +12,7 @@ import hashlib
 import json
 
 from .perception import concept_text
+from .spark import IncompleteResponse
 
 REGIONS = ("whole", "left", "right", "top", "bottom")
 MAX_BOXES_SHOWN = 300
@@ -269,8 +270,13 @@ def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, ma
     trace = [{"type": "tools", "names": [t["function"]["name"] for t in use_tools or []]}]
     calls = 0
     for _ in range(max_turns):
-        message, usage = client.chat(history, tools=use_tools, role="worker", phase="execute",
-                                     candidate=candidate, timeout=timeout)
+        try:
+            message, usage = client.chat(history, tools=use_tools, role="worker", phase="execute",
+                                         candidate=candidate, timeout=timeout)
+        except IncompleteResponse:
+            # Billed and recorded by the client; the item fails but keeps its trace.
+            trace.append({"type": "stopped", "reason": "model reply was cut off before it finished"})
+            return "", trace
         trace.append({"type": "assistant", "content": message["content"],
                       "tool_calls": [{"name": c["name"], "arguments": c["arguments"]} for c in message["tool_calls"]],
                       "output_tokens": usage["output_tokens"]})

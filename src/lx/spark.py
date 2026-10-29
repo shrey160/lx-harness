@@ -26,6 +26,10 @@ class ModelError(RuntimeError):
     pass
 
 
+class IncompleteResponse(ModelError):
+    """A billed reply that did not finish (for example cut off at the output limit)."""
+
+
 class RateLimited(ModelError):
     def __init__(self, retry_after=0):
         super().__init__("provider rate limited the request")
@@ -66,7 +70,7 @@ def normalize(raw: dict, *, max_tokens: int, profile=SPARK) -> tuple[dict, dict]
     choice = choices[0]
     message = choice.get("message")
     if not isinstance(message, dict) or choice.get("finish_reason") not in {"stop", "tool_calls"}:
-        raise ModelError("provider returned an incomplete response")
+        raise IncompleteResponse("provider returned an incomplete response")
     content = message.get("content")
     if content is not None and not isinstance(content, str):
         raise ModelError("provider content malformed")
