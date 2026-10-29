@@ -131,7 +131,10 @@ class SparkClient:
                 raise ModelError("model session stopped or timed out")
             reservation = self.ledger.reserve(maximum, role, phase, candidate)
             try:
-                raw = self.transport(body, min(60, max(0.1, deadline-time.monotonic())))
+                # Spark keeps its 60-second per-call bound; other providers (slow local models)
+                # get the session deadline and their transport applies its own bound.
+                remaining = max(0.1, deadline-time.monotonic())
+                raw = self.transport(body, min(60, remaining) if profile is SPARK else remaining)
             except RateLimited as exc:
                 self.ledger.unknown(reservation)
                 if attempt >= self.retries:

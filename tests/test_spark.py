@@ -62,6 +62,18 @@ class ProtocolTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SparkClient(lambda *a: None, self.ledger, profile=__import__("lx.providers").providers.SAM)
 
+    def test_per_call_timeout_is_60s_for_spark_only(self):
+        from lx.providers import ProviderProfile
+        local = ProviderProfile(kind="chat", endpoint="http://127.0.0.1:8888/v1/chat/completions",
+                                model="gemma-4-E4B-it-GGUF", token_param="max_tokens")
+        for profile, bound in ((None, 60), (local, 600)):
+            timeouts = []
+            client = SparkClient(lambda body, timeout: timeouts.append(timeout) or wire_reply("ok"), self.ledger,
+                                 **({"profile": profile} if profile else {}))
+            client.chat([{"role": "user", "content": "hi"}], timeout=600)
+            self.assertGreater(timeouts[0], bound - 1)
+            self.assertLessEqual(timeouts[0], bound)
+
     def test_cap_rejects_before_transport(self):
         ledger = BudgetLedger(self.root/"small.sqlite3", cap_usd="0.01", initial_spend_usd=0)
         client = SparkClient(lambda *a: self.fail("transport invoked after cap"), ledger)
