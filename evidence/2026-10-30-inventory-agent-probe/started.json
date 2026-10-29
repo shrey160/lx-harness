@@ -1,0 +1,1 @@
+{"dataset_sha256": "db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322", "agent": "LiquidAI/LFM3-VL-2B-GGUF", "agent_endpoint": "http://127.0.0.1:8888/v1/chat/completions", "agent_key_env": "UNSLOTH_API_KEY", "run_cap_usd": "0.10", "agent_chat": 30, "segment": 20, "transcribe": 4}

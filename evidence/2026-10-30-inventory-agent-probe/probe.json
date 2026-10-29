@@ -1,0 +1,155 @@
+{
+  "view_check": {
+    "view_called": false,
+    "reply": "",
+    "tool_calls": [],
+    "stopped": "model reply was cut off before it finished"
+  },
+  "runs": {
+    "fsc-calibration-02": {
+      "answer": {
+        "sample_id": "fsc-calibration-02",
+        "photos": [
+          {
+            "photo": 1,
+            "width": 577,
+            "height": 384
+          },
+          {
+            "photo": 2,
+            "width": 576,
+            "height": 384
+          },
+          {
+            "photo": 3,
+            "width": 408,
+            "height": 384
+          }
+        ],
+        "photos_note": "not attached; use view to look and segment to find instances",
+        "spoken_request": "audio only; use transcribe"
+      },
+      "score": 0.0,
+      "failed_checks": [
+        "schema",
+        "request",
+        "coverage",
+        "photo 1",
+        "photo 2",
+        "photo 3",
+        "consistency",
+        "answer"
+      ],
+      "turns": 1,
+      "tool_calls": [],
+      "stopped": null
+    },
+    "mix-calibration-colourcount-01": {
+      "answer": "",
+      "score": 0.0,
+      "failed_checks": [
+        "schema",
+        "request",
+        "coverage",
+        "photo 1",
+        "photo 2",
+        "photo 3",
+        "consistency",
+        "answer"
+      ],
+      "turns": 0,
+      "tool_calls": [],
+      "stopped": "model reply was cut off before it finished"
+    }
+  },
+  "answered": 1,
+  "tools_used": [],
+  "live": true,
+  "capability_evidence": false,
+  "agent": "LiquidAI/LFM3-VL-2B-GGUF",
+  "agent_endpoint": "http://127.0.0.1:8888/v1/chat/completions",
+  "dataset_sha256": "db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322",
+  "cache_hits": 0,
+  "live_tool_calls": 0,
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 3243,
+        "output_tokens": 3879,
+        "spent_usd": 0.0
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "per_phase": {
+      "worker/execute": {
+        "settled_calls": 3,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "settled_calls": 3,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.0
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 2.054275772,
+    "reserved_usd": 0.1056768,
+    "remaining_usd": 17.840047428,
+    "settled_calls": 3579,
+    "reserved_calls": 0,
+    "unknown_count": 6,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.179895476,
+        "reserved_usd": 0.0,
+        "input_tokens": 3885095,
+        "output_tokens": 230826,
+        "settled_calls": 512,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 1.517384,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 696,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.355810196,
+        "reserved_usd": 0.1056768,
+        "input_tokens": 6794927,
+        "output_tokens": 815805,
+        "settled_calls": 2369,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  }
+}
