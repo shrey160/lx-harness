@@ -27,18 +27,28 @@ FIXTURE_SHA256 = "93c8039a5ac1635a33e150b926615d69a765a367ee664b197c7ab756c3f096
 MAX_CALLS = 40
 
 
+def runtime_credential(names, credential_file=None):
+    """First non-empty value of the named variables: environment first, then the fixed core .env.
+
+    Never accepts a caller-supplied file outside tests; values are returned, never printed.
+    """
+    for name in names:
+        if os.environ.get(name):
+            return os.environ[name]
+    credential_file = credential_file or CORE/".env"
+    if credential_file.is_file():
+        for line in credential_file.read_text(encoding="utf-8").splitlines():
+            name, separator, value = line.strip().removeprefix("export ").partition("=")
+            if separator and name.strip() in names:
+                value = value.strip().strip('"').strip("'")
+                if value:
+                    return value
+    return None
+
+
 def _runtime_key():
     """Fixed local credential configuration; never accepts a caller-supplied file."""
-    key = os.environ.get("MODEL_API_KEY") or os.environ.get("META_API_KEY")
-    if not key:
-        credential_file = CORE/".env"
-        if credential_file.is_file():
-            for line in credential_file.read_text(encoding="utf-8").splitlines():
-                name, separator, value = line.strip().removeprefix("export ").partition("=")
-                if separator and name.strip() in {"MODEL_API_KEY", "META_API_KEY"}:
-                    key = value.strip().strip('"').strip("'")
-                    if key:
-                        break
+    key = runtime_credential(("MODEL_API_KEY", "META_API_KEY"))
     if not key:
         raise ModelError("MODEL_API_KEY or META_API_KEY is unavailable to the application runtime")
     return key

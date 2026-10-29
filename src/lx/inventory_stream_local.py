@@ -15,7 +15,6 @@ Reviewed in docs/inventory-stream-local-review.md.
 """
 import argparse
 import json
-import os
 import re
 from decimal import Decimal
 from pathlib import Path
@@ -51,14 +50,16 @@ def agent_profile(base_url, model):
 
 
 def key_loader(name):
-    """None, or a loader reading the named environment variable at runtime (the value is never shown)."""
+    """None, or a loader reading the named variable at runtime, from the environment or the core .env
+    (as the Meta key is read); the value is never shown."""
     if name is None:
         return None
     if not KEY_ENV.fullmatch(name) or name in SPARK_KEY_ENVS:
         raise ValueError("the agent key variable must be an upper-case name other than the Meta key variables")
 
     def load():
-        key = os.environ.get(name)
+        from .live import runtime_credential
+        key = runtime_credential((name,))
         if not key:
             raise ModelError(f"{name} is unavailable to the application runtime")
         return key

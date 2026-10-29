@@ -91,10 +91,18 @@ class LocalStreamTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 local.key_loader(bad)
         loader = local.key_loader("LX_TEST_AGENT_KEY")
-        with patch.dict(os.environ, {"LX_TEST_AGENT_KEY": "k"}):
-            self.assertEqual(loader(), "k")
-        with patch.dict(os.environ, {}, clear=True), self.assertRaises(ModelError):
-            loader()
+        core = self.root / "core"
+        core.mkdir()
+        with patch("lx.live.CORE", core):  # never the real core .env
+            with patch.dict(os.environ, {"LX_TEST_AGENT_KEY": "k"}):
+                self.assertEqual(loader(), "k")
+            with patch.dict(os.environ, {}, clear=True), self.assertRaises(ModelError):
+                loader()
+            (core / ".env").write_text("META_API_KEY=meta\nexport LX_TEST_AGENT_KEY='from-file'\n", encoding="utf-8")
+            with patch.dict(os.environ, {}, clear=True):
+                self.assertEqual(loader(), "from-file")  # read from the core .env like the Meta key
+                with self.assertRaises(ModelError):  # an absent name is not filled from other entries
+                    local.key_loader("OTHER_KEY")()
 
     def test_main_refuses_bad_inputs_before_the_ledger(self):
         seen = []

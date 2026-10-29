@@ -30,7 +30,7 @@ the same way, with every part a **stated input approved with the request**:
 |---|---|---|
 | Base URL | `--agent-base-url` | the address WSL can reach (below) |
 | Model id | `--agent-model` | `LiquidAI/LFM3-VL-2B-GGUF` |
-| Key | `--agent-key-env` (optional) | the **name** of an environment variable, read at runtime and never shown. Omit it if Unsloth needs no key, as now. |
+| Key | `--agent-key-env` (optional) | the **name** of a variable (here `UNSLOTH_API_KEY`), read at runtime from the environment or the core `.env`, the same way as the Meta key, and never shown. Omit it if the provider needs no key. |
 
 - The base URL is checked by the same endpoint rule as any provider: HTTPS
   anywhere, plain HTTP only to local or private-network hosts, no
