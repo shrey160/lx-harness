@@ -9,6 +9,11 @@ reply is capped at a lower output limit, because E2B ran away to the
 4,096-token limit in T6. Windows controller (where the local server is
 reachable).
 
+Retry (30 Oct 2026, reviewed again): the first run (scope
+``inventory-eval-local-v1``) stopped on 5 model errors that were a 60-second
+client timeout, since fixed in ``SparkClient.chat``. Same request otherwise,
+under a new scope; the server must report the model as loaded.
+
 Pre-registered criterion (29 Oct 2026, before any E-C call), the same as E-B:
 on the 24 held-out samples, the mean paired checklist gain is at least 0.10
 and the lower end of its 95% paired bootstrap interval is above 0. E-B's
@@ -36,20 +41,20 @@ LOCAL = ProviderProfile(kind="chat", endpoint="http://127.0.0.1:8888/v1/chat/com
 MODELS_URL = "http://127.0.0.1:8888/v1/models"
 # E-B's longest answer was about 1,000 JSON characters; E2B's runaway reply in T6 hit 4,096 tokens.
 MAX_OUTPUT_TOKENS = 1536
-SCOPE = "inventory-eval-local-v1"
+SCOPE = "inventory-eval-local-v2"
 # Gemma is $0 per token; the cap covers new SAM photo-phrase pairs (cache shared with E-B).
 RUN_CAP_USD = "1.50"
 LIMITS = {"chat": 1300, "segment": 600, "transcribe": 40}
 SPARK_EVIDENCE = ROOT/"evidence"/"2026-10-29-inventory-eval"/"eval.json"
-# Last recorded shared-ledger checkpoint (after E-B, 29 Oct 2026).
+# Last recorded shared-ledger checkpoint (after the stopped first E-C run, 30 Oct 2026).
 CHECKPOINT_SPENT = Decimal("1.744275772")
-CHECKPOINT_CALLS = 2584
+CHECKPOINT_CALLS = 2725
 
 
 def served_models(opener=urllib.request.urlopen):
-    """Model ids the local server lists (a GET, no generation)."""
+    """Model ids the local server reports as loaded (a GET, no generation); servers without the flag list only loaded ones."""
     with opener(MODELS_URL, timeout=10) as reply:
-        return [m.get("id") for m in json.load(reply).get("data", [])]
+        return [m.get("id") for m in json.load(reply).get("data", []) if m.get("loaded", True)]
 
 
 def spark_comparison(path=SPARK_EVIDENCE):
@@ -95,7 +100,7 @@ def main():
     except OSError:
         parser.error("The local model server is not reachable")
     if LOCAL.model not in models:
-        parser.error(f"The local server does not list {LOCAL.model}")
+        parser.error(f"The local server does not report {LOCAL.model} as loaded")
     from .live import _runtime_key
     from .live_transport import LiveMetaTransport
     probe, frozen = checked_probe()

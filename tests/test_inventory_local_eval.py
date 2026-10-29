@@ -36,7 +36,8 @@ class LocalEvalTests(unittest.TestCase):
         self.assertEqual(evaluation.RUN_CAP_USD, "1.50")
         self.assertEqual(evaluation.LIMITS, {"chat": 1300, "segment": 600, "transcribe": 40})
         self.assertEqual(evaluation.CRITERION, inventory_eval.CRITERION)  # same as E-B
-        self.assertNotEqual(evaluation.SCOPE, inventory_eval.SCOPE)
+        self.assertEqual(evaluation.SCOPE, "inventory-eval-local-v2")  # the stopped first run used v1
+        self.assertEqual(evaluation.CHECKPOINT_CALLS, 2725)
 
     def test_client_sends_the_lower_output_cap_to_the_local_model(self):
         transport = Capture()
@@ -50,8 +51,9 @@ class LocalEvalTests(unittest.TestCase):
     def test_served_models_reads_the_listing(self):
         def opener(url, timeout):
             self.assertEqual(url, evaluation.MODELS_URL)
-            return io.BytesIO(json.dumps({"data": [{"id": "gemma-4-E4B-it-GGUF"}, {"id": "other"}]}).encode())
-        self.assertEqual(evaluation.served_models(opener), ["gemma-4-E4B-it-GGUF", "other"])
+            return io.BytesIO(json.dumps({"data": [{"id": "gemma-4-E4B-it-GGUF", "loaded": True}, {"id": "other"},
+                                                   {"id": "gemma-4-E2B-it-GGUF", "loaded": False}]}).encode())
+        self.assertEqual(evaluation.served_models(opener), ["gemma-4-E4B-it-GGUF", "other"])  # unloaded left out
 
     def test_main_refuses_wrong_approvals_and_wrong_or_absent_model(self):
         good = ["--approve-dataset", evaluation.APPROVED_DATASET, "--approve-harness", evaluation.APPROVED_HARNESS]

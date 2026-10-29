@@ -1,7 +1,34 @@
 # E-C live evaluation request — PROD-004 inventory, local agent (prepared 29 Oct 2026)
 
-Status: **RUN 29-30 Oct 2026 — STOPPED on 5 model errors, no criterion result** (60 s client timeout; see `evidence/2026-10-29-inventory-eval-local/`). Originally: needs the user's explicit approval, with the
-local server running Gemma 4 E4B.
+Status: **RETRY PREPARED (30 Oct 2026), NOT RUN.** Needs the user's explicit
+approval, with the local server running Gemma 4 E4B.
+
+## Retry (30 Oct 2026)
+
+The first run (approved 29 Oct, scope `inventory-eval-local-v1`) **stopped**
+after 8 of 33 samples on 5 model errors, so it gave no criterion result. It
+cost $0; evidence is in `evidence/2026-10-29-inventory-eval-local/` (`824a7dc`).
+
+The errors were a controller defect. `SparkClient.chat` capped every call at
+60 s, so the 600 s local bound below never applied. The Unsloth log shows the
+5 requests closed by the client (status 499) at 60.0 s. Gemma generates at
+about 15–30 tokens/s here, so a long reply needs more than a minute.
+
+**Fixed in `ae150e5`:** Spark keeps its 60 s bound; other providers get the
+session deadline and their transport's own bound (600 s for local), with a
+test.
+
+**What changes in this retry:**
+- a new scope, `inventory-eval-local-v2`, since the guard refuses to reuse
+  v1;
+- the checkpoint is now 2725 settled;
+- the model check now requires the server to report E4B as **loaded**,
+  since this server also lists unloaded models.
+
+Everything else is unchanged: the arms, samples, order, output cap, limits,
+cap and pre-registered criterion. A second issue seen in the first run,
+Gemma's native tool-call text sometimes coming back as the reply, is left
+as is. It is part of what E-C measures.
 Controller: `lx.inventory_local_eval`, offline-tested in
 `tests/test_inventory_local_eval.py`. Authority: D-008 (a local model is a
 provider like any other), D-010 (E-A, E-B, then E-C) and D-012 (E-C uses
@@ -71,21 +98,22 @@ no criterion result.
   | SAM calls | 600 |
   | Transcribe calls | 40 |
 - **Budget:**
-  - Scope `inventory-eval-local-v1`, cap **$1.50**.
+  - Scope `inventory-eval-local-v2`, cap **$1.50**.
   - Gemma is $0. Spend is SAM only, at $0.0025 per new photo-phrase pair.
     E-B paid for 292, and the cache now holds 435 entries.
   - Expected spend: **about $0.10–0.60**. Gemma may phrase concepts
     differently from Spark; the cap binds before SAM's call limit.
   - Transcribe should be fully cached.
 - **Wall time:** unknown, because it depends on the GPU. At about
-  10–30 s per local reply, and about 800 replies, expect about **2–7 hours**.
+  10–30 s per local reply (about 14 s on average in the first run), and about
+  800 replies, expect about **3–6 hours**.
   The PC must stay awake with the server running.
 - **Guards:**
   - exact dataset and harness hashes, each passed on the command line;
   - harness validation;
-  - the local server must list `gemma-4-E4B-it-GGUF` (a GET of
+  - the local server must report `gemma-4-E4B-it-GGUF` as loaded (a GET of
     `/v1/models`, no generation) or the run refuses to start;
-  - shared ledger at or after the checkpoint ($1.744275772 spent, 2584
+  - shared ledger at or after the checkpoint ($1.744275772 spent, 2725
     settled);
   - at least $1.50 left in the ledger;
   - no earlier rows in the scope;
@@ -109,7 +137,7 @@ $env:PYTHONPATH="src;..\harness2_portable_core\vendor\harness2-cli"; & .\.lx\tts
 
 ## Outputs
 
-The run writes `main_LX/.lx/inventory-eval-local-v1/eval.json` and
+The run writes `main_LX/.lx/inventory-eval-local-v2/eval.json` and
 `usage.json`:
 - every row with both arms' answers, scores, failed checks, tool calls and
   stop reasons;
