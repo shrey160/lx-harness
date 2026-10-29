@@ -28,7 +28,10 @@ remaining, 1598 settled, 1 unknown (the old T6 one).
 Every sample adopted an edit (`c1`, the composed final; k=1 needs no
 selector). The edit is one on-demand skill (`skills/inventory/SKILL.md`,
 `photo-inventory` on the first sample) plus a guardrail trigger line. The
-final harness is in `library/mix-stream-colourcount-01/harness/`. The skill:
+library holds two entries, written after samples 2 and 4; the latest harness
+is `library/fsc-stream-02/harness/` (it refines the colourcount-01 skill:
+also exclude reflections, view controls over segment boxes, record the best
+eye count on crowded photos instead of stalling). The skill:
 transcribe first and classify the request; view each photo once; segment
 once per photo with the most specific concept (colour-qualified for colour
 requests); one bounded retry, then trust the eye count and never loop;
