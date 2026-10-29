@@ -1,0 +1,251 @@
+{
+  "view_check": {
+    "view_called": true,
+    "reply": "Photo 1 shows an assortment of cupcakes with pink and white frosting arranged in rows on a light surface. Segmentation identified 16 cupcake instances across the image.",
+    "tool_calls": [
+      {
+        "name": "view",
+        "arguments": {
+          "photo": 1
+        },
+        "error": null
+      },
+      {
+        "name": "segment",
+        "arguments": {
+          "photo": 1,
+          "concept": "cupcakes"
+        },
+        "error": null
+      }
+    ],
+    "stopped": null
+  },
+  "runs": {
+    "fsc-calibration-02": {
+      "answer": {
+        "request": {
+          "type": "count",
+          "kind": "cupcakes",
+          "colour": null
+        },
+        "photos": [
+          {
+            "photo": 1,
+            "items": [
+              {
+                "kind": "cupcakes",
+                "colour": null,
+                "count": 16
+              }
+            ]
+          },
+          {
+            "photo": 2,
+            "items": [
+              {
+                "kind": "cupcakes",
+                "colour": null,
+                "count": 25
+              }
+            ]
+          }
+        ],
+        "answer": {
+          "count": 41,
+          "inventory": [
+            {
+              "kind": "cupcakes",
+              "count": 41
+            }
+          ]
+        }
+      },
+      "score": 0.25,
+      "failed_checks": [
+        "schema",
+        "coverage",
+        "photo 2",
+        "photo 3",
+        "consistency",
+        "answer"
+      ],
+      "turns": 4,
+      "tool_calls": [
+        {
+          "name": "transcribe",
+          "arguments": {},
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 1
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        }
+      ],
+      "stopped": null
+    },
+    "mix-calibration-colourcount-01": {
+      "answer": {
+        "request": {
+          "type": "count",
+          "colour": "orange"
+        },
+        "photos": [
+          {
+            "photo": 1,
+            "items": []
+          },
+          {
+            "photo": 2,
+            "items": []
+          },
+          {
+            "photo": 3,
+            "items": []
+          }
+        ],
+        "answer": {
+          "count": 0,
+          "colour_count": 0,
+          "inventory": []
+        }
+      },
+      "score": 0.375,
+      "failed_checks": [
+        "schema",
+        "request",
+        "photo 2",
+        "consistency",
+        "answer"
+      ],
+      "turns": 3,
+      "tool_calls": [
+        {
+          "name": "transcribe",
+          "arguments": {},
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 1
+          },
+          "error": null,
+          "exit_code": null
+        }
+      ],
+      "stopped": null
+    }
+  },
+  "answered": 2,
+  "tools_used": [
+    "transcribe",
+    "view"
+  ],
+  "live": true,
+  "capability_evidence": false,
+  "agent": "LiquidAI/LFM3-VL-2B-GGUF",
+  "agent_base_url": "http://127.0.0.1:8888/v1",
+  "agent_key_env": "UNSLOTH_API_KEY",
+  "agent_thinking": "on",
+  "agent_max_tokens": 8192,
+  "agent_endpoint": "http://127.0.0.1:8888/v1/chat/completions",
+  "dataset_sha256": "db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322",
+  "cache_hits": 3,
+  "live_tool_calls": 0,
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 13594,
+        "output_tokens": 14643,
+        "spent_usd": 0.0
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "per_phase": {
+      "worker/execute": {
+        "settled_calls": 10,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "settled_calls": 10,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.0
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 2.056775772,
+    "reserved_usd": 0.1056768,
+    "remaining_usd": 17.837547428,
+    "settled_calls": 3598,
+    "reserved_calls": 1,
+    "unknown_count": 6,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.179895476,
+        "reserved_usd": 0.0,
+        "input_tokens": 3885095,
+        "output_tokens": 230826,
+        "settled_calls": 512,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 1.519884,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 697,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.355810196,
+        "reserved_usd": 0.1056768,
+        "input_tokens": 6818492,
+        "output_tokens": 835152,
+        "settled_calls": 2387,
+        "reserved_calls": 1
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  }
+}
