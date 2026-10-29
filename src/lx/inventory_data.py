@@ -343,3 +343,15 @@ def build_synthetic_dataset(root, count, *, stream_count=None, seed=20261029, ty
     dataset.save()
     finalize_inventory(root)
     return scenes, dataset.requests
+
+
+def inventory_dataset_hash(root):
+    """One approval hash over the frozen manifest, truth, requests and media hashes."""
+    root = Path(root)
+    parts = {name: json.loads(path.read_text(encoding="utf-8")) for name, path in (
+        ("manifest", root / "worker_inputs" / "manifest.json"),
+        ("truth", root / "controller_truth" / "ground_truth.json"),
+        ("requests", root / "controller_truth" / "requests.json"),
+        ("media", root / "controller_truth" / "media.json"))}
+    load_inventory_dataset(root)  # refuses changed media
+    return hashlib.sha256(json.dumps(parts, sort_keys=True).encode("utf-8")).hexdigest()
