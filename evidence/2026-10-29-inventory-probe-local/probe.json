@@ -1,0 +1,165 @@
+{
+  "view_check": {
+    "view_called": true,
+    "reply": "Photo 1 shows two round baking pans sitting on a stovetop.",
+    "tool_calls": [
+      {
+        "name": "view",
+        "arguments": {
+          "photo": 1
+        },
+        "error": null
+      }
+    ],
+    "stopped": null
+  },
+  "agent": {
+    "coco-calibration-04": {
+      "harness": "base",
+      "error": "provider returned an incomplete response"
+    }
+  },
+  "raw_shapes": {
+    "segment": [],
+    "transcribe": []
+  },
+  "part": "local",
+  "live": true,
+  "capability_evidence": false,
+  "dataset_sha256": "1c673f8d2445afe2c675900a344b94942cacb3a89552d88961d3b96667767fcc",
+  "limits": {
+    "scope": "inventory-probe-local-v1",
+    "cap_usd": "0.15",
+    "chat": 16,
+    "segment": 16,
+    "transcribe": 2
+  },
+  "cache_hits": 4,
+  "live_tool_calls": 0,
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 9249,
+        "output_tokens": 5150,
+        "spent_usd": 0.0
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "per_phase": {
+      "worker/execute": {
+        "settled_calls": 8,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "settled_calls": 8,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.0
+  },
+  "ledger_before": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.36728662,
+    "reserved_usd": 0.1056768,
+    "remaining_usd": 19.52703658,
+    "settled_calls": 933,
+    "reserved_calls": 0,
+    "unknown_count": 1,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.070056324,
+        "reserved_usd": 0.0,
+        "input_tokens": 1606340,
+        "output_tokens": 120099,
+        "settled_calls": 286,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 0.222312,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.073732196,
+        "reserved_usd": 0.1056768,
+        "input_tokens": 793361,
+        "output_tokens": 210425,
+        "settled_calls": 508,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.36728662,
+    "reserved_usd": 0.1056768,
+    "remaining_usd": 19.52703658,
+    "settled_calls": 941,
+    "reserved_calls": 0,
+    "unknown_count": 1,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.070056324,
+        "reserved_usd": 0.0,
+        "input_tokens": 1606340,
+        "output_tokens": 120099,
+        "settled_calls": 286,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 0.222312,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.073732196,
+        "reserved_usd": 0.1056768,
+        "input_tokens": 802610,
+        "output_tokens": 215575,
+        "settled_calls": 516,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  }
+}
