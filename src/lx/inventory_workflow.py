@@ -26,7 +26,7 @@ from .spike import wire_reply
 from .workflow import ImagesAdapter
 
 BASE_PROMPT = "Answer the spoken request about the photos and return JSON."
-ADAPTER_SPLITS = {"stream": "dev", "heldout": "heldout", "calibration": "calibration"}
+ADAPTER_SPLITS = {"stream": "dev", "check": "check", "heldout": "heldout", "calibration": "calibration"}
 WORKER_MARKER = "LX_INVENTORY_AGENT"
 COMPONENT_NOTE = (
     "The harness may also contain skills/<name>/SKILL.md (frontmatter name and description; the agent "

@@ -28,7 +28,7 @@ from .inventory import MAX_PHOTOS, MIN_PHOTOS, request_text, validate_truth
 from .perception import wav_duration_ms
 from .voicecount import VOICES
 
-SPLITS = ("stream", "heldout", "calibration")
+SPLITS = ("stream", "check", "heldout", "calibration")  # check: the user bundle's own check (E-B/E-C)
 MAX_SIDE = 1024
 JPEG_QUALITY = 90
 _PHOTO = re.compile(r"([1-9])\.(jpg|jpeg|png)", re.I)
@@ -118,6 +118,9 @@ class _Dataset:
     @staticmethod
     def _read(path, default):
         return json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
+
+    def split_of(self, sample_id):
+        return next(s["split"] for s in self.manifest["samples"] if s["sample_id"] == sample_id)
 
     def add(self, sample_id, split, photos, truth, *, audio=None, text=None, voice=None, source):
         if split not in SPLITS:
