@@ -1,0 +1,775 @@
+{
+  "transcribe": {
+    "coco-calibration-04": {
+      "transcript": "count all the bowls in these photos..",
+      "duration_ms": 1920,
+      "wer": 0.0
+    },
+    "coco-calibration-05": {
+      "transcript": "Can you tell me the total the total number of bananas?",
+      "duration_ms": 2160,
+      "wer": 0.2222222222222222
+    }
+  },
+  "segment": {
+    "coco-calibration-04": {
+      "1": {
+        "concept": "bowl",
+        "instances": 0,
+        "confident_0_5": 0,
+        "truth": 2,
+        "box_sizes_match_image": true
+      },
+      "2": {
+        "concept": "bowl",
+        "instances": 0,
+        "confident_0_5": 0,
+        "truth": 0,
+        "box_sizes_match_image": true
+      },
+      "3": {
+        "concept": "bowl",
+        "instances": 0,
+        "confident_0_5": 0,
+        "truth": 1,
+        "box_sizes_match_image": true
+      }
+    },
+    "coco-calibration-05": {
+      "1": {
+        "concept": "banana",
+        "instances": 0,
+        "confident_0_5": 0,
+        "truth": 0,
+        "box_sizes_match_image": true
+      },
+      "2": {
+        "concept": "banana",
+        "instances": 14,
+        "confident_0_5": 14,
+        "truth": 4,
+        "box_sizes_match_image": true
+      },
+      "3": {
+        "concept": "banana",
+        "instances": 1,
+        "confident_0_5": 1,
+        "truth": 1,
+        "box_sizes_match_image": true
+      }
+    }
+  },
+  "view_check": {
+    "view_called": true,
+    "reply": "Photo 1 shows two round baked cakes in pans cooling on a gas stovetop.",
+    "tool_calls": [
+      {
+        "name": "view",
+        "arguments": {
+          "photo": 1
+        },
+        "error": null
+      }
+    ],
+    "stopped": null
+  },
+  "agent": {
+    "coco-calibration-04": {
+      "harness": "base",
+      "answer": {
+        "request": {
+          "type": "count",
+          "kind": "bowl",
+          "colour": null
+        },
+        "photos": [
+          {
+            "photo": 1,
+            "items": []
+          },
+          {
+            "photo": 2,
+            "items": []
+          },
+          {
+            "photo": 3,
+            "items": []
+          }
+        ],
+        "answer": 0
+      },
+      "score": 0.625,
+      "failed_checks": [
+        "photo 1",
+        "photo 3",
+        "answer"
+      ],
+      "turns": 10,
+      "tool_calls": [
+        {
+          "name": "transcribe",
+          "arguments": {},
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 1
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 3
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "bowl",
+            "photo": 1
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "bowl",
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "bowl",
+            "photo": 3
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 1
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 3
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 3
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 1
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "box": [
+              522,
+              437,
+              639,
+              700
+            ],
+            "photo": 2
+          },
+          "error": "box must be [x1, y1, x2, y2] inside the photo (640x480)",
+          "exit_code": null
+        }
+      ],
+      "stopped": null
+    },
+    "coco-calibration-05": {
+      "harness": "probe skill + script",
+      "answer": {
+        "request": {
+          "type": "count",
+          "kind": "banana",
+          "colour": null
+        },
+        "photos": [
+          {
+            "photo": 1,
+            "items": []
+          },
+          {
+            "photo": 2,
+            "items": [
+              {
+                "kind": "banana",
+                "colour": null,
+                "count": 14
+              }
+            ]
+          },
+          {
+            "photo": 3,
+            "items": [
+              {
+                "kind": "banana",
+                "colour": null,
+                "count": 1
+              }
+            ]
+          }
+        ],
+        "answer": 15
+      },
+      "score": 0.75,
+      "failed_checks": [
+        "photo 2",
+        "answer"
+      ],
+      "turns": 10,
+      "tool_calls": [
+        {
+          "name": "load_skill",
+          "arguments": {
+            "name": "inventory-check"
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "transcribe",
+          "arguments": {},
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "banana",
+            "photo": 1
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "banana",
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "segment",
+          "arguments": {
+            "concept": "banana",
+            "photo": 3
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "run_script",
+          "arguments": {
+            "input": {
+              "concept": "banana",
+              "min_confidence": 0.5
+            },
+            "name": "sum_counts"
+          },
+          "error": null,
+          "exit_code": 1
+        },
+        {
+          "name": "run_script",
+          "arguments": {
+            "input": {
+              "kind": "banana",
+              "min_confidence": 0.5
+            },
+            "name": "sum_counts"
+          },
+          "error": null,
+          "exit_code": 1
+        },
+        {
+          "name": "run_script",
+          "arguments": {
+            "input": {
+              "concept": "banana",
+              "kind": "banana",
+              "min_confidence": 0.5
+            },
+            "name": "sum_counts"
+          },
+          "error": null,
+          "exit_code": 0
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 1
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 3
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "view",
+          "arguments": {
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "count_boxes",
+          "arguments": {
+            "concept": "banana",
+            "dedupe_iou": 0.5,
+            "min_confidence": 0.5,
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        },
+        {
+          "name": "count_boxes",
+          "arguments": {
+            "concept": "banana",
+            "dedupe_iou": 0.3,
+            "min_confidence": 0.5,
+            "photo": 2
+          },
+          "error": null,
+          "exit_code": null
+        }
+      ],
+      "stopped": null
+    }
+  },
+  "raw_shapes": {
+    "segment": [
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae34bb461edc83059044a85\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793280948.0, \"completed_at\": 1793280948.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_ae998015-10cb-493e-9cb1-1ff1a6aa27eb\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"\", \"annotations\": [], \"logprobs\": []}], \"status\": \"completed\"}], \"instructions\": null, \"usage\": {\"input_tokens\": 0, \"input_tokens_details\": {\"cached_tokens\": 0}, \"output_tokens\": 0, \"output_tokens_details\": {\"reasoning_tokens\": 0}, \"total_tokens\": 0, \"images_processed\": 1}, \"parallel_tool_calls\": true, \"store\": true}",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae34bb616e3bd7038be496f\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793280950.0, \"completed_at\": 1793280950.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_39340aaa-0e31-4f03-93c1-c3ac1be2d6a9\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"\", \"annotations\": [], \"logprobs\": []}], \"status\": \"completed\"}], \"instructions\": null, \"usage\": {\"input_tokens\": 0, \"input_tokens_details\": {\"cached_tokens\": 0}, \"output_tokens\": 0, \"output_tokens_details\": {\"reasoning_tokens\": 0}, \"total_tokens\": 0, \"images_processed\": 1}, \"parallel_tool_calls\": true, \"store\": true}",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae34bb8b88d94c2c0ed49b6\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793280952.0, \"completed_at\": 1793280952.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_9a45b39b-7144-4941-be8b-de04ed0d4cdd\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"\", \"annotations\": [], \"logprobs\": []}], \"status\": \"completed\"}], \"instructions\": null, \"usage\": {\"input_tokens\": 0, \"input_tokens_details\": {\"cached_tokens\": 0}, \"output_tokens\": 0, \"output_tokens_details\": {\"reasoning_tokens\": 0}, \"total_tokens\": 0, \"images_processed\": 1}, \"parallel_tool_calls\": true, \"store\": true}",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae34bba9ab136c572d1483a\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793280954.0, \"completed_at\": 1793280954.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_6eb4adf5-952e-43fe-a1a4-e89c83ecab6a\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"\", \"annotations\": [], \"logprobs\": []}], \"status\": \"completed\"}], \"instructions\": null, \"usage\": {\"input_tokens\": 0, \"input_tokens_details\": {\"cached_tokens\": 0}, \"output_tokens\": 0, \"output_tokens_details\": {\"reasoning_tokens\": 0}, \"total_tokens\": 0, \"images_processed\": 1}, \"parallel_tool_calls\": true, \"store\": true}",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae34bbc5d353cb7596f4723\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793280956.0, \"completed_at\": 1793280956.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_c1bcef5e-2a32-4179-8620-b360206c9c71\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"<0f>0<|box;x1=227;y1=9;x2=497;y2=101;w=498;h=500;c=0.8160918951034546|><|mask;x=0;y=0;c=0.8160918951034546;data=93,271,~!!#5M#L#C)aU.0J.tQwZFS-:k+8(lMeH&$ALxnUt)O=FHxbeY&R.[[%4Y)k{o5=YC-=%JJ5@b[I)6%W?XCK9O9#Z3&!#l?:g1!$$QX-g2.CFyNbz{QSo_+wA@JYdna$ueDncKfM3?K$mKjX=H+/4J6.X]ez^A^#l!hr!5O/bHgJXkhc9-%x%9+V?6'uyoiX_n:GgE$^$gYE_GoGMF'J.urRFWWKMEWKJ87KE/F30*&0f_QFz#W8kX_-l-qsXW2cBMitdy&lO.9i&sj=MiV[2uk**H+5J41sXR&NoDLq8/D`$gTq.4c26i:B7ELevbbSKji+vn)5mL#iCG.c_UJudl1{OpW{7Nx'0W_u)OJHgYE#o_h#L]WM0AXKC[J5kj.Q.cb2`NVB!3bTOZ:TiXG49mueA_MNKQ+kSGV%AHyc1JaGQB:/_(d)MPUpfeg`&8(ou[o:{24v$oHFp^hm.NYXmebhB^qe'Tv2pmF0./$8y^4MeMq($ZW0?TW:X#d[yw&o#.ruE4Ow7NT[!eRKX-Ml]+7&9Z{ES7?jTm(pMt]61VbYhp)f3U/#jc$W-MtIKr_Y&n!QjN4oG-%f!cE6b`NbE-0[#RGvZo!yKUN$pq/F:{5jHbc&NXL]?SEmnTy43n@jk:hDVC7t(b$=ee'W1/y_X-j:9JIy7Kz[$X@#2.hfJx_%.=Xz2j'cpnkI::ll@eL=D.@/X+&m+?vl=Y.?9uwATD.Mr#b]D#xtOg:ELqo.$%X.'=spt?qAn+Qg7S1V(Y8FG0ZLIt]rK@RkvERHpe&'8Fr?mmcyO1:#ZrD6@[om6(8Xq'qc::s31bVZ=P8^+d?S/[=V0kTg!c(+mD?`%6rh!Pl(*L8T-wR9BaH[JAYkj@g:-@dQ=Fbv=pjQ#/?VYLL:)7nHtCO@iW&$CE=JbOJa_nh??tpTv0ZFK^SqrgA.wZ#rg7NH8k-.%i@p$FSQG2yeQe7Dd:)akW48%ScGeB)kh8qQS*dm:%%y8W#{B1N-Kr0-FRK.2u4!]wBf'K]FR@[m`N=6R)AxA32Q'BWnEdg[!FPs`N)UAgW?Cs9l29R4&$M7m26f&XYg*JpFCV6Szd5#69/4eVgiXwU3j69.$@#L#d#J1rc!?Y.^-D?BLd1JaVN_d@$y`U-PH.4@4j5OHJV.Ho=TKQ`eH4p'zJY%5?1ZQ-mm&CEN9sg]ow!.]ngD9JF570yEA![r[I^*IL'h8(Hyw8a0'k%ZBzAbzm/:^X$IvAmLj9-l=@VYQ?5XR!R%:S'9]RG7*0xQ?U6N24.tH%TNr&39O-^O-cGP-Z[wPbX8v`w5fo:Ngfzh`PWE4PeT7_(^1D/oZ&O!J_=?f_*IQ._EmT7GN'a.$UCFZ@.oV.`#rcnJ_0&X-9`Ak3*-pr0yo[[8uhS(?-=c__'N!Y9f^[KD5i0%DjeFrvnx./qJ{X86$g7$HA_uk^j7HV9bVd8/6B8mF(3ypDF$J-5(_W)56%=5s/4eQW/ogcJ5ruI-.G#LAmdE5qJD-XqAN?AgZ4:(s6DDBlWYZukP^'X5k2#lP.75558uYS1e(hedkr*j?^Pg%8L*sJV0+.I8Qa(rbJ5[3!Z`VIq[tcw3wm(_]q2c+)H*=quooh:+wRJ.YffjI7q?%[xQyJayr0'M_%AH/WOmUHYZlyLR!F7`/3[CL.#55LQ_+b:NA#nHe25483-sC*jvCl*65z)a%8T450bB?QFtRh[o@GV6qo#tvb0PJh0y_rK3):7C9Z6iU`{6pWwv/fI+X/jk@Bf`U5U-y2sC%YExCnEEYrh$SN_dggR2AFLznp@5Dy%0QYc#I)L[Jk.67rjXazY/Y4SJtwfOP&)2p8X90Owh+H=er?pyDiMs:$H[Q$:)K+oZ-aowUHV6!Pyx1otu(*)Ay98qZjfwLKUxc_nLnqU{LfZCB4MfbCp'h#Z:`WG/?Uin9]aAhuc?yc+/t#W])qGz]Yk_qCGoK1Y5JFbE0j)-?#pk&d9TY67NcLb%0egdURFZ*7XcOiG3bhEscO5%!8I'6mzY!nfs$d#w.h$+A_.v/?gNUm1mXZ?{^d(LE{Y3m`d(3dvH8d.d.W7$vzKiLE/12Bkic&.QzM_3MFLe:C0nlBGGrdRm0Qp`96^!kBA%vn$CUA%y'))vV6r-Wux?Ju$hQ-=0/tF:eZbYp_qNaaJiR%0/GbKpqDY*XtoY#zC*.b_)ux&jbpE$*Vh*Mo8eW]%Qz8v?Y@!S?ztPgRZz)i=e^]z'D?8#nTB+5HIB^#_w=q1X*]F@t{&/e@ikFAq(K]Poo_vG9T#Rew-LXIJ1/8+=TN]&+=L0msQp3se7z&W0&%hb)Lg/nDW6X9cm@Yg#",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      },
+      {
+        "keys": [
+          "background",
+          "completed_at",
+          "created_at",
+          "error",
+          "id",
+          "incomplete_details",
+          "instructions",
+          "metadata",
+          "model",
+          "object",
+          "output",
+          "parallel_tool_calls",
+          "service_tier",
+          "status",
+          "store",
+          "temperature",
+          "tool_choice",
+          "tools",
+          "top_logprobs",
+          "top_p",
+          "truncation",
+          "usage"
+        ],
+        "excerpt": "{\"metadata\": {\"include_confidence\": \"true\"}, \"top_logprobs\": 0, \"temperature\": 1.0, \"top_p\": 1.0, \"service_tier\": \"auto\", \"model\": \"sam-3.1\", \"background\": false, \"tools\": [], \"tool_choice\": \"auto\", \"truncation\": \"disabled\", \"id\": \"resp_6ae34bc0fd08dcfec10d4631\", \"object\": \"response\", \"status\": \"completed\", \"created_at\": 1793280960.0, \"completed_at\": 1793280960.0, \"error\": null, \"incomplete_details\": null, \"output\": [{\"type\": \"message\", \"id\": \"msg_9993f813-e20e-4863-adb3-d3b5c6823a06\", \"role\": \"assistant\", \"content\": [{\"type\": \"output_text\", \"text\": \"<0f>0<|box;x1=44;y1=69;x2=333;y2=289;w=375;h=500;c=0.9532163739204407|><|mask;x=0;y=0;c=0.9532163739204407;data=221,290,~!!$T1#K{$dVErI8%J4K+!8''^2G!jDK#.KuIS`pyd7?H.FU=(73qh5$IyeQ_E0*Ck5ORF'tO_ymPWadopFNNAP#tV.s_.FvhuA@91ID1IZAgTT1=*cFxq7er&dd_(AE]G{&?xYoW2qJ+6&lFutl8oHgH7P)e6bnDZq$`ow+B)*d8I!IHLd:&u'ctt%xDjmOsd2V'nulu=)ldJ$G(k.J8W{5[&J'{oMroHUC@fw3CXU:Ho6u6G:H`Nik/G@=ej0:`]3(AYFiXqTWWBgrP2cV#BKQzMhf+#_^GDg9nA4uf4`z)ST8:8EIAXN`)-=5[*A@ht^KM7LA76GiDcviGpqjdp:{vk1UiXT_W(itR7sCHU^$h:+(l-h:(U^hl[?{R`fKqDD0+xRRtri5RkTJ0qoTLl^5+tZh4wuZANkpuTy8%x]c720.tI+s^ik?e=ZJZVZJLw2iilac(:eE2Q$NM=fuMNcSqI]foE8-NkbqdAjs`Z]G/ZDbi=X2:%Na6Gj=62XgJr#Up)ZQ{377vUgMyo!]xsU'k6'p#hnTUncg:=v%/&DgV0GuW1)ajHx$6lYK0hOQ'v-)OH*{5JlgS2dvdHe/nQK?q2]t=k0wd7uvG5tDshmE*lY8%4'p=OX2tD(x:vHS)!JoAd#(CCb.nuV2Be2!4v9@R6d*bgl?p(Cab9mzAL$up=WA9`7@Z{a=WFm]q8K!w=vGt5CxC5Y/%#LjIYR1TCAJ0+#Fy1rgviwB+$bo9=LrFi=Fea%d7iw!It&3n++b7D7aY{uLD.#`usrW^0v's.LvI=U0a:a&%cOQwq&l#@_T_(qy#O)15h-]dS)H&BaGmV*@gQRtZf$(z98BGF:)CE9m1&xeP[kLlr#@F*DKVGY%(nPpO+$7^Ml7(SBW^htCWFg$/k{(y)Y06P9=jlTlFC2{yWU2&)l{9[t*dJ@q/NrYx8tXBIlD1zGMmb0S*!NKFj[e?m/(XIp+Thd4aaJ.[k)Zv!g]26/mM7*fw'd:sf7Oo(j!@ROV!mE^=Jtsxs$fVH9f{lqT_ymjy5CB@F$HJQREC:4jmuP7U5R`NMYYKgMIR[UiqxQ_9o8LQQIb_vMee5{O/aU0g^L:-XL]&(IM8Yhw]BjgTw00K?wQnSTv8owC5ucJYH9?Hi_thL@ryd_DD_8U2fc&ICDLwYFVGD3f3yx8qq&Z#P2kj7Nvy[3J/Oz{8V%5]wj`-4vu2$*NAthcY6uD!.JH?{:@'bIu7lBQh5@50#DMLLo=RFtKdhhl7B5q(9A'uZ]'g!zY96{#1R+&dL]-4')E+'x&)(WowXsLgW0f]lv?L)G-/Hx4Q*b`W]V@o39!n-:.[e[_LjL!=?FG[.w&el%$iL0v.)stSP'xH*6llzH^ZR1Zds3Tbi3GwulQPk9y:[)EOVJfLIDu%2g@_Xy$KvsaE944[.bKX`1KtkZ=Li_%xRl9UG3jJ3!V_#?a`^!7]kpYyw!/fnEXWvL'bV3hAdC.ii+_.H(0dqDGZ[@'pT{ngMw5MYS%Q2.53H]YTj/%]:9K=d0$C6pVS0zM)5UGl's`D4u6$`ar`/C@BggbQNj_ybq%$&g%]%8QNE4VioJG2]d9h3btev+3Sm[zk]SWe@TDKm'b[#5(uXZ@0Xeb9F6L!SyU:YH_EOomi*]p:ARQToi619NME[G$apL.`*o1ts$'VqYH6DGD3QSo@)MO1fX-fumoi+HM.QK2Fpm7_K=bBfm#DO]SKA=(3ksFfJ_4CF6+MUGe0c0]o)OT{*btuTSFYCzww$:y*d%(OK7`M?+N86+U:J+=Q9-3XkwiNxF)2Ig{PBy$c+wT*zZ[Tj5(`OnPbh9ma&4Wf)bAcMp40fqVyazEzW')6r]c99B&n3pI1L{4uG/4A4hjmA#g)6gGwq{je/R$]yt!AZHv)JEMnA6Z*[JrTCDnyFb'xwXFnV]f?xoEzd`ICCQu!zqtI1At{^Tl`w.UQQ-zV8/p9sWZCb]G*gc_Joz_N1[K=oG5[7.^F]iumQrctjfUmf$4s*'f(Ba-e^r4sYHU]k5*x9C3:+K-rBpw_FzSl=)oYRw$+{2ez^/EEric:dnvr`8Dp$eD-$J4IgA_str'B{BBi2QfNK3D'3[:hS`py^C7a&cHVHosB(Q:M2'nu*x0l10QYjm2W6@rsF5Ky)%nHmNN*Vo@YQT]WFiYW=:rsQQ&As`iVN3$B@V9V%:!QNEe]K6@NC`=EpOACyg4SgSUp[]JQyH@:kh+O[o$/ozH[`NdgC)BwM6tu'$ku^/rWCHpE{5Y!]yZ*h_O`?YQUMj[ZSBrG41a51`fg8Pb%9AfE]aa*np4iNj6k'kKs&yYF4oFq=j",
+        "output_type": "list",
+        "usage_type": "dict",
+        "status_type": "str"
+      }
+    ],
+    "transcribe": [
+      {
+        "keys": [
+          "audioDurationMs",
+          "sessionId",
+          "transcript",
+          "turns"
+        ],
+        "excerpt": "{\"sessionId\": \"voyager/transcribe/C292FAA43C714CF1A926BD77B0DC5649\", \"transcript\": \"count all the bowls in these photos..\", \"audioDurationMs\": 1920, \"turns\": []}",
+        "turns_type": "list"
+      },
+      {
+        "keys": [
+          "audioDurationMs",
+          "sessionId",
+          "transcript",
+          "turns"
+        ],
+        "excerpt": "{\"sessionId\": \"voyager/transcribe/8F73DE22FE4244A5B8917EFC1F76A91F\", \"transcript\": \"Can you tell me the total the total number of bananas?\", \"audioDurationMs\": 2160, \"turns\": []}",
+        "turns_type": "list"
+      }
+    ]
+  },
+  "part": "meta",
+  "live": true,
+  "capability_evidence": false,
+  "dataset_sha256": "1c673f8d2445afe2c675900a344b94942cacb3a89552d88961d3b96667767fcc",
+  "limits": {
+    "scope": "inventory-probe-v1",
+    "cap_usd": "0.40",
+    "chat": 30,
+    "segment": 30,
+    "transcribe": 4
+  },
+  "cache_hits": 8,
+  "live_tool_calls": 8,
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 71338,
+        "output_tokens": 6475,
+        "spent_usd": 0.004337888
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.015204
+      }
+    },
+    "per_phase": {
+      "tool/transcribe": {
+        "settled_calls": 2,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.000204
+      },
+      "tool/segment": {
+        "settled_calls": 6,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.015
+      },
+      "worker/execute": {
+        "settled_calls": 22,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.004337888
+      }
+    },
+    "settled_calls": 30,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.019541888
+  },
+  "ledger_before": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.347744732,
+    "reserved_usd": 0.1056768,
+    "remaining_usd": 19.546578468,
+    "settled_calls": 903,
+    "reserved_calls": 0,
+    "unknown_count": 1,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.070056324,
+        "reserved_usd": 0.0,
+        "input_tokens": 1606340,
+        "output_tokens": 120099,
+        "settled_calls": 286,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 0.207108,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 129,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.069394308,
+        "reserved_usd": 0.1056768,
+        "input_tokens": 722023,
+        "output_tokens": 203950,
+        "settled_calls": 486,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.36728662,
+    "reserved_usd": 0.1056768,
+    "remaining_usd": 19.52703658,
+    "settled_calls": 933,
+    "reserved_calls": 0,
+    "unknown_count": 1,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.070056324,
+        "reserved_usd": 0.0,
+        "input_tokens": 1606340,
+        "output_tokens": 120099,
+        "settled_calls": 286,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 0.222312,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 137,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.073732196,
+        "reserved_usd": 0.1056768,
+        "input_tokens": 793361,
+        "output_tokens": 210425,
+        "settled_calls": 508,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  }
+}
