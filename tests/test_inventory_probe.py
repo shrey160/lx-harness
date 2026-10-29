@@ -115,6 +115,7 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(probe.PARTS["meta"]["cap_usd"], "0.40")
         self.assertEqual(probe.PARTS["local"]["cap_usd"], "0.15")
         self.assertEqual(probe.KEEP_IMAGES, 2)
+        self.assertEqual(probe.LOCAL.model, "gemma-4-E2B-it-GGUF")
         self.assertEqual(len(probe.APPROVED_DATASET), 64)
 
 if __name__ == "__main__":

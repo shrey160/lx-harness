@@ -19,7 +19,7 @@ PROD-004 added wire paths no live run has used yet:
 3. **Skills and scripts live:** given a harness with a skill and a helper
    script, does Spark read the skill and call `run_script`, and does the
    sandbox return the script's JSON inside a live run?
-4. **The local model** with the larger tool set (6 tools) and view images.
+4. **The local model** (Gemma 4 E2B) with the larger tool set (6 tools) and view images.
 
 Not a capability measurement and no harness changes; T7 calibration
 measures the base harness.
@@ -69,13 +69,16 @@ images stay in a request (transport `max_images=2`, each at most 400 KB).
 
 ## Part `local` (Windows controller; needs the local server running)
 
-- Agent: `gemma-4-E4B-it-GGUF` at `http://127.0.0.1:8888/v1` (registry
+- **Amended 29 Oct 2026 (user: "Use E2B instead")**: the server had
+  `gemma-4-E2B-it-GGUF` loaded, the smaller Gemma 4, so the local agent is
+  E2B rather than the originally reviewed E4B; nothing else changed.
+- Agent: `gemma-4-E2B-it-GGUF` at `http://127.0.0.1:8888/v1` (registry
   provider entry, no key, $0 tokens), same 6 tools: the view check and the
   base-harness run on A. No script run (the sandbox needs WSL).
 - Limits: 16 chat calls, 16 SAM, 2 Transcribe; scope
   `inventory-probe-local-v1`, cap **$0.15** (expected cloud spend $0-0.04;
   results cached by part `meta` are reused). Same guards. Run after `meta`.
-- Prerequisite: Unsloth serving Gemma 4 E4B with tool calling and image
+- Prerequisite: Unsloth serving Gemma 4 E2B with tool calling and image
   input. Pillow 11.3.0 was added to the Windows tools venv for views.
 - **Command** (PowerShell, from the workspace root):
   `$env:PYTHONPATH="main_LX\src"; main_LX\.lx\tts-venv\Scripts\python.exe -m lx.inventory_probe --part local --approve-dataset 1c673f8d2445afe2c675900a344b94942cacb3a89552d88961d3b96667767fcc`

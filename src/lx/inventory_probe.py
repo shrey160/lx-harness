@@ -12,7 +12,7 @@ a capability measurement. Two parts, each a separate command:
   a skill and run a script in the sandbox on its own?).
 - ``--part local`` (Windows controller, where the local server is reachable):
   the view check and the base-harness run on sample A with the local
-  OpenAI-compatible provider as the agent; SAM/Transcribe stay cloud
+  OpenAI-compatible provider (Gemma 4 E2B) as the agent; SAM/Transcribe stay cloud
   (cached results are reused). Scripts need the WSL sandbox, so the local
   part does not run sample B.
 
@@ -36,7 +36,7 @@ from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
 from .providers import SAM, TRANSCRIBE, ProviderProfile
 from .spark import ModelError, SparkClient
 from .usage import BudgetScope, summarize, usage_rows
-from .voicecount_probe import LOCAL, Recording, word_error_rate
+from .voicecount_probe import Recording, word_error_rate
 
 ROOT = Path(__file__).resolve().parents[2]
 DATASET = ROOT/".lx"/"datasets"/"inventory-coco-v1"
@@ -50,6 +50,10 @@ CATALOG = [
         "Speech-to-text: transcribes spoken audio (mono WAV) into text"]},
 ]
 TOOLS = photo_tools(CATALOG) + COMPONENT_TOOLS
+# Amended 29 Oct 2026 at the user's direction ("Use E2B instead"): the server had Gemma 4 E2B loaded.
+LOCAL = ProviderProfile(kind="chat", endpoint="http://127.0.0.1:8888/v1/chat/completions",
+                        model="gemma-4-E2B-it-GGUF", token_param="max_tokens",
+                        accepts_images=True, supports_tools=True)
 # The OpenCode surface's always-on files; a plain stand-in so the Windows local part needs no core import.
 SURFACE = types.SimpleNamespace(always_on=("systemprompt.md", "guardrails.md", "LongTermMEMORY.md",
                                            "tool_descriptions/tool_guidance.md"))
