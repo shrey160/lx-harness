@@ -11,8 +11,8 @@ from pathlib import Path
 from PIL import Image
 
 from lx.inventory import validate_truth
-from lx.inventory_data import (COCO_KINDS, add_coco_samples, add_user_samples, check_sample_folder,
-                               finalize_inventory, load_inventory_dataset, normalize_photo)
+from lx.inventory_data import (COCO_KINDS, FSC_KINDS, add_coco_samples, add_fsc_samples, add_user_samples,
+                               check_sample_folder, finalize_inventory, load_inventory_dataset, normalize_photo)
 
 from test_voicecount import silence
 
@@ -185,6 +185,73 @@ class CocoTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(ValueError, "usable COCO samples"):
                 add_coco_samples(Path(tmp) / "ds", coco_fixture(n_images=12), lambda n: photo(), 5)
+            media = Path(tmp) / "ds" / "worker_inputs" / "media"
+            self.assertFalse(media.exists() and any(media.iterdir()))
+
+
+def fsc_fixture(root, per_class=8, seed=4):
+    """A tiny FSC-147 layout: varied random-block photos, one exact copy among the pens."""
+    from PIL import ImageDraw
+
+    rng = random.Random(seed)
+    root = Path(root)
+    (root / "images").mkdir(parents=True)
+    annotations, lines, number = {}, [], 0
+    for name in ("pens", "pencils", "apples", "geese"):
+        for k in range(per_class):
+            number += 1
+            image = Image.new("RGB", (480, 384), (rng.randint(0, 255),) * 3)
+            draw = ImageDraw.Draw(image)
+            for _ in range(12):
+                x, y = rng.randint(0, 440), rng.randint(0, 340)
+                draw.rectangle((x, y, x + 40, y + 40), fill=tuple(rng.randint(0, 255) for _ in range(3)))
+            out = io.BytesIO()
+            image.save(out, "JPEG")
+            (root / "images" / f"{number}.jpg").write_bytes(out.getvalue())
+            dots = 50 if k == per_class - 1 else 3 + k
+            annotations[f"{number}.jpg"] = {"points": [[1.0, 2.0]] * dots}
+            lines.append(f"{number}.jpg\t{name}")
+    (root / "images" / "2.jpg").write_bytes((root / "images" / "1.jpg").read_bytes())
+    (root / "annotation_FSC147_384.json").write_text(json.dumps(annotations))
+    (root / "ImageClasses_FSC147.txt").write_text("\n".join(lines) + "\n")
+    return annotations
+
+
+class FscTests(unittest.TestCase):
+    def test_builds_multi_photo_count_samples(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fsc, dataset = Path(tmp) / "fsc", Path(tmp) / "ds"
+            annotations = fsc_fixture(fsc, per_class=12)
+            added = add_fsc_samples(dataset, fsc, 4, seed=8, exclude={"3.jpg"})
+            self.assertEqual(added, [f"fsc-heldout-{i:02d}" for i in range(1, 5)])
+            truth = json.loads((dataset / "controller_truth" / "ground_truth.json").read_text())
+            sources = json.loads((dataset / "controller_truth" / "sources.json").read_text())
+            used = [p["fsc_image"] for s in sources.values() for p in s["photos"]]
+            self.assertEqual(len(used), len(set(used)))
+            self.assertNotIn("3.jpg", used)
+            for s in sources.values():  # an exact copy never shares a sample with its original
+                self.assertFalse({"1.jpg", "2.jpg"} <= {p["fsc_image"] for p in s["photos"]})
+            self.assertEqual(len({t["kind"] for t in truth.values()}), 3)  # unused kinds come first
+            for sample_id, t in truth.items():
+                validate_truth(t)
+                self.assertIn(t["kind"], FSC_KINDS.values())
+                for k, entry in enumerate(sources[sample_id]["photos"], 1):
+                    items = t["photos"][str(k)]
+                    if FSC_KINDS.get(entry["class"]) == t["kind"]:
+                        self.assertEqual(items, [{"kind": t["kind"], "count": len(annotations[entry["fsc_image"]]["points"])}])
+                        self.assertLessEqual(items[0]["count"], 40)
+                    else:
+                        self.assertEqual(items, [])
+                        self.assertNotEqual({t["kind"], FSC_KINDS[entry["class"]]}, {"pen", "pencil"})
+            more = add_fsc_samples(dataset, fsc, 1, split="calibration", seed=9)
+            sources = json.loads((dataset / "controller_truth" / "sources.json").read_text())
+            self.assertFalse({p["fsc_image"] for p in sources[more[0]]["photos"]} & set(used))
+
+    def test_shortfall_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fsc_fixture(Path(tmp) / "fsc", per_class=4)
+            with self.assertRaisesRegex(ValueError, "usable FSC-147 samples"):
+                add_fsc_samples(Path(tmp) / "ds", Path(tmp) / "fsc", 6)
             media = Path(tmp) / "ds" / "worker_inputs" / "media"
             self.assertFalse(media.exists() and any(media.iterdir()))
 

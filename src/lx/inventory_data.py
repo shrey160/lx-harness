@@ -1,4 +1,4 @@
-"""Inventory datasets: user-made samples (D1) and COCO-built held-out samples (D2).
+"""Inventory datasets: user-made samples (D1), COCO-built samples (D2) and FSC-147 multi-photo counts (D4).
 
 Layout of a dataset root (frozen by `finalize_inventory`):
 
@@ -266,6 +266,122 @@ def add_coco_samples(dataset_root, annotations, load_image, count, *, split="hel
                                         "flickr_url": images[i]["flickr_url"]} for i in chosen]})
     dataset.save()
     return added
+
+
+# --- D4: FSC-147 multi-photo count samples (data plan v2) ---------------------
+
+# FSC-147 class -> kind: everyday movable objects only (no animals, scenery or trays).
+FSC_KINDS = {"apples": "apple", "pens": "pen", "cups": "cup", "eggs": "egg", "books": "book", "pencils": "pencil",
+             "oranges": "orange", "tomatoes": "tomato", "bottle caps": "bottle cap", "markers": "marker",
+             "coins": "coin", "cans": "can", "shoes": "shoe", "balls": "ball", "bowls": "bowl", "plates": "plate",
+             "peaches": "peach", "potatoes": "potato", "marbles": "marble", "candles": "candle",
+             "strawberries": "strawberry", "boxes": "box", "watches": "watch", "kiwis": "kiwi",
+             "bananas": "banana", "crayons": "crayon", "cupcakes": "cupcake", "lipstick": "lipstick",
+             "sunglasses": "sunglasses", "spoon": "spoon", "toilet paper rolls": "toilet paper roll",
+             "flower pots": "flower pot", "sticky notes": "sticky note", "milk cartons": "milk carton",
+             "sauce bottles": "bottle", "alcohol bottles": "bottle", "biscuits": "biscuit", "macarons": "macaron"}
+# Kinds that can show up in each other's photos unlabelled; a "none here" photo never comes from the same family.
+FSC_FAMILIES = ({"pen", "pencil", "marker", "crayon"}, {"cup", "bowl", "plate", "spoon"},
+                {"bottle", "can", "milk carton", "bottle cap"}, {"book"},
+                {"apple", "orange", "peach", "tomato", "kiwi", "banana", "strawberry", "potato"},
+                {"cupcake", "biscuit", "macaron"})
+FSC_DOTS = (3, 40)
+FSC_PHOTOS = (3, 5)
+NEAR_DUPLICATE_BITS = 10  # FSC-147 holds some crops of one scene; same-sample photos must differ
+
+
+def _photo_hash(data):
+    """64-bit difference hash, for spotting two photos of the same scene."""
+    from PIL import Image
+
+    with Image.open(BytesIO(data)) as image:
+        small = image.convert("L").resize((9, 8), Image.Resampling.BILINEAR)
+        pixels = list(small.getdata())
+    return sum(1 << i for i, (a, b) in enumerate((pixels[r * 9 + c], pixels[r * 9 + c + 1])
+                                                 for r in range(8) for c in range(8)) if a > b)
+
+
+def _family(kind):
+    return next((f for f in FSC_FAMILIES if kind in f), {kind})
+
+
+def add_fsc_samples(dataset_root, fsc_root, count, *, split="heldout", seed=20261029, prefix="fsc", exclude=()):
+    """Build `count` count-requests over FSC-147 photos; each photo is used once across the dataset.
+
+    A sample asks about one kind across 3-5 photos of that class with 3-40
+    dots each; sometimes one more photo comes from an unrelated class as a
+    "none here" photo. Truth is the per-photo dot count of the asked kind
+    (`truth_scope: target`). `exclude` names images not to use (voicecount).
+    Kinds not yet used in this call are preferred, so a split stays varied.
+    """
+    fsc_root = Path(fsc_root)
+    annotations = json.loads((fsc_root / "annotation_FSC147_384.json").read_text(encoding="utf-8"))
+    classes = {}
+    for line in (fsc_root / "ImageClasses_FSC147.txt").read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            image, name = line.split("\t", 1)
+            classes[image.strip()] = name.strip()
+    dataset = _Dataset(dataset_root)
+    used = set(exclude) | {p["fsc_image"] for src in dataset.sources.values() for p in src.get("photos", [])
+                           if "fsc_image" in p}
+    by_kind = {}
+    for image, name in sorted(classes.items()):
+        dots = len(annotations.get(image, {}).get("points", []))
+        if name in FSC_KINDS and image not in used and FSC_DOTS[0] <= dots <= FSC_DOTS[1]:
+            by_kind.setdefault(FSC_KINDS[name], []).append((image, dots))
+    rng = random.Random(f"{seed}:fsc:{split}")
+    for images in by_kind.values():
+        rng.shuffle(images)
+    hashes = {}
+
+    def photo_hash(image):
+        if image not in hashes:
+            hashes[image] = _photo_hash((fsc_root / "images" / image).read_bytes())
+        return hashes[image]
+
+    def distinct(image, chosen):
+        return all(bin(photo_hash(image) ^ photo_hash(other)).count("1") > NEAR_DUPLICATE_BITS for other in chosen)
+
+    planned, kinds_used, attempts = [], set(), 0
+    while len(planned) < count:
+        attempts += 1
+        if attempts > 50 * max(1, count):
+            raise ValueError(f"only {len(planned)} usable FSC-147 samples for split {split}")
+        n_photos = rng.randint(*FSC_PHOTOS)
+        ready = sorted(k for k, images in by_kind.items() if sum(i not in used for i, _ in images) >= n_photos)
+        fresh = [k for k in ready if k not in kinds_used]
+        if not ready:
+            continue
+        kind = rng.choice(fresh or ready)
+        chosen = []
+        for image, dots in by_kind[kind]:
+            if len(chosen) < n_photos and image not in used and distinct(image, [c for c, _ in chosen]):
+                chosen.append((image, dots))
+        if len(chosen) < n_photos:
+            continue
+        if rng.random() < 0.3 and n_photos < MAX_PHOTOS:
+            others = [(i, 0) for k, images in sorted(by_kind.items()) if k not in _family(kind)
+                      for i, _ in images if i not in used]
+            if others:
+                chosen.append(rng.choice(others))
+        rng.shuffle(chosen)
+        truth = {"request_type": "count", "kind": kind, "colour": None,
+                 "photos": {str(n): ([{"kind": kind, "count": dots}] if dots else [])
+                            for n, (_, dots) in enumerate(chosen, 1)}}
+        validate_truth(truth)
+        sample_id = f"{prefix}-{split}-{len(planned) + 1:02d}"
+        planned.append((sample_id, chosen, truth, request_text(truth, rng), rng.choice(VOICES)))
+        used.update(image for image, _ in chosen)
+        kinds_used.add(kind)
+    # Every sample is planned before anything is written, so a shortfall leaves the dataset untouched.
+    for sample_id, chosen, truth, text, voice in planned:
+        photos = [normalize_photo((fsc_root / "images" / image).read_bytes()) for image, _ in chosen]
+        dataset.add(sample_id, split, photos, truth, text=text, voice=voice,
+                    source={"origin": "fsc147", "truth_scope": "target",
+                            "photos": [{"fsc_image": image, "class": classes[image], "dots": dots if dots else None}
+                                       for image, dots in chosen]})
+    dataset.save()
+    return [sample_id for sample_id, *_ in planned]
 
 
 # --- freeze and load ---------------------------------------------------------
