@@ -290,3 +290,49 @@ def load_inventory_dataset(root):
     truth = json.loads((controller / "ground_truth.json").read_text(encoding="utf-8"))
     requests = json.loads((controller / "requests.json").read_text(encoding="utf-8"))
     return tuple(manifest["samples"]), truth, requests
+
+
+# --- D3: synthetic shape samples (offline previews and tests only) -----------
+
+def _tone(index, rate=16000):
+    """A short distinct WAV per sample; previews map audio hashes to request texts."""
+    import struct
+    import wave
+    out = BytesIO()
+    with wave.open(out, "wb") as clip:
+        clip.setnchannels(1)
+        clip.setsampwidth(2)
+        clip.setframerate(rate)
+        frames = rate // 2 + index * 160
+        clip.writeframes(b"".join(struct.pack("<h", (i * (index + 3)) % 2000 - 1000) for i in range(frames)))
+    return out.getvalue()
+
+
+def build_synthetic_dataset(root, count, *, stream_count=None, seed=20261029, types=("count", "colour_count")):
+    """Frozen D3 dataset of shape scenes plus SAM-double scenes keyed by the stored JPEG hashes.
+
+    Returns (scenes, requests). Request audio is a placeholder tone; previews
+    transcribe it from the controller request texts.
+    """
+    from .inventory import GRID, CELL, synthetic_sample
+    from .perception import media_hash
+
+    if Path(root).exists() and any(Path(root).iterdir()):
+        raise ValueError("use an empty dataset directory")
+    dataset = _Dataset(root)
+    scenes, index, added = {}, 0, 0
+    stream_count = count if stream_count is None else stream_count
+    while added < count:
+        index += 1
+        photos, truth, text, layouts = synthetic_sample(seed, index)
+        if truth["request_type"] not in types:
+            continue
+        added += 1
+        jpegs = [normalize_photo(p) for p in photos]
+        for data, placed in zip(jpegs, layouts):
+            scenes[media_hash(data)] = {"size": [GRID[0] * CELL, GRID[1] * CELL], "items": placed}
+        dataset.add(f"synth-{added:02d}", "stream" if added <= stream_count else "heldout", jpegs, truth,
+                    audio=_tone(added), text=text, source={"origin": "synthetic", "seed": seed, "index": index})
+    dataset.save()
+    finalize_inventory(root)
+    return scenes, dataset.requests
