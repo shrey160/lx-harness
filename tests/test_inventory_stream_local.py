@@ -187,6 +187,8 @@ class LocalStreamTests(unittest.TestCase):
         for thinking, scope in (("on", PROBE_SCOPE), ("off", "inventory-agent-probe-v2-thinking-off"),
                                 (None, "inventory-agent-probe-v2-thinking-default")):
             self.assertEqual(agent_probe.scope_for(type("A", (), {"agent_thinking": thinking})), scope)
+        retry = type("A", (), {"agent_thinking": "on", "attempt": 2})
+        self.assertEqual(agent_probe.scope_for(retry), PROBE_SCOPE + "-attempt2")
         self.assertEqual(agent_probe.RUN_SAMPLES, ("fsc-calibration-02", "mix-calibration-colourcount-01"))
         self.assertEqual(agent_probe.LIMITS, {"agent_chat": 30, "segment": 20, "transcribe": 4})
 

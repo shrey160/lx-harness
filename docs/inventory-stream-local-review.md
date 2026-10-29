@@ -134,6 +134,12 @@ $env:PYTHONPATH="src;..\harness2_portable_core\vendor\harness2-cli"; & .\.lx\tts
 $env:PYTHONPATH="src;..\harness2_portable_core\vendor\harness2-cli"; & .\.lx\tts-venv\Scripts\python.exe -m lx.inventory_agent_probe --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url http://127.0.0.1:8888/v1 --agent-model LiquidAI/LFM3-VL-2B-GGUF --agent-key-env UNSLOTH_API_KEY --agent-thinking on --agent-max-tokens 8192
 ```
 
+**Interrupted 30 Oct:** the machine shut down during the thinking-on probe.
+Scope `…-thinking-on` keeps 3 settled view-check calls and 1 reserved call at $0;
+no report was written. At the user's direction ("check and resume"), it is rerun
+unchanged with `--attempt 2`, which changes only the scope name, to
+`…-thinking-on-attempt2`. The earlier rows stay as they are.
+
 **Reading:** pick the mode for G2 from tools used, contract-shaped answers,
 scores, cut-offs and time per turn.
 - **Thinking off and the tools skipped:** that is base-harness headroom the

@@ -45,7 +45,9 @@ def run_probe(probe, client, perception):
 
 
 def scope_for(args):
-    return f"{SCOPE_PREFIX}-thinking-{args.agent_thinking or 'default'}"
+    """One scope per thinking mode; an interrupted attempt is retried under the next attempt number."""
+    attempt = getattr(args, "attempt", 1)
+    return f"{SCOPE_PREFIX}-thinking-{args.agent_thinking or 'default'}" + (f"-attempt{attempt}" if attempt > 1 else "")
 
 
 def main():
@@ -53,6 +55,8 @@ def main():
     parser.add_argument("--approve-dataset", required=True,
                         help="Exact dataset SHA256, only after the user approves the dated review")
     add_agent_arguments(parser)
+    parser.add_argument("--attempt", type=int, default=1, choices=range(1, 10),
+                        help="Retry number after an interrupted probe (a new scope; earlier rows stay as they are)")
     args = parser.parse_args()
     if args.approve_dataset != APPROVED_DATASET or inventory_dataset_hash(DATASET) != APPROVED_DATASET:
         parser.error("Dataset approval does not match this fixed request")
