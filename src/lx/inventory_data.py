@@ -179,18 +179,22 @@ COCO_KINDS = {"cup": "cup", "bottle": "bottle", "bowl": "bowl", "wine glass": "g
               "book": "book", "scissors": "scissors", "teddy bear": "teddy bear", "vase": "vase", "remote": "remote"}
 # COCO licence ids allowing reuse with attribution: CC BY, CC BY-SA, no known copyright, US government.
 COCO_LICENCES = {4, 5, 7, 8}
-MIN_AREA = 24 * 24
+# Instances smaller than 40x40 px (on ~640 px COCO photos) are hard to see, so their counts are
+# unreliable truth; photos with any labelled person are skipped to match the D-010 user-photo rule.
+MIN_AREA = 40 * 40
 MAX_PER_PHOTO = 15
 
 
 def coco_index(annotations):
-    """Per image: licence, size, url and {kind: (count, ok)}; ok is False for crowd or tiny instances."""
+    """Per image: licence, size, url, people and {kind: (count, ok)}; ok is False for crowd or tiny instances."""
     categories = {c["id"]: c["name"] for c in annotations["categories"]}
     images = {i["id"]: {"file_name": i["file_name"], "license": i["license"], "size": [i["width"], i["height"]],
-                        "url": i.get("coco_url"), "flickr_url": i.get("flickr_url"), "kinds": {}}
+                        "url": i.get("coco_url"), "flickr_url": i.get("flickr_url"), "people": 0, "kinds": {}}
               for i in annotations["images"]}
     for a in annotations["annotations"]:
         name = categories.get(a["category_id"])
+        if name == "person" and a["image_id"] in images:
+            images[a["image_id"]]["people"] += 1
         if name not in COCO_KINDS or a["image_id"] not in images:
             continue
         kinds = images[a["image_id"]]["kinds"]
@@ -205,20 +209,20 @@ def add_coco_samples(dataset_root, annotations, load_image, count, *, split="hel
 
     A sample asks about one kind across 3-7 photos; at most one photo lacks
     the kind entirely. Photos are skipped when that kind has crowd or tiny
-    instances, when they have more than MAX_PER_PHOTO of it, or when their
-    licence is not reusable. Truth lists only the asked kind, so D2 serves
+    instances, when they have more than MAX_PER_PHOTO of it, when any person
+    is labelled in them, or when their licence is not reusable. Truth lists only the asked kind, so D2 serves
     count requests only (`truth_scope: target`).
     """
     names = {lic["id"]: lic["name"] for lic in annotations.get("licenses", [])}
     images = coco_index(annotations)
     allowed = COCO_LICENCES if licences is None else set(licences)
     rng = random.Random(f"{seed}:coco:{split}")
-    usable = sorted(i for i, image in images.items() if image["license"] in allowed)
+    usable = sorted(i for i, image in images.items() if image["license"] in allowed and not image["people"])
     rng.shuffle(usable)
     dataset = _Dataset(dataset_root)
     used = {int(s["coco_id"]) for src in dataset.sources.values() for s in src.get("photos", []) if "coco_id" in s}
     kinds = sorted(set(COCO_KINDS.values()))
-    added = []
+    added, planned = [], []
     attempts = 0
     while len(added) < count:
         attempts += 1
@@ -238,15 +242,18 @@ def add_coco_samples(dataset_root, annotations, load_image, count, *, split="hel
                  "photos": {str(k): ([{"kind": kind, "count": images[i]["kinds"][kind][0]}] if kind in images[i]["kinds"]
                                      else []) for k, i in enumerate(chosen, 1)}}
         validate_truth(truth)
-        photos = [normalize_photo(load_image(images[i]["file_name"])) for i in chosen]
         sample_id = f"{prefix}-{split}-{len(added) + 1:02d}"
-        dataset.add(sample_id, split, photos, truth, text=request_text(truth, rng), voice=rng.choice(VOICES),
+        planned.append((sample_id, chosen, truth, request_text(truth, rng), rng.choice(VOICES)))
+        used.update(chosen)
+        added.append(sample_id)
+    # Every sample is planned before anything is written, so a shortfall leaves the dataset untouched.
+    for sample_id, chosen, truth, text, voice in planned:
+        photos = [normalize_photo(load_image(images[i]["file_name"])) for i in chosen]
+        dataset.add(sample_id, split, photos, truth, text=text, voice=voice,
                     source={"origin": "coco", "truth_scope": "target",
                             "photos": [{"coco_id": i, "file_name": images[i]["file_name"],
                                         "license": names.get(images[i]["license"], images[i]["license"]),
                                         "flickr_url": images[i]["flickr_url"]} for i in chosen]})
-        used.update(chosen)
-        added.append(sample_id)
     dataset.save()
     return added
 

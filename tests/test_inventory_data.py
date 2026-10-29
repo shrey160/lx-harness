@@ -120,7 +120,7 @@ class FolderTests(unittest.TestCase):
             load_inventory_dataset(dataset)
 
 
-def coco_fixture(n_images=60, seed=3):
+def coco_fixture(n_images=120, seed=3):
     rng = random.Random(seed)
     names = sorted(COCO_KINDS)[:4]
     categories = [{"id": i + 1, "name": n} for i, n in enumerate(names + ["person"])]
@@ -132,7 +132,7 @@ def coco_fixture(n_images=60, seed=3):
             for _ in range(rng.randint(1, 4)):
                 aid += 1
                 annotations.append({"id": aid, "image_id": image_id, "category_id": category["id"],
-                                    "area": 900 if image_id % 7 else 100, "iscrowd": 1 if image_id == 3 else 0})
+                                    "area": 2000 if image_id % 7 else 900, "iscrowd": 1 if image_id == 3 else 0})
     licenses = [{"id": 2, "name": "BY-NC"}, {"id": 4, "name": "CC BY 2.0"}]
     return {"images": images, "annotations": annotations, "categories": categories, "licenses": licenses}
 
@@ -163,7 +163,9 @@ class CocoTests(unittest.TestCase):
                     labelled = [a for a in annotations["annotations"] if a["image_id"] == image_id
                                 and COCO_KINDS.get(categories[a["category_id"]]) == t["kind"]]
                     self.assertEqual(sum(i["count"] for i in t["photos"][str(k)]), len(labelled))
-                    self.assertTrue(all(a["area"] >= 576 and not a["iscrowd"] for a in labelled))
+                    self.assertTrue(all(a["area"] >= 1600 and not a["iscrowd"] for a in labelled))
+                    self.assertFalse(any(categories[a["category_id"]] == "person" for a in annotations["annotations"]
+                                         if a["image_id"] == image_id))
                 self.assertLessEqual(sum(1 for items in t["photos"].values() if not items), 1)
             scripts = json.loads((Path(tmp) / "ds" / "controller_truth" / "scripts.json").read_text())
             self.assertEqual(sorted(scripts), added)
@@ -173,10 +175,12 @@ class CocoTests(unittest.TestCase):
             again = [p["coco_id"] for p in sources[more[0]]["photos"]]
             self.assertFalse(set(again) & set(used))
 
-    def test_too_few_images_is_an_error(self):
+    def test_too_few_images_is_an_error_and_writes_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(ValueError, "usable COCO samples"):
-                add_coco_samples(Path(tmp) / "ds", coco_fixture(n_images=8), lambda n: photo(), 5)
+                add_coco_samples(Path(tmp) / "ds", coco_fixture(n_images=12), lambda n: photo(), 5)
+            media = Path(tmp) / "ds" / "worker_inputs" / "media"
+            self.assertFalse(media.exists() and any(media.iterdir()))
 
 
 if __name__ == "__main__":
