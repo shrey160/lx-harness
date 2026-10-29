@@ -12,7 +12,7 @@ RED, BLUE = (255, 0, 0), (0, 0, 255)
 
 class ColourNameTests(unittest.TestCase):
     def test_named_colours(self):
-        cases = {(230, 30, 30): "red", (240, 150, 30): "orange", (120, 70, 30): "brown",
+        cases = {(230, 30, 30): "red", (240, 150, 30): "orange", (120, 70, 30): "brown", (90, 35, 25): "brown", (140, 20, 25): "red",
                  (240, 220, 40): "yellow", (40, 170, 70): "green", (40, 90, 220): "blue",
                  (140, 60, 180): "purple", (240, 150, 200): "pink", (20, 20, 20): "black",
                  (250, 250, 250): "white", (128, 128, 128): "grey", (180, 160, 150): None}

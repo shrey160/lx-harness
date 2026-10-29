@@ -28,7 +28,9 @@ def colour_name(r: int, g: int, b: int) -> str | None:
     if s < 0.3:
         return None
     if hue < 15 or hue >= 345:
-        return "pink" if (s < 0.5 and v > 0.7) else "red"
+        if s < 0.5 and v > 0.7:
+            return "pink"
+        return "brown" if v < 0.45 and hue < 15 else "red"  # dark warm reds read as brown (chocolate, wood)
     if hue < 40:
         return "brown" if v < 0.6 else "orange"
     if hue < 70:
