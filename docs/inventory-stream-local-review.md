@@ -94,7 +94,7 @@ file is Q8_0. Only G2 needs WSL to reach Unsloth.
 
 Command (Windows PowerShell, from `main_LX`, approved):
 ```
-$env:PYTHONPATH="src;..\harness2_portable_coreendor\harness2-cli"; & .\.lx	ts-venv\Scripts\python.exe -m lx.inventory_agent_probe --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url http://127.0.0.1:8888/v1 --agent-model LiquidAI/LFM3-VL-2B-GGUF --agent-key-env UNSLOTH_API_KEY
+$env:PYTHONPATH="src;..\harness2_portable_core\vendor\harness2-cli"; & .\.lx\tts-venv\Scripts\python.exe -m lx.inventory_agent_probe --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url http://127.0.0.1:8888/v1 --agent-model LiquidAI/LFM3-VL-2B-GGUF --agent-key-env UNSLOTH_API_KEY
 ```
 
 ## G2 — E-A stream (second request; T8's loop, only the agent changed)
