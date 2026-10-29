@@ -148,11 +148,19 @@ class _Dataset:
             path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def add_user_samples(dataset_root, source_root, *, stream_count=6, seed=20261029, prefix="user"):
-    """Copy user sample folders in sorted order: the first `stream_count` form the stream, the rest held-out."""
+def add_user_samples(dataset_root, source_root, *, stream_count=6, calibration_count=0, seed=20261029, prefix="user"):
+    """Copy user sample folders into the dataset with a seeded split.
+
+    Folders are shuffled with `seed` (so the order they were made in cannot
+    bias the split), then the first `stream_count` form the E-A stream, the
+    next `calibration_count` the calibration split, and the rest held-out.
+    """
     folders = sorted(p for p in Path(source_root).iterdir() if p.is_dir() and _SAMPLE.fullmatch(p.name))
     if not folders:
         raise ValueError("no sample-* folders found")
+    if stream_count + calibration_count > len(folders):
+        raise ValueError(f"only {len(folders)} sample folders for {stream_count} stream + {calibration_count} calibration")
+    random.Random(f"{seed}:user-split").shuffle(folders)
     checked = [(folder, *check_sample_folder(folder)) for folder in folders]
     # Normalise everything before writing, so a bad photo leaves the dataset untouched.
     normalized = [[normalize_photo(path.read_bytes()) for path in paths] for _, paths, _, _, _ in checked]
@@ -161,7 +169,9 @@ def add_user_samples(dataset_root, source_root, *, stream_count=6, seed=20261029
     added = []
     for index, ((folder, photo_paths, truth, wav, text), photos) in enumerate(zip(checked, normalized), 1):
         sample_id = f"{prefix}-{index:02d}"
-        dataset.add(sample_id, "stream" if index <= stream_count else "heldout", photos, truth,
+        split = ("stream" if index <= stream_count else
+                 "calibration" if index <= stream_count + calibration_count else "heldout")
+        dataset.add(sample_id, split, photos, truth,
                     audio=wav.read_bytes() if wav else None, text=text,
                     voice=None if wav else rng.choice(VOICES),
                     source={"origin": "user", "folder": folder.name,

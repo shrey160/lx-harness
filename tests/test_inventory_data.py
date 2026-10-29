@@ -98,13 +98,19 @@ class FolderTests(unittest.TestCase):
         make_sample(source, "sample-b")
         make_sample(source, "sample-c", text="Count the pens.")
         (source / "notes").mkdir()
-        self.assertEqual(add_user_samples(dataset, source, stream_count=2), ["user-01", "user-02", "user-03"])
+        with self.assertRaisesRegex(ValueError, "only 3 sample folders"):
+            add_user_samples(dataset, source, stream_count=3, calibration_count=1)
+        self.assertEqual(add_user_samples(dataset, source, stream_count=1, calibration_count=1),
+                         ["user-01", "user-02", "user-03"])
         manifest = json.loads((dataset / "worker_inputs" / "manifest.json").read_text())
-        self.assertEqual([s["split"] for s in manifest["samples"]], ["stream", "stream", "heldout"])
+        self.assertEqual([s["split"] for s in manifest["samples"]], ["stream", "calibration", "heldout"])
+        sources = json.loads((dataset / "controller_truth" / "sources.json").read_text())
+        self.assertEqual(sorted(s["folder"] for s in sources.values()), ["sample-a", "sample-b", "sample-c"])
+        recorded = next(i for i, s in sources.items() if s["folder"] == "sample-a")
         scripts = json.loads((dataset / "controller_truth" / "scripts.json").read_text())
-        self.assertEqual(sorted(scripts), ["user-02", "user-03"])
+        self.assertEqual(sorted(scripts), sorted(set(sources) - {recorded}))
         requests = json.loads((dataset / "controller_truth" / "requests.json").read_text())
-        self.assertEqual(requests["user-01"]["audio"], "recorded")
+        self.assertEqual(requests[recorded]["audio"], "recorded")
         with self.assertRaisesRegex(ValueError, "audio missing"):
             finalize_inventory(dataset)
         for sample_id in scripts:  # stands in for the Kokoro synthesis step
@@ -112,9 +118,9 @@ class FolderTests(unittest.TestCase):
         hashes = finalize_inventory(dataset)
         self.assertEqual(len(hashes), 3 * 4)
         samples, truth, _ = load_inventory_dataset(dataset)
-        self.assertEqual(truth["user-01"], TRUTH)
+        self.assertEqual(truth[recorded], TRUTH)
         with self.assertRaisesRegex(ValueError, "frozen"):
-            add_user_samples(dataset, source)
+            add_user_samples(dataset, source, stream_count=1)
         (dataset / "worker_inputs" / samples[0]["photos"][0]).write_bytes(photo(colour=(0, 0, 0)))
         with self.assertRaisesRegex(ValueError, "changed"):
             load_inventory_dataset(dataset)
