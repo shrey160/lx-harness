@@ -22,19 +22,26 @@ from .inventory import MAX_PHOTOS, MIN_PHOTOS, REQUEST_TYPES, request_text, vali
 from .inventory_data import COCO_KINDS, _Dataset, normalize_photo
 from .voicecount import VOICES
 
-CUTOUT_KINDS = dict(COCO_KINDS, **{"donut": "donut", "carrot": "carrot", "broccoli": "broccoli", "clock": "clock",
-                                   "mouse": "mouse", "toothbrush": "toothbrush", "sports ball": "ball",
-                                   "frisbee": "frisbee", "handbag": "bag", "backpack": "backpack",
-                                   "umbrella": "umbrella", "potted plant": "plant"})
+# COCO often labels bunches, heads or stacks as one instance for these, so one cutout is not one item.
+GROUPED = {"banana", "broccoli", "carrot", "book"}
+CUTOUT_KINDS = {name: kind for name, kind in dict(
+    COCO_KINDS, **{"donut": "donut", "clock": "clock", "mouse": "mouse", "toothbrush": "toothbrush",
+                   "sports ball": "ball", "frisbee": "frisbee", "handbag": "bag", "backpack": "backpack",
+                   "umbrella": "umbrella", "potted plant": "plant"}).items() if kind not in GROUPED}
 CUTOUT_LICENCES = {4, 7, 8}
 MIN_SIDE = 64
 EDGE = 2
 MAX_OVERLAP = 0.05
 MIN_FILL = 0.3  # mask area / box area; thinner masks are mostly broken outlines
+MIN_VERTICES = 8  # coarser polygons are mostly crude scraps of the object
 SCENE_SIZE = (1024, 768)
 SCENE_PHOTOS = (3, 5)
 OBJECTS_PER_PHOTO = (2, 5)
 MAX_USES = 2  # a cutout may appear in two samples of one split group, never twice in a sample
+# Colour pairs a person could name either way; a colour request never mixes them within the asked kind.
+CONFUSABLE = ({"orange", "brown"}, {"orange", "yellow"}, {"orange", "red"}, {"red", "pink"}, {"red", "brown"},
+              {"pink", "purple"}, {"blue", "purple"}, {"grey", "white"}, {"grey", "black"}, {"grey", "silver"},
+              {"white", "silver"}, {"yellow", "gold"}, {"brown", "gold"}, {"yellow", "brown"})
 
 
 def split_group(split):
@@ -69,7 +76,7 @@ def cutout_candidates(annotations, licences=CUTOUT_LICENCES):
             if kind is None or a.get("iscrowd") or type(segmentation) is not list or len(segmentation) != 1:
                 continue
             x, y, w, h = a["bbox"]
-            if (w < MIN_SIDE or h < MIN_SIDE or len(segmentation[0]) < 6 or a["area"] < MIN_FILL * w * h
+            if (w < MIN_SIDE or h < MIN_SIDE or len(segmentation[0]) < 2 * MIN_VERTICES or a["area"] < MIN_FILL * w * h
                     or x < EDGE or y < EDGE or x + w > image["width"] - EDGE or y + h > image["height"] - EDGE):
                 continue
             if any(_overlap(a["bbox"], b["bbox"]) > MAX_OVERLAP * w * h for b in anns if b is not a):
@@ -158,12 +165,16 @@ def _plan_sample(request_type, pool, rng):
     kind = colour = None
     if request_type == "colour_count":
         options = sorted({(c["kind"], c["colour"]) for c in pool if c["colour"]})
-        options = [o for o in options if sum((c["kind"], c["colour"]) == o for c in pool) >= 3]
+        # The asked kind must come in at least one other clearly different colour, so the colour matters.
+        options = [(k, col) for k, col in options if sum((c["kind"], c["colour"]) == (k, col) for c in pool) >= 2
+                   and any(c["kind"] == k and c["colour"] not in (None, col) and {col, c["colour"]} not in CONFUSABLE
+                           for c in pool)]
         if not options:
             return None
         kind, colour = rng.choice(options)
-        # Same-kind cutouts without a clear colour would make the answer debatable.
-        pool = [c for c in pool if c["kind"] != kind or c["colour"]]
+        # Same-kind cutouts without a clear or with a confusable colour would make the answer debatable.
+        pool = [c for c in pool if c["kind"] != kind
+                or (c["colour"] and (c["colour"] == colour or {c["colour"], colour} not in CONFUSABLE))]
     elif request_type == "count":
         kinds = sorted({c["kind"] for c in pool if sum(d["kind"] == c["kind"] for d in pool) >= 3})
         if not kinds:
@@ -177,6 +188,9 @@ def _plan_sample(request_type, pool, rng):
     rng.shuffle(others)
     wants = [rng.randint(*OBJECTS_PER_PHOTO) for _ in range(n_photos)]
     k = rng.randint(2, min(len(asked), n_photos * 2)) if kind else 0  # asked objects spread over the photos
+    if colour:  # at least one same-kind object of another colour, when there is one
+        decoys = [c for c in others if c["kind"] == kind]
+        others = decoys[:1] + [c for c in others if c not in decoys[:1]]
     fill = asked[:k] + others[:sum(wants) - k]
     if len(fill) < sum(wants):
         return None

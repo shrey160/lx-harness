@@ -10,21 +10,24 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 from lx.inventory import expected_answer, validate_truth
-from lx.inventory_cutouts import (MAX_USES, add_composite_samples, compose_photo, cutout_candidates,
+from lx.inventory_cutouts import (CONFUSABLE, MAX_USES, add_composite_samples, compose_photo, cutout_candidates,
                                   extract_cutout, prepare_cutouts, select_photos)
 
 COLOURS_RGB = {"red": (220, 30, 30), "blue": (30, 70, 220), "green": (40, 170, 70), "yellow": (240, 210, 40)}
 
 
 def square(x, y, side):
-    return [x, y, x + side, y, x + side, y + side, x, y + side]
+    """A square outline with edge midpoints, so it has the 8 vertices a clean cutout needs."""
+    h = side // 2
+    return [x, y, x + h, y, x + side, y, x + side, y + h, x + side, y + side, x + h, y + side, x, y + side, x, y + h]
 
 
 def cutout_fixture(n_images=60, seed=2):
-    """Photos with solid-colour squares (cups, balls, books) plus edge, overlap, tiny and person cases."""
+    """Photos with solid-colour squares (cups, balls, bowls) plus edge, overlap, tiny, person and banana cases."""
     rng = random.Random(seed)
-    categories = [{"id": 1, "name": "cup"}, {"id": 2, "name": "sports ball"}, {"id": 3, "name": "book"},
-                  {"id": 4, "name": "person"}, {"id": 5, "name": "airplane"}]
+    categories = [{"id": 1, "name": "cup"}, {"id": 2, "name": "sports ball"}, {"id": 3, "name": "bowl"},
+                  {"id": 4, "name": "person"}, {"id": 5, "name": "airplane"},
+                  {"id": 6, "name": "banana"}]
     images, annotations, pixels, aid = [], [], {}, 0
     for image_id in range(1, n_images + 1):
         name = f"{image_id:012d}.jpg"
@@ -52,6 +55,10 @@ def cutout_fixture(n_images=60, seed=2):
             annotations.append({"id": aid + 1, "image_id": image_id, "category_id": 4, "segmentation": [square(500, 400, 40)],
                                 "area": 1600, "iscrowd": 0, "bbox": [500, 400, 40, 40]})
             aid += 1
+        if image_id % 10 == 5:  # bananas are labelled in bunches, so never cut out
+            annotations.append({"id": aid + 1, "image_id": image_id, "category_id": 6, "segmentation": [square(250, 300, 100)],
+                                "area": 10000, "iscrowd": 0, "bbox": [250, 300, 100, 100]})
+            aid += 1
         if image_id % 10 == 4:  # too small
             annotations.append({"id": aid + 1, "image_id": image_id, "category_id": 2, "segmentation": [square(250, 350, 30)],
                                 "area": 900, "iscrowd": 0, "bbox": [250, 350, 30, 30]})
@@ -73,8 +80,9 @@ class CandidateTests(unittest.TestCase):
             self.assertEqual(by_image[c["image_id"]]["license"], 4)
             self.assertNotEqual(c["image_id"] % 10, 3)
             self.assertGreaterEqual(min(c["bbox"][2:]), 64)
+            self.assertGreaterEqual(len(c["polygon"]), 16)
             self.assertGreater(c["bbox"][0], 0)
-            self.assertIn(c["kind"], {"cup", "ball", "book"})
+            self.assertIn(c["kind"], {"cup", "ball", "bowl"})
         overlapped = {c["image_id"] for c in found if c["image_id"] % 10 == 2 and c["bbox"][0] == 40}
         self.assertFalse(overlapped)
 
@@ -140,7 +148,9 @@ class CompositeTests(unittest.TestCase):
                     asked = sum(1 for p in source["photos"] for o in p["objects"]
                                 if o["kind"] == t["kind"] and o["colour"] == t["colour"])
                     self.assertEqual(expected_answer(t), asked)
-                    self.assertTrue(all(o["colour"] for p in source["photos"] for o in p["objects"] if o["kind"] == t["kind"]))
+                    same_kind = {o["colour"] for p in source["photos"] for o in p["objects"] if o["kind"] == t["kind"]}
+                    self.assertNotIn(None, same_kind)
+                    self.assertTrue(all({t["colour"], c} not in CONFUSABLE for c in same_kind))
                 if t["request_type"] == "count":
                     self.assertGreater(expected_answer(t), 0)
             self.assertLessEqual(max(uses.values()), MAX_USES)
