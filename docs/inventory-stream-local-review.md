@@ -1,125 +1,172 @@
-# G2 live E-A stream request — PROD-004 inventory, Gemma as the agent (prepared 30 Oct 2026)
+# G1b probe + G2 live E-A stream — PROD-004 inventory, swapped agent (prepared 30 Oct 2026)
 
-Status: **PREPARED, NOT RUN.** Needs the user's explicit approval, including
-the agent base URL, with the provider serving Gemma 4 E4B.
-Controller: `lx.inventory_stream_local`, offline-tested in
-`tests/test_inventory_stream_local.py`. Authority: D-008 (a local model is a
-provider like any other), D-010, D-012 and D-013 (users provide 6 samples).
-Plan: subplan "E-A on Gemma" (G0–G4).
+Status: **PREPARED, NOT RUN.** Two separate live requests: the G1b probe,
+then the G2 stream. Each needs the user's explicit approval, including the
+agent settings below.
+Controllers: `lx.inventory_agent_probe` (G1b) and `lx.inventory_stream_local`
+(G2), offline-tested in `tests/test_inventory_stream_local.py`. Authority:
+D-008 (a local model is a provider like any other), D-010, D-012, D-013
+(users provide 6 samples) and D-014 (agent: LFM3-VL-2B). Plan: subplan "E-A
+on a swapped agent" (G0–G4).
 
 ## Why
 
-E-C showed that the harness Spark learned in T8 does not help Gemma 4 E4B
-(held-out −0.09 [−0.17, −0.02]): it fixes a Spark-only failure. This run lets
-the loop learn from **Gemma's own trajectories** on the 6 samples a user
-would hand over. G3/G4 then measure the result on the hidden held-out
-samples.
+E-C showed that the harness Spark learned in T8 does not help a small local
+agent: on Gemma 4 E4B, held-out −0.09 [−0.17, −0.02]. It fixes a Spark-only
+failure. Here the loop learns from **the swapped agent's own trajectories**,
+on the 6 samples a user would hand over. G3/G4 then measure the result on
+the hidden held-out samples.
 
-## What runs (T8's loop, unchanged except the agent)
+On 30 Oct the user changed the agent to `LiquidAI/LFM3-VL-2B-GGUF` (D-014).
+Unsloth reports it loaded: BF16, 111,616-token context.
+
+## The agent is an ordinary provider entry, like the cloud API
+
+Spark is reached as base URL `https://api.meta.ai/v1` + model id + a key read
+at runtime from `MODEL_API_KEY`/`META_API_KEY`. The swapped agent is reached
+the same way, with every part a **stated input approved with the request**:
+
+| Input | Flag | For this request |
+|---|---|---|
+| Base URL | `--agent-base-url` | the address WSL can reach (below) |
+| Model id | `--agent-model` | `LiquidAI/LFM3-VL-2B-GGUF` |
+| Key | `--agent-key-env` (optional) | the **name** of an environment variable, read at runtime and never shown. Omit it if Unsloth needs no key, as now. |
+
+- The base URL is checked by the same endpoint rule as any provider: HTTPS
+  anywhere, plain HTTP only to local or private-network hosts, no
+  credentials in the URL.
+- The key variable cannot be `MODEL_API_KEY` or `META_API_KEY`, so the Meta
+  key can never be sent to another provider.
+- Prices are $0. The reply cap is 1,536 tokens and each call may take up to
+  600 s, as in the E-C retry.
+- The agent client accepts exactly the agent tools; Spark accepts only the
+  improver's file tools. There is no special transport.
+
+**Reachability.** The controller must run in WSL: the core loop uses
+`fcntl`, and the script sandbox needs Linux. WSL (NAT networking) cannot
+reach a server that listens only on Windows `127.0.0.1`. This is recorded
+in the logs, and was confirmed on 30 Oct when the loop failed on Windows. The
+base URL is therefore whatever address the provider serves that WSL can
+reach. Either:
+- Unsloth serves on the network, and the URL is the Windows host address
+  from WSL, for example `http://172.x.x.1:8888/v1`. Windows Firewall may need
+  to allow it; or
+- WSL uses mirrored networking, and the URL stays
+  `http://127.0.0.1:8888/v1`; or
+- an HTTPS address.
+
+All of these are the user's settings. The controllers change none of them.
+
+## G1b — agent probe (first request)
+
+LFM3-VL-2B is untested here. Gemma E4B had already shown it handles images
+and the tools in S5 and T6. Before a 1.5–2 hour run, check the mechanics:
+- **View check:** on `fsc-calibration-02`, call `view` once, then describe
+  photo 1.
+- **Base-harness runs:** one each on `fsc-calibration-02` (count, 3 photos)
+  and `mix-calibration-colourcount-01` (colour_count, 3 photos). T7 ran both
+  on Spark, so perception is mostly cached.
+- **Reported:** whether `view` was called and the image seen; the tools used;
+  whether a JSON answer came back; checklist scores; stop reasons, including
+  cut-offs and tool-call text returned as content.
+- **Limits:**
+
+  | | Limit |
+  |---|---|
+  | Agent chat calls | 30 |
+  | SAM calls | 20 |
+  | Transcribe calls | 4 |
+- **Budget:** scope `inventory-agent-probe-v1`, cap **$0.10**. Expected
+  **about $0–0.05**: the agent is $0, with a few new SAM pairs at most.
+- **Wall time:** a few minutes.
+- **Reading:**
+  - if LFM3 calls the tools and returns JSON on at least one run, proceed to
+    G2;
+  - if it cannot call tools or see images, stop and choose another agent.
+
+  Not capability evidence.
+
+Command (WSL, after approval):
+```
+wsl -e bash -lc 'cd /mnt/c/Shrey_Projs/hackathons/main_LX && PYTHONPATH=src .venv/bin/python -m lx.inventory_agent_probe --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url <APPROVED_URL> --agent-model LiquidAI/LFM3-VL-2B-GGUF'
+```
+
+## G2 — E-A stream (second request; T8's loop, only the agent changed)
 
 - Harness² k=1, sequential mode, experience library carried, on the 6
   stream samples of frozen `inventory-mix-v1` (hash
   `db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322`) in
   T8's interleaved order.
 - Per sample: base run, propose (invariant and domain edits), probe, compose,
-  reflect. The improver is grade-blind. After the loop, the controller grades
-  base and chosen runs with the checklist.
+  reflect. The improver is grade-blind. Afterwards the controller grades base
+  and chosen runs with the checklist.
 - Editable components as in T8: always-on files, up to 8 skills and 8
   scripts (scripts in the WSL sandbox, no network). No sub-agents or plugins.
+- **Roles:**
 
-| Role | Model |
-|---|---|
-| **Agent** | `gemma-4-E4B-it-GGUF` (the E-C entry: $0, 1,536-token reply cap, 600 s per call), at the **approved base URL** |
-| Improver, reflector | Spark (as T8) |
-| Tools | SAM 3.1, Muse Voice Transcribe (cloud, fixed; cache shared) |
-
-**Gemma is an ordinary provider entry.** Its base URL is an input of this
-request, passed on the command line and checked by the same endpoint rule as
-any provider: HTTPS anywhere, plain HTTP only to local or private-network
-hosts, no credentials in the URL. There is no special transport.
-
-- The agent client accepts exactly the agent tools, and the Spark client
-  accepts only the improver's file tools.
-- The agent's model, tools, cap and bound are the E-C retry's, so G3 can
-  reuse those base rows.
-
-## The base URL (decided at approval)
-
-The controller must run in WSL: the core loop uses `fcntl`, and the script
-sandbox needs Linux. WSL (NAT networking) cannot reach a server that listens
-only on Windows `127.0.0.1`. That is recorded in the logs (PROD-003) and was
-confirmed on 30 Oct when the loop failed on Windows.
-
-The URL is therefore whatever address the provider serves that WSL can
-reach. Either:
-- Unsloth Studio serves on the network, and the URL is the Windows host
-  address as seen from WSL, for example `http://172.x.x.1:8888/v1`. Windows
-  Firewall may need to allow it; or
-- WSL uses mirrored networking, and the URL stays
-  `http://127.0.0.1:8888/v1`.
-
-Both are the user's settings. The controller changes neither.
-
-## Limits and budget
-
-- Agent caps per run: `caps(n)`, 13–19 turns. Improver and reflector
-  sessions are capped at 12 turns each.
-- Call limits:
-
-  | | Limit |
+  | Role | Model |
   |---|---|
-  | Gemma chat calls | 600 (T8 worker used 255) |
-  | Spark chat calls | 500 (T8 improver + reflection used 226) |
-  | SAM calls | 300 |
-  | Transcribe calls | 40 |
-- **Budget:**
-  - Scope `inventory-ea-local-v1`, cap **$1.00**.
-  - Gemma costs $0. In T8, Spark's improver and reflector cost about $0.11
-    and new SAM pairs about $0.13.
-  - Expected spend: **about $0.15–0.40**.
-- **Wall time:** about **1.5–2 hours**. Gemma's calls took about 15–17 s each
-  in the E-C retry, and Spark's about 5–6 s.
-- **Guards:**
+  | Agent | the stated provider: `LiquidAI/LFM3-VL-2B-GGUF` |
+  | Improver, reflector | Spark (as T8) |
+  | Tools | SAM 3.1, Transcribe (cloud, fixed; cache shared) |
+- **Limits:**
+  - Agent caps per run: `caps(n)`, 13–19 turns. Improver and reflector
+    sessions are capped at 12 turns each.
+  - Call limits:
+
+    | | Limit |
+    |---|---|
+    | Agent chat calls | 600 (T8 worker used 255) |
+    | Spark chat calls | 500 (T8 used 226) |
+    | SAM calls | 300 |
+    | Transcribe calls | 40 |
+- **Budget:** scope `inventory-ea-local-v1`, cap **$1.00**. Expected **about
+  $0.15–0.40**: Spark about $0.11 and SAM about $0.13 in T8.
+- **Wall time:** about **1.5–2 hours**, if LFM3 is as fast as Gemma was
+  (15–17 s per call). The G1b probe gives the real speed.
+- **Guards (G1b and G2):**
   - exact dataset hash;
-  - a valid agent URL;
-  - the WSL sandbox must be available;
-  - the provider must report `gemma-4-E4B-it-GGUF` as **loaded** (a GET of
-    `<base>/models`, no generation);
+  - valid agent settings;
+  - for G2, the WSL sandbox must be available;
+  - the provider must report the model as **loaded** (a GET of
+    `<base>/models`, sending the key if one is named; no generation);
   - shared ledger at or after the checkpoint ($2.054275772 spent, 3576
-    settled);
-  - at least $1.00 left in the ledger;
+    settled; G1b's spend counts against G2's room);
+  - at least the cap left in the ledger;
   - no earlier rows in the scope;
-  - an exclusive `started.json` marker that records the agent endpoint;
-  - retries off; the Spark/SAM/Transcribe key is loaded at runtime only.
+  - an exclusive `started.json` marker recording the agent endpoint, model
+    and key-variable name;
+  - retries off; keys loaded at runtime only.
 
-## Command (WSL, after approval, with the approved URL)
-
+Command (WSL, after approval):
 ```
-wsl -e bash -lc 'cd /mnt/c/Shrey_Projs/hackathons/main_LX && PYTHONPATH=src .venv/bin/python -m lx.inventory_stream_local --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url <APPROVED_URL>'
+wsl -e bash -lc 'cd /mnt/c/Shrey_Projs/hackathons/main_LX && PYTHONPATH=src .venv/bin/python -m lx.inventory_stream_local --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url <APPROVED_URL> --agent-model LiquidAI/LFM3-VL-2B-GGUF'
 ```
 
-## Outputs
-
-The run writes to `main_LX/.lx/inventory-ea-local-v1/`:
+**Outputs** go to `main_LX/.lx/inventory-ea-local-v1/`:
 - `summary.json` and `usage.json`;
-- `run/ea_report.json`, with per-sample base and chosen scores and gains;
+- `run/ea_report.json`;
 - `run/library/`;
 - `run/runs/`;
-- the improver and reflector audits.
+- the audits.
 
 Evidence is committed after the run, and the last adopted harness is
 frozen for G3.
 
-## How to read the result
+## After G2 (not part of this request)
 
-- **Edits that name Gemma's E-C failures** — the `answer` field written as an
-  object, cut-off inventory replies, tool-call text the server does not
-  parse, non-JSON final answers — **and gains on the stream:** freeze the
-  harness, then G3/G4 on the 24 held-out samples.
-- **Base kept, or edits that do not touch those failures:** the improver
-  cannot see Gemma's problem from the trajectories. Report that, and
-  consider letting the improver see failed check names (D-009).
-- **Limits:**
-  - 6 samples, one run per arm: descriptive, not statistical;
-  - a different base URL from E-C, but the same model file and settings;
-  - G3 reuses E-C's base rows from another day.
+The E-C base rows were Gemma E4B, so they **cannot be reused**. G3/G4 must
+run both arms on the 24 held-out samples with LFM3: base vs the frozen
+G2 harness, the same paired criterion as E-B/E-C, about 2–3 hours. This is
+a separate reviewed request.
+
+## How to read G2
+
+- **Edits that name the agent's own failures**, such as malformed answers,
+  cut-off replies or tool-call text, **and gains on the stream:** freeze,
+  then G3/G4.
+- **Base kept, or edits that miss those failures:** the improver cannot see
+  the problem from the trajectories. Consider D-009, letting the improver
+  see failed check names.
+- **Limits:** 6 samples, one run per arm, so the result is descriptive only.
+  This is a new agent with no E-C baseline.
