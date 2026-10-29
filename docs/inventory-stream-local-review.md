@@ -177,8 +177,13 @@ scores, cut-offs and time per turn.
     | Transcribe calls | 40 |
 - **Budget:** scope `inventory-ea-local-v1`, cap **$1.00**. Expected **about
   $0.15–0.40**: Spark about $0.11 and SAM about $0.13 in T8.
-- **Wall time:** about **1.5–2 hours**, if LFM3 is as fast as Gemma was
-  (15–17 s per call). The G1b probe gives the real speed.
+- **Mode (user, 30 Oct: "Thinking on"):** `--agent-thinking on
+  --agent-max-tokens 8192`, as in G1b v2. The key comes from
+  `UNSLOTH_API_KEY` in the core `.env`.
+- **Wall time:** about **4–5 hours**. G1b v2 measured about 60 s per
+  thinking call, and T8 used about 255 agent calls plus Spark's improver.
+  The agent call limit (600) allows a worst case of about 10 hours. The
+  machine must stay awake with Unsloth running.
 - **Guards (G1b and G2):**
   - exact dataset hash;
   - valid agent settings;
@@ -195,7 +200,7 @@ scores, cut-offs and time per turn.
 
 Command (WSL, after approval):
 ```
-wsl -e bash -lc 'cd /mnt/c/Shrey_Projs/hackathons/main_LX && PYTHONPATH=src .venv/bin/python -m lx.inventory_stream_local --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url <APPROVED_URL> --agent-model LiquidAI/LFM3-VL-2B-GGUF'
+wsl -e bash -lc 'cd /mnt/c/Shrey_Projs/hackathons/main_LX && PYTHONPATH=src .venv/bin/python -m lx.inventory_stream_local --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url <APPROVED_URL> --agent-model LiquidAI/LFM3-VL-2B-GGUF --agent-key-env UNSLOTH_API_KEY --agent-thinking on --agent-max-tokens 8192'
 ```
 
 **Outputs** go to `main_LX/.lx/inventory-ea-local-v1/`:
