@@ -373,7 +373,11 @@ def render_scene(items, rng):
 
 
 def synthetic_sample(seed, index):
-    """One D3 sample: photos (PNG bytes), truth, request text. Deterministic per (seed, index)."""
+    """One D3 sample: photos (PNG bytes), truth, request text, layouts.
+
+    Deterministic per (seed, index). `layouts[k]` lists (shape, colour, box)
+    for photo k+1 and feeds FakeShapeSegmentation.
+    """
     rng = random.Random(f"{seed}:inventory:{index}")
     n_photos = rng.randint(MIN_PHOTOS, MAX_PHOTOS)
     request_type = REQUEST_TYPES[index % len(REQUEST_TYPES)]
@@ -393,8 +397,8 @@ def synthetic_sample(seed, index):
             break
         except ValueError:
             continue
-    photos = [render_scene(scene, rng)[0] for scene in scenes]
-    return photos, truth, request_text(truth, rng)
+    rendered = [render_scene(scene, rng) for scene in scenes]
+    return [png for png, _ in rendered], truth, request_text(truth, rng), [placed for _, placed in rendered]
 
 
 def write_synthetic(root, count, *, seed=20261029):
@@ -404,7 +408,7 @@ def write_synthetic(root, count, *, seed=20261029):
     if root.exists() and any(root.iterdir()):
         raise ValueError("use an empty directory")
     for index in range(1, count + 1):
-        photos, truth, text = synthetic_sample(seed, index)
+        photos, truth, text, _ = synthetic_sample(seed, index)
         folder = root / f"sample-{index:02d}"
         (folder / "photos").mkdir(parents=True)
         for number, data in enumerate(photos, 1):
@@ -413,3 +417,61 @@ def write_synthetic(root, count, *, seed=20261029):
         (folder / "truth.json").write_text(json.dumps(truth, indent=2) + "\n", encoding="utf-8")
     return sorted(p.name for p in root.iterdir())
 
+
+def caps(n_photos):
+    """Turn and tool-call caps for one item: room to view, segment and count every photo."""
+    if type(n_photos) is not int or not MIN_PHOTOS <= n_photos <= MAX_PHOTOS:
+        raise ValueError(f"photo count must be {MIN_PHOTOS}-{MAX_PHOTOS}")
+    return {"max_turns": 4 + 3 * n_photos, "max_tool_calls": 6 + 6 * n_photos}
+
+
+class FakeShapeSegmentation:
+    """SAM wire-format double for D3 shape scenes (offline plumbing only).
+
+    `scenes` maps image sha256 to {"size": [w, h], "items": [(shape, colour,
+    (x1, y1, x2, y2)), ...]}. A concept matches by shape ("triangles") and
+    optionally colour ("red triangle"); "shape" or "object" matches all.
+    Seeded misses and low-confidence false positives make filtering matter.
+    """
+
+    def __init__(self, scenes, *, miss=0.05, false_positive=0.2, seed=20261029):
+        self.scenes, self.calls = scenes, 0
+        self.miss, self.false_positive, self.seed = miss, false_positive, seed
+
+    def __call__(self, body, timeout):
+        import base64
+
+        from .perception import format_boxes, media_hash
+
+        self.calls += 1
+        parts = body["input"][0]["content"]
+        concept = " ".join(parts[0]["text"].lower().split())
+        image = base64.b64decode(parts[1]["image_url"].split(",", 1)[1])
+        digest = media_hash(image)
+        scene = self.scenes[digest]
+        width, height = scene["size"]
+        words = concept.split(" ")
+        kind = singular(words[-1])
+        colours = [w for w in words[:-1] if w in SHAPE_COLOURS]
+        rng = random.Random(f"{self.seed}:{digest}:{concept}")
+        boxes = []
+        for shape, colour, (x1, y1, x2, y2) in scene["items"]:
+            if kind not in (shape, "shape", "object", "item") or (colours and colour not in colours):
+                continue
+            if rng.random() < self.miss:
+                continue
+            boxes.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2, "w": width, "h": height,
+                          "c": round(rng.uniform(0.6, 0.99), 3)})
+        if rng.random() < self.false_positive:
+            x, y = rng.randrange(width - 20), rng.randrange(height - 20)
+            boxes.append({"x1": x, "y1": y, "x2": x + 12, "y2": y + 12, "w": width, "h": height,
+                          "c": round(rng.uniform(0.05, 0.4), 3)})
+        return {"output_text": format_boxes(boxes)}
+
+
+def fake_scenes(photos, layouts):
+    """FakeShapeSegmentation scenes for one synthetic sample."""
+    from .perception import media_hash
+
+    return {media_hash(png): {"size": [GRID[0] * CELL, GRID[1] * CELL], "items": placed}
+            for png, placed in zip(photos, layouts)}

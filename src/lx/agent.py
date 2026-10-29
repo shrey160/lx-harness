@@ -7,6 +7,7 @@ step is traced; the trace is what the improver later reads.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 
@@ -14,6 +15,8 @@ from .perception import concept_text
 
 REGIONS = ("whole", "left", "right", "top", "bottom")
 MAX_BOXES_SHOWN = 300
+# A tool result carrying an image for the agent (JPEG bytes); see run_agent.
+IMAGE_KEY = "_image"
 
 
 def _tool(name, description, properties, required):
@@ -52,6 +55,44 @@ def agent_tools(entries):
     if any(tool["function"]["name"] == "segment" for tool in tools):
         tools.append(COUNT_BOXES)
     return tools
+
+
+PHOTO_SEGMENT_PROPS = {"photo": {"type": "integer", "description": "Photo number, starting at 1."},
+                       "concept": {"type": "string", "description": "A short noun phrase naming the objects."}}
+VIEW = _tool(
+    "view",
+    "Look at one photo yourself. Without box: the whole photo, downscaled. With box [x1, y1, x2, y2] "
+    "(pixel corners of that photo, e.g. from segment): a close-up of that area with a small margin. "
+    "The image arrives in the next message.",
+    {"photo": {"type": "integer", "description": "Photo number, starting at 1."},
+     "box": {"type": "array", "items": {"type": "integer"}, "minItems": 4, "maxItems": 4,
+             "description": "Optional [x1, y1, x2, y2] to zoom into."}},
+    ["photo"])
+PHOTO_COUNT_BOXES = _tool(
+    "count_boxes",
+    "Deterministic helper: count the boxes from an earlier segment call on one photo, after optional "
+    "filtering. Drops boxes below min_confidence and merges boxes overlapping more than dedupe_iou "
+    "(keeps the more confident one).",
+    {"photo": {"type": "integer", "description": "Photo number of the earlier segment call."},
+     "concept": {"type": "string", "description": "Concept of that segment call."},
+     "min_confidence": {"type": "number", "description": "0 to 1; default 0."},
+     "dedupe_iou": {"type": "number", "description": "0 to 1; 1 disables merging; default 1."}},
+    ["photo", "concept"])
+
+
+def photo_tools(entries):
+    """Function tools for items with several photos: every perception call names its photo."""
+    tools = []
+    for entry in entries:
+        if entry["kind"] == "transcription":
+            tools.append(_tool("transcribe", _describe(entry, "Transcribes this item's audio; takes no arguments."), {}, []))
+        elif entry["kind"] == "segmentation":
+            tools.append(_tool("segment", _describe(entry, "Runs on one photo of this item; returns instance boxes "
+                               "[x1, y1, x2, y2, confidence] in inclusive pixel corners of that photo."),
+                               PHOTO_SEGMENT_PROPS, ["photo", "concept"]))
+    if any(tool["function"]["name"] == "segment" for tool in tools):
+        tools.append(PHOTO_COUNT_BOXES)
+    return tools + [VIEW]
 
 
 def tool_identity(tools):
@@ -130,13 +171,98 @@ class ItemTools:
         raise ValueError(f"unknown tool {name!r}")
 
 
+class PhotoSetTools:
+    """Executes tool calls for an item with several photos; media stays on the controller.
+
+    `view` returns the rendered image under IMAGE_KEY; the loop sends it to the
+    agent as a follow-up message and the trace keeps only its hash.
+    """
+
+    def __init__(self, perception, *, photos, audio=None, candidate="", max_side=768):
+        if not photos:
+            raise ValueError("an item needs at least one photo")
+        self.perception, self.photos, self.audio, self.candidate = perception, list(photos), audio, candidate
+        self.max_side = max_side
+        self.segments = {}
+
+    def _photo(self, arguments):
+        number = arguments.get("photo")
+        if type(number) is not int or not 1 <= number <= len(self.photos):
+            raise ValueError(f"photo must be a number from 1 to {len(self.photos)}")
+        return number
+
+    def __call__(self, name, arguments):
+        if name == "transcribe":
+            if arguments or self.audio is None:
+                raise ValueError("transcribe takes no arguments and needs this item's audio")
+            return {"transcript": self.perception.transcribe(self.audio, candidate=self.candidate)["transcript"]}
+        if name == "segment":
+            if set(arguments) != {"photo", "concept"}:
+                raise ValueError("segment takes exactly photo and concept")
+            number = self._photo(arguments)
+            result = self.perception.segment(self.photos[number - 1], arguments["concept"], candidate=self.candidate)
+            self.segments[(number, result["concept"])] = result["boxes"]
+            shown = result["boxes"][:MAX_BOXES_SHOWN]
+            return {"photo": number, "concept": result["concept"], "instances": len(result["boxes"]),
+                    "boxes": [[b["x1"], b["y1"], b["x2"], b["y2"], round(b.get("c", 1.0), 2)] for b in shown],
+                    "truncated": len(result["boxes"]) > len(shown)}
+        if name == "count_boxes":
+            if not {"photo", "concept"} <= set(arguments) <= {"photo", "concept", "min_confidence", "dedupe_iou"}:
+                raise ValueError("count_boxes takes photo, concept and optional min_confidence, dedupe_iou")
+            key = (self._photo(arguments), concept_text(arguments["concept"]))
+            if key not in self.segments:
+                raise ValueError("call segment for this photo and concept first")
+            result = count_boxes(self.segments[key], min_confidence=arguments.get("min_confidence", 0.0),
+                                 dedupe_iou=arguments.get("dedupe_iou", 1.0))
+            result.pop("region")
+            return {"photo": key[0], "concept": key[1], **result}
+        if name == "view":
+            if not set(arguments) <= {"photo", "box"}:
+                raise ValueError("view takes photo and an optional box")
+            number = self._photo(arguments)
+            image, shown, size = render_view(self.photos[number - 1], arguments.get("box"), max_side=self.max_side)
+            return {"photo": number, "photo_size": list(size), "shown_box": list(shown), IMAGE_KEY: image}
+        raise ValueError(f"unknown tool {name!r}")
+
+
+def render_view(data, box=None, *, max_side=768, margin=0.15, quality=85):
+    """(JPEG bytes, shown [x1, y1, x2, y2], (width, height)) for a photo or a zoomed box."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    with Image.open(BytesIO(data)) as source:
+        image = source.convert("RGB")
+    width, height = image.size
+    if box is None:
+        shown = (0, 0, width - 1, height - 1)
+    else:
+        if (type(box) is not list or len(box) != 4 or any(type(v) is not int for v in box)
+                or not (0 <= box[0] <= box[2] < width and 0 <= box[1] <= box[3] < height)):
+            raise ValueError(f"box must be [x1, y1, x2, y2] inside the photo ({width}x{height})")
+        pad_x = max(8, int((box[2] - box[0] + 1) * margin))
+        pad_y = max(8, int((box[3] - box[1] + 1) * margin))
+        shown = (max(0, box[0] - pad_x), max(0, box[1] - pad_y),
+                 min(width - 1, box[2] + pad_x), min(height - 1, box[3] + pad_y))
+        image = image.crop((shown[0], shown[1], shown[2] + 1, shown[3] + 1))
+    scale = max_side / max(image.size)
+    if scale < 1:
+        image = image.resize((max(1, round(image.width * scale)), max(1, round(image.height * scale))))
+    out = BytesIO()
+    image.save(out, "JPEG", quality=quality)
+    return out.getvalue(), shown, (width, height)
+
+
 # --- loop -------------------------------------------------------------------
 
-def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, max_tool_calls=12, timeout=300):
+def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, max_tool_calls=12, timeout=300,
+              keep_images=2):
     """Run the agent until it answers or a cap stops it; never raises for tool errors.
 
     Returns (final_text, trace). A stopped run returns an empty answer, which
-    the verifier scores as a failed item.
+    the verifier scores as a failed item. Images returned by tools (IMAGE_KEY)
+    follow the turn's tool messages as one user message; only the latest
+    `keep_images` stay in the history, older ones become a text note.
     """
     use_tools = tools if client.profile.supports_tools else None
     history = [dict(m) for m in messages]
@@ -153,6 +279,7 @@ def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, ma
         history.append({"role": "assistant", "content": message["content"], "tool_calls": [
             {"id": c["id"], "type": "function", "function": {"name": c["name"], "arguments": json.dumps(c["arguments"])}}
             for c in message["tool_calls"]]})
+        images = []
         for call in message["tool_calls"]:
             calls += 1
             if calls > max_tool_calls:
@@ -160,15 +287,49 @@ def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, ma
                 return "", trace
             step = {"type": "tool", "name": call["name"], "arguments": call["arguments"]}
             try:
-                step["result"] = handler(call["name"], call["arguments"])
+                result = handler(call["name"], call["arguments"])
+                if isinstance(result, dict) and IMAGE_KEY in result:
+                    result = dict(result)
+                    image = result.pop(IMAGE_KEY)
+                    images.append((call["arguments"], image))
+                    result["image"] = f"sent in the next message (sha256 {hashlib.sha256(image).hexdigest()[:12]})"
+                step["result"] = result
                 content = json.dumps({"result": step["result"]}, allow_nan=False)
             except ValueError as exc:
                 step["error"] = str(exc)
                 content = json.dumps({"error": str(exc)})
             trace.append(step)
             history.append({"role": "tool", "tool_call_id": call["id"], "content": content})
+        if images:
+            _attach_images(history, images, keep_images)
     trace.append({"type": "stopped", "reason": f"no answer within {max_turns} turns"})
     return "", trace
+
+
+def _attach_images(history, images, keep):
+    note = "; ".join(f"photo {args.get('photo')}" + (f" box {args['box']}" if "box" in args else "")
+                     for args, _ in images)
+    parts = [{"type": "text", "text": "Images from your view calls, in order: " + note}]
+    parts += [{"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(data).decode()}}
+              for _, data in images]
+    history.append({"role": "user", "content": parts})
+    budget = keep
+    for message in reversed(history):
+        content = message.get("content")
+        if message["role"] != "user" or not isinstance(content, list) or not str(content[0].get("text", "")).startswith(
+                "Images from your view calls"):
+            continue
+        kept = []
+        for part in reversed(content):
+            if part["type"] != "image_url":
+                kept.append(part)
+            elif budget > 0:
+                kept.append(part)
+                budget -= 1
+            else:
+                kept.append({"type": "text", "text": "[an earlier view image was removed to save space; "
+                                                     "call view again if needed]"})
+        message["content"] = kept[::-1]
 
 
 def render_trace(trace, answer, *, obs_trunc=50_000):

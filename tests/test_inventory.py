@@ -163,10 +163,12 @@ class SyntheticTests(unittest.TestCase):
     def test_samples_are_valid_deterministic_and_cover_types(self):
         seen = set()
         for index in range(1, 7):
-            photos, truth, text = synthetic_sample(7, index)
+            photos, truth, text, layouts = synthetic_sample(7, index)
             validate_truth(truth)
             seen.add(truth["request_type"])
             self.assertEqual(len(photos), len(truth["photos"]))
+            self.assertEqual([sum(i["count"] for i in truth["photos"][str(k + 1)]) for k in range(len(photos))],
+                             [len(placed) for placed in layouts])
             self.assertTrue(all(png_size(p) == (320, 240) for p in photos))
             self.assertTrue(text.endswith((".", "?")))
             if truth["kind"]:
@@ -176,7 +178,7 @@ class SyntheticTests(unittest.TestCase):
         self.assertNotEqual(synthetic_sample(7, 2)[1], synthetic_sample(8, 2)[1])
 
     def test_png_decodes_to_drawn_pixels(self):
-        photos, truth, _ = synthetic_sample(3, 1)
+        photos, truth, _, _ = synthetic_sample(3, 1)
         data = photos[0]
         raw = zlib.decompress(data[data.index(b"IDAT") + 4:data.index(b"IEND") - 8])
         self.assertEqual(len(raw), 240 * (1 + 320 * 3))
