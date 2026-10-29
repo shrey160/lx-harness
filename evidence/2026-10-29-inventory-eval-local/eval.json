@@ -1,0 +1,1692 @@
+{
+  "live": true,
+  "capability_evidence": true,
+  "criterion": {
+    "split": "heldout",
+    "minimum_gain": 0.1,
+    "interval": 0.95,
+    "resamples": 10000,
+    "seed": 20261029
+  },
+  "items": [
+    "fsc-check-01",
+    "fsc-check-02",
+    "fsc-check-03",
+    "fsc-heldout-01",
+    "fsc-heldout-02",
+    "fsc-heldout-03",
+    "fsc-heldout-04",
+    "fsc-heldout-05",
+    "fsc-heldout-06",
+    "fsc-heldout-07",
+    "fsc-heldout-08",
+    "mix-heldout-colourcount-01",
+    "mix-heldout-colourcount-02",
+    "mix-heldout-colourcount-03",
+    "mix-heldout-colourcount-04",
+    "mix-heldout-colourcount-05",
+    "mix-heldout-colourcount-06",
+    "mix-heldout-colourcount-07",
+    "mix-heldout-colourcount-08",
+    "mix-heldout-inventory-01",
+    "mix-heldout-inventory-02",
+    "mix-heldout-inventory-03",
+    "mix-heldout-inventory-04",
+    "mix-heldout-inventory-05",
+    "mix-heldout-inventory-06",
+    "mix-heldout-inventory-07",
+    "mix-heldout-inventory-08",
+    "mix-check-colourcount-01",
+    "mix-check-colourcount-02",
+    "mix-check-colourcount-03",
+    "mix-check-inventory-01",
+    "mix-check-inventory-02",
+    "mix-check-inventory-03"
+  ],
+  "rows": {
+    "fsc-check-01": {
+      "split": "check",
+      "request_type": "count",
+      "base": {
+        "answer": {
+          "request": {
+            "type": "count",
+            "kind": "book",
+            "colour": null
+          },
+          "photos": [
+            {
+              "photo": 1,
+              "items": [
+                {
+                  "kind": "book",
+                  "colour": null,
+                  "count": 25
+                }
+              ]
+            },
+            {
+              "photo": 2,
+              "items": [
+                {
+                  "kind": "book",
+                  "colour": null,
+                  "count": 10
+                }
+              ]
+            },
+            {
+              "photo": 3,
+              "items": [
+                {
+                  "kind": "book",
+                  "colour": null,
+                  "count": 22
+                }
+              ]
+            },
+            {
+              "photo": 4,
+              "items": [
+                {
+                  "kind": "book",
+                  "colour": null,
+                  "count": 14
+                }
+              ]
+            }
+          ],
+          "answer": {
+            "count": 71,
+            "colour_count": 0,
+            "inventory": []
+          }
+        },
+        "score": 0.4444444444444444,
+        "failed_checks": [
+          "schema",
+          "photo 1",
+          "photo 4",
+          "consistency",
+          "answer"
+        ],
+        "turns": 10,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "book",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "book",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "book",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "book",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "book",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "book",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "book",
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "book",
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      },
+      "frozen": {
+        "score": 0.0,
+        "correct": false,
+        "error": "provider connection/JSON failed; cost remains reserved"
+      }
+    },
+    "fsc-check-02": {
+      "split": "check",
+      "request_type": "count",
+      "frozen": {
+        "answer": "<|channel>call:segment{concept:<|\"|>peach<|\"|>,photo:3}<tool_call|>",
+        "score": 0.0,
+        "failed_checks": [
+          "schema",
+          "request",
+          "coverage",
+          "photo 1",
+          "photo 2",
+          "photo 3",
+          "photo 4",
+          "photo 5",
+          "consistency",
+          "answer"
+        ],
+        "turns": 8,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "load_skill",
+            "arguments": {
+              "name": "inventory"
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "peach",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "peach",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      },
+      "base": {
+        "answer": "{\"request\": {\"type\": \"count\", \"kind\": \"peach\", \"colour\": null}, \"photos\": [{\"photo\": 1, \"items\": [{\"kind\": \"peach\", \"colour\": null, \"count\": 26}]}, {\"photo\": 2, \"items\": [{\"kind\": \"peach\", \"colour\": null, \"count\": 47}]}, {\"photo\": 3, \"items\": [{\"kind\": \"peach\", \"colour\": null, \"count\": 26}]}, {\"photo\": 4, \"items\": [{\"kind\": \"peach\", \"colour\": null, \"count\": 33}]}, {\"photo\": 5, \"items\": [{\"kind\": \"peach\", \"colour\": null, \"count\": 9}]}, \"answer\": {\"count\": 141, \"colour_count\": 0, \"inventory\": [{\"kind\": \"peach\", \"count\": 141}]}}",
+        "score": 0.0,
+        "failed_checks": [
+          "schema",
+          "request",
+          "coverage",
+          "photo 1",
+          "photo 2",
+          "photo 3",
+          "photo 4",
+          "photo 5",
+          "consistency",
+          "answer"
+        ],
+        "turns": 12,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "peach",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "peach",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "peach",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "peach",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "peach",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "peach",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "peach",
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "peach",
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "peach",
+              "photo": 5
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "peach",
+              "photo": 5
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      }
+    },
+    "fsc-check-03": {
+      "split": "check",
+      "request_type": "count",
+      "base": {
+        "answer": {
+          "request": {
+            "type": "count",
+            "kind": "pen",
+            "colour": null
+          },
+          "photos": [
+            {
+              "photo": 1,
+              "items": [
+                {
+                  "kind": "pen",
+                  "colour": null,
+                  "count": 10
+                }
+              ]
+            },
+            {
+              "photo": 2,
+              "items": [
+                {
+                  "kind": "pen",
+                  "colour": null,
+                  "count": 0
+                }
+              ]
+            },
+            {
+              "photo": 3,
+              "items": [
+                {
+                  "kind": "pen",
+                  "colour": null,
+                  "count": 8
+                }
+              ]
+            }
+          ],
+          "answer": {
+            "count": 18,
+            "colour_count": 0,
+            "inventory": []
+          }
+        },
+        "score": 0.5,
+        "failed_checks": [
+          "schema",
+          "photo 2",
+          "consistency",
+          "answer"
+        ],
+        "turns": 8,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "pen",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "pen",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "pen",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "pen",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "pen",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "pen",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      },
+      "frozen": {
+        "score": 0.0,
+        "correct": false,
+        "error": "provider connection/JSON failed; cost remains reserved"
+      }
+    },
+    "fsc-heldout-01": {
+      "split": "heldout",
+      "request_type": "count",
+      "frozen": {
+        "score": 0.0,
+        "correct": false,
+        "error": "provider connection/JSON failed; cost remains reserved"
+      },
+      "base": {
+        "answer": {
+          "request": {
+            "type": "count",
+            "kind": "tomato",
+            "colour": null
+          },
+          "photos": [
+            {
+              "photo": 1,
+              "items": [
+                {
+                  "kind": "tomato",
+                  "colour": null,
+                  "count": 27
+                }
+              ]
+            },
+            {
+              "photo": 2,
+              "items": [
+                {
+                  "kind": "tomato",
+                  "colour": null,
+                  "count": 33
+                }
+              ]
+            },
+            {
+              "photo": 3,
+              "items": [
+                {
+                  "kind": "tomato",
+                  "colour": null,
+                  "count": 11
+                }
+              ]
+            },
+            {
+              "photo": 4,
+              "items": [
+                {
+                  "kind": "tomato",
+                  "colour": null,
+                  "count": 22
+                }
+              ]
+            }
+          ],
+          "answer": {
+            "count": 93,
+            "inventory": [
+              {
+                "kind": "tomato",
+                "count": 93
+              }
+            ]
+          }
+        },
+        "score": 0.4444444444444444,
+        "failed_checks": [
+          "schema",
+          "photo 1",
+          "photo 2",
+          "consistency",
+          "answer"
+        ],
+        "turns": 10,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "tomato",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "tomato",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "tomato",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "tomato",
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "tomato",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "tomato",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "tomato",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "tomato",
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      }
+    },
+    "fsc-heldout-02": {
+      "split": "heldout",
+      "request_type": "count",
+      "base": {
+        "answer": {
+          "request": {
+            "type": "count",
+            "kind": "bowl",
+            "colour": null
+          },
+          "photos": [
+            {
+              "photo": 1,
+              "items": [
+                {
+                  "kind": "bowl",
+                  "colour": null,
+                  "count": 0
+                }
+              ]
+            },
+            {
+              "photo": 2,
+              "items": [
+                {
+                  "kind": "bowl",
+                  "colour": null,
+                  "count": 0
+                }
+              ]
+            },
+            {
+              "photo": 3,
+              "items": [
+                {
+                  "kind": "bowl",
+                  "colour": null,
+                  "count": 0
+                }
+              ]
+            },
+            {
+              "photo": 4,
+              "items": [
+                {
+                  "kind": "bowl",
+                  "colour": null,
+                  "count": 0
+                }
+              ]
+            }
+          ],
+          "answer": {
+            "count": 0,
+            "inventory": [
+              {
+                "kind": "bowl",
+                "count": 0
+              }
+            ]
+          }
+        },
+        "score": 0.2222222222222222,
+        "failed_checks": [
+          "schema",
+          "request",
+          "photo 1",
+          "photo 2",
+          "photo 4",
+          "consistency",
+          "answer"
+        ],
+        "turns": 6,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "bowl",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "bowl",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "bowl",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "bowl",
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      },
+      "frozen": {
+        "score": 0.0,
+        "correct": false,
+        "error": "provider connection/JSON failed; cost remains reserved"
+      }
+    },
+    "fsc-heldout-03": {
+      "split": "heldout",
+      "request_type": "count",
+      "frozen": {
+        "answer": "<|channel>call:segment{concept:<|\"|>flower pot<|\"|>,photo:2}<tool_call|>",
+        "score": 0.0,
+        "failed_checks": [
+          "schema",
+          "request",
+          "coverage",
+          "photo 1",
+          "photo 2",
+          "photo 3",
+          "consistency",
+          "answer"
+        ],
+        "turns": 6,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "load_skill",
+            "arguments": {
+              "name": "inventory"
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "flower pot",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      },
+      "base": {
+        "answer": {
+          "request": {
+            "type": "count",
+            "kind": "flower pot",
+            "colour": null
+          },
+          "photos": [
+            {
+              "photo": 1,
+              "items": [
+                {
+                  "kind": "flower pot",
+                  "colour": null,
+                  "count": 24
+                }
+              ]
+            },
+            {
+              "photo": 2,
+              "items": [
+                {
+                  "kind": "flower pot",
+                  "colour": null,
+                  "count": 18
+                }
+              ]
+            },
+            {
+              "photo": 3,
+              "items": [
+                {
+                  "kind": "flower pot",
+                  "colour": null,
+                  "count": 40
+                }
+              ]
+            }
+          ],
+          "answer": {
+            "count": 82,
+            "inventory": [
+              {
+                "kind": "flower pot",
+                "count": 82
+              }
+            ]
+          }
+        },
+        "score": 0.625,
+        "failed_checks": [
+          "schema",
+          "consistency",
+          "answer"
+        ],
+        "turns": 9,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "flower pot",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "flower pot",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "flower pot",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "flower pot",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "flower pot",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "flower pot",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      }
+    },
+    "fsc-heldout-04": {
+      "split": "heldout",
+      "request_type": "count",
+      "base": {
+        "answer": {
+          "request": {
+            "type": "count",
+            "kind": "biscuit",
+            "colour": null
+          },
+          "photos": [
+            {
+              "photo": 1,
+              "items": []
+            },
+            {
+              "photo": 2,
+              "items": [
+                {
+                  "kind": "biscuit",
+                  "colour": null,
+                  "count": 23
+                }
+              ]
+            },
+            {
+              "photo": 3,
+              "items": []
+            },
+            {
+              "photo": 4,
+              "items": []
+            },
+            {
+              "photo": 5,
+              "items": []
+            }
+          ],
+          "answer": {
+            "count": 23,
+            "colour_count": null,
+            "inventory": []
+          }
+        },
+        "score": 0.3,
+        "failed_checks": [
+          "schema",
+          "photo 1",
+          "photo 3",
+          "photo 4",
+          "photo 5",
+          "consistency",
+          "answer"
+        ],
+        "turns": 11,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 5
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 5
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      },
+      "frozen": {
+        "answer": "The user asks \"How many biscuits are there?\".\n\nThe available skill is `inventory`, which I have loaded.\n\nThe request type is `count` (asking \"How many...\"), the kind is \"biscuit\", colour is `null`.\n\nI will compile the results based on the visible items in each photo:\n\n**Photo 1:** No visible biscuits.\n**Photo 2:** I count 23 distinct biscuits.\n**Photo 3:** No visible biscuits.\n**Photo 4:** There are 16 biscuits arranged on the tin.\n**Photo 5:** There are 15 small, crumbled biscuits.\n\n**Total Count:** 0 (P1) + 23 (P2) + 0 (P3) + 16 (P4) + 15 (P5) = 54.\n\nI will now construct the final JSON.",
+        "score": 0.0,
+        "failed_checks": [
+          "schema",
+          "request",
+          "coverage",
+          "photo 1",
+          "photo 2",
+          "photo 3",
+          "photo 4",
+          "photo 5",
+          "consistency",
+          "answer"
+        ],
+        "turns": 13,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "load_skill",
+            "arguments": {
+              "name": "inventory"
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 4
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "view",
+            "arguments": {
+              "photo": 5
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "biscuit",
+              "photo": 5
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      }
+    },
+    "fsc-heldout-05": {
+      "split": "heldout",
+      "request_type": "count",
+      "frozen": {
+        "score": 0.0,
+        "correct": false,
+        "error": "provider connection/JSON failed; cost remains reserved"
+      },
+      "base": {
+        "answer": {
+          "request": {
+            "type": "count",
+            "kind": "can",
+            "colour": null
+          },
+          "photos": [
+            {
+              "photo": 1,
+              "items": [
+                {
+                  "kind": "can",
+                  "colour": null,
+                  "count": 40
+                }
+              ]
+            },
+            {
+              "photo": 2,
+              "items": [
+                {
+                  "kind": "can",
+                  "colour": null,
+                  "count": 15
+                }
+              ]
+            },
+            {
+              "photo": 3,
+              "items": [
+                {
+                  "kind": "can",
+                  "colour": null,
+                  "count": 24
+                }
+              ]
+            }
+          ],
+          "answer": {
+            "count": 79,
+            "colour_count": null,
+            "inventory": []
+          }
+        },
+        "score": 0.625,
+        "failed_checks": [
+          "schema",
+          "consistency",
+          "answer"
+        ],
+        "turns": 8,
+        "tool_calls": [
+          {
+            "name": "transcribe",
+            "arguments": {},
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "can",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "can",
+              "photo": 1
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "can",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "can",
+              "photo": 2
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "segment",
+            "arguments": {
+              "concept": "can",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          },
+          {
+            "name": "count_boxes",
+            "arguments": {
+              "concept": "can",
+              "photo": 3
+            },
+            "error": null,
+            "exit_code": null
+          }
+        ],
+        "stopped": null,
+        "correct": false
+      }
+    }
+  },
+  "errors": [
+    {
+      "item": "fsc-check-01",
+      "arm": "frozen",
+      "error": "provider connection/JSON failed; cost remains reserved"
+    },
+    {
+      "item": "fsc-check-03",
+      "arm": "frozen",
+      "error": "provider connection/JSON failed; cost remains reserved"
+    },
+    {
+      "item": "fsc-heldout-01",
+      "arm": "frozen",
+      "error": "provider connection/JSON failed; cost remains reserved"
+    },
+    {
+      "item": "fsc-heldout-02",
+      "arm": "frozen",
+      "error": "provider connection/JSON failed; cost remains reserved"
+    },
+    {
+      "item": "fsc-heldout-05",
+      "arm": "frozen",
+      "error": "provider connection/JSON failed; cost remains reserved"
+    }
+  ],
+  "complete": false,
+  "by_split": {
+    "check": {
+      "items": 3,
+      "base_mean": 0.3148148148148148,
+      "frozen_mean": 0.0,
+      "mean_gain": -0.3148148148148148,
+      "interval": [
+        -0.5,
+        0.0
+      ],
+      "wins": 0,
+      "ties": 1,
+      "losses": 2,
+      "base_correct": 0,
+      "frozen_correct": 0
+    },
+    "heldout": {
+      "items": 5,
+      "base_mean": 0.4433333333333333,
+      "frozen_mean": 0.0,
+      "mean_gain": -0.4433333333333333,
+      "interval": [
+        -0.5888888888888889,
+        -0.29777777777777775
+      ],
+      "wins": 0,
+      "ties": 0,
+      "losses": 5,
+      "base_correct": 0,
+      "frozen_correct": 0
+    }
+  },
+  "by_type": {
+    "count": {
+      "items": 8,
+      "base_mean": 0.3951388888888889,
+      "frozen_mean": 0.0,
+      "mean_gain": -0.3951388888888889,
+      "interval": [
+        -0.5236111111111111,
+        -0.253125
+      ],
+      "wins": 0,
+      "ties": 1,
+      "losses": 7,
+      "base_correct": 0,
+      "frozen_correct": 0
+    }
+  },
+  "criterion_met": false,
+  "decision": "stopped on model errors: no criterion result",
+  "model": "gemma-4-E4B-it-GGUF",
+  "max_output_tokens": 1536,
+  "spark_eb": {
+    "by_split": {
+      "check": {
+        "items": 9,
+        "base_mean": 0.605246913580247,
+        "frozen_mean": 0.6466049382716049,
+        "mean_gain": 0.04135802469135803,
+        "interval": [
+          -0.07777777777777778,
+          0.18333333333333335
+        ],
+        "wins": 2,
+        "ties": 5,
+        "losses": 2,
+        "base_correct": 2,
+        "frozen_correct": 2
+      },
+      "heldout": {
+        "items": 24,
+        "base_mean": 0.4699074074074074,
+        "frozen_mean": 0.7010416666666667,
+        "mean_gain": 0.23113425925925926,
+        "interval": [
+          0.1056712962962963,
+          0.36574074074074076
+        ],
+        "wins": 11,
+        "ties": 11,
+        "losses": 2,
+        "base_correct": 9,
+        "frozen_correct": 11
+      }
+    },
+    "by_type": {
+      "colour_count": {
+        "items": 11,
+        "base_mean": 0.6383838383838384,
+        "frozen_mean": 0.8825757575757576,
+        "mean_gain": 0.24419191919191918,
+        "interval": [
+          0.04292929292929293,
+          0.4734848484848485
+        ],
+        "wins": 6,
+        "ties": 4,
+        "losses": 1,
+        "base_correct": 4,
+        "frozen_correct": 6
+      },
+      "count": {
+        "items": 11,
+        "base_mean": 0.7002525252525252,
+        "frozen_mean": 0.7366161616161616,
+        "mean_gain": 0.03636363636363637,
+        "interval": [
+          -0.036363636363636355,
+          0.15454545454545454
+        ],
+        "wins": 1,
+        "ties": 8,
+        "losses": 2,
+        "base_correct": 5,
+        "frozen_correct": 6
+      },
+      "inventory": {
+        "items": 11,
+        "base_mean": 0.18181818181818182,
+        "frozen_mean": 0.4393939393939394,
+        "mean_gain": 0.25757575757575757,
+        "interval": [
+          0.08282828282828283,
+          0.42323232323232324
+        ],
+        "wins": 6,
+        "ties": 4,
+        "losses": 1,
+        "base_correct": 2,
+        "frozen_correct": 1
+      }
+    }
+  },
+  "dataset_sha256": "db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322",
+  "harness_sha256": "c98c636f83a3fdabf4e3a7ed4acabb3b104de19ed6714822b7ef6283024ecaf6",
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 328922,
+        "output_tokens": 19592,
+        "spent_usd": 0.0
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "per_phase": {
+      "worker/execute": {
+        "settled_calls": 141,
+        "unknown_calls": 5,
+        "reserved_calls": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "settled_calls": 141,
+    "reserved_calls": 0,
+    "unknown_calls": 5,
+    "spent_usd": 0.0
+  },
+  "ledger_before": {
+    "cap_usd": 20.0,
+    "spent_usd": 1.744275772,
+    "reserved_usd": 0.1056768,
+    "remaining_usd": 18.150047428,
+    "settled_calls": 2584,
+    "reserved_calls": 0,
+    "unknown_count": 1,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.179895476,
+        "reserved_usd": 0.0,
+        "input_tokens": 3885095,
+        "output_tokens": 230826,
+        "settled_calls": 512,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 1.207384,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 572,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.355810196,
+        "reserved_usd": 0.1056768,
+        "input_tokens": 4935602,
+        "output_tokens": 647318,
+        "settled_calls": 1498,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 1.744275772,
+    "reserved_usd": 0.1056768,
+    "remaining_usd": 18.150047428,
+    "settled_calls": 2725,
+    "reserved_calls": 0,
+    "unknown_count": 6,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.179895476,
+        "reserved_usd": 0.0,
+        "input_tokens": 3885095,
+        "output_tokens": 230826,
+        "settled_calls": 512,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 1.207384,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 572,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.355810196,
+        "reserved_usd": 0.1056768,
+        "input_tokens": 5264524,
+        "output_tokens": 666910,
+        "settled_calls": 1639,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "cache_hits": 68,
+  "live_tool_calls": 0
+}

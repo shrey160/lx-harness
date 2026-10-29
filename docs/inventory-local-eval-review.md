@@ -1,6 +1,6 @@
 # E-C live evaluation request — PROD-004 inventory, local agent (prepared 29 Oct 2026)
 
-Status: **PREPARED, NOT RUN.** Needs the user's explicit approval, with the
+Status: **RUN 29-30 Oct 2026 — STOPPED on 5 model errors, no criterion result** (60 s client timeout; see `evidence/2026-10-29-inventory-eval-local/`). Originally: needs the user's explicit approval, with the
 local server running Gemma 4 E4B.
 Controller: `lx.inventory_local_eval`, offline-tested in
 `tests/test_inventory_local_eval.py`. Authority: D-008 (a local model is a
