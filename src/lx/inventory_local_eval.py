@@ -51,9 +51,9 @@ CHECKPOINT_SPENT = Decimal("1.744275772")
 CHECKPOINT_CALLS = 2725
 
 
-def served_models(opener=urllib.request.urlopen):
-    """Model ids the local server reports as loaded (a GET, no generation); servers without the flag list only loaded ones."""
-    with opener(MODELS_URL, timeout=10) as reply:
+def served_models(opener=urllib.request.urlopen, url=MODELS_URL):
+    """Model ids the server reports as loaded (a GET, no generation); servers without the flag list only loaded ones."""
+    with opener(url, timeout=10) as reply:
         return [m.get("id") for m in json.load(reply).get("data", []) if m.get("loaded", True)]
 
 

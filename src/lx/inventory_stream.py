@@ -50,12 +50,15 @@ def stream_samples(root=DATASET):
     return order, truth
 
 
-def run_ea(root, output, client, perception, *, live=False, script_runner=None, tasks=None):
-    """Shared by the live command and the offline test (with preview doubles)."""
+def run_ea(root, output, client, perception, *, live=False, script_runner=None, tasks=None, improver=None):
+    """Shared by the live command and the offline test (with preview doubles).
+
+    ``client`` drives the agent; ``improver`` (default: the same client) drives the improver and reflector.
+    """
     stream, truth = stream_samples(root)
     adapter = InventoryAdapter(Path(root)/"worker_inputs", output, client, truth, perception=perception,
                                catalog=CATALOG, mode="live" if live else "offline_preview", script_runner=script_runner)
-    report = run_stream(adapter, output, client, tasks=tasks or stream)
+    report = run_stream(adapter, output, improver or client, tasks=tasks or stream)
     report.update(live=live, capability_evidence=live)
     gains = {t: r["harness2"]["score"] - r["base"]["score"] for t, r in report["per_sample"].items()}
     report["gains"] = gains
