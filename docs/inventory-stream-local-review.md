@@ -86,9 +86,15 @@ and the tools in S5 and T6. Before a 1.5–2 hour run, check the mechanics:
 
   Not capability evidence.
 
-Command (WSL, after approval):
+**Controller amended 30 Oct at the user's direction ("go ahead").** G1b runs no
+Harness² loop and no scripts, so it needs neither `fcntl` nor the sandbox. It runs
+from Windows, as S5, T6 local and E-C did, where Unsloth is reachable at
+`127.0.0.1`. The key comes from the core `.env` via `UNSLOTH_API_KEY`. The loaded
+file is Q8_0. Only G2 needs WSL to reach Unsloth.
+
+Command (Windows PowerShell, from `main_LX`, approved):
 ```
-wsl -e bash -lc 'cd /mnt/c/Shrey_Projs/hackathons/main_LX && PYTHONPATH=src .venv/bin/python -m lx.inventory_agent_probe --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url <APPROVED_URL> --agent-model LiquidAI/LFM3-VL-2B-GGUF'
+$env:PYTHONPATH="src;..\harness2_portable_coreendor\harness2-cli"; & .\.lx	ts-venv\Scripts\python.exe -m lx.inventory_agent_probe --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url http://127.0.0.1:8888/v1 --agent-model LiquidAI/LFM3-VL-2B-GGUF --agent-key-env UNSLOTH_API_KEY
 ```
 
 ## G2 — E-A stream (second request; T8's loop, only the agent changed)

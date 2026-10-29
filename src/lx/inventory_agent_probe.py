@@ -6,7 +6,8 @@ then describe photo 1) and one base-harness run on each of two calibration
 samples of the frozen ``inventory-mix-v1`` (a count and a colour_count, 3
 photos each; T7 ran them on Spark, so perception is mostly cached). It is a
 wire and behaviour check, not a capability measurement. Same agent settings
-and guards as G2. WSL controller. Reviewed in
+and guards as G2. Runs on any controller that reaches the provider (no loop or
+scripts). Reviewed in
 docs/inventory-stream-local-review.md (section G1b).
 """
 import argparse
