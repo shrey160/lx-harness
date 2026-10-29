@@ -32,6 +32,8 @@ class ProviderProfile:
     reasoning_effort: str | None = None
     accepts_images: bool = False
     supports_tools: bool = False
+    # OpenAI-compatible llama.cpp-style servers: sent as chat_template_kwargs.enable_thinking when set.
+    enable_thinking: bool | None = None
 
     def __post_init__(self):
         if self.kind not in KINDS or self.token_param not in TOKEN_PARAMS:
@@ -44,6 +46,8 @@ class ProviderProfile:
             raise ValueError("invalid provider price")
         if type(self.context_limit) is not int or self.context_limit < 1:
             raise ValueError("invalid context limit")
+        if self.enable_thinking is not None and type(self.enable_thinking) is not bool:
+            raise ValueError("invalid thinking setting")
 
 
 def _private_host(host):

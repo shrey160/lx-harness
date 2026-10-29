@@ -22,9 +22,11 @@ from lx.perception import PerceptionCache, PerceptionClient
 from lx.proposer import TOOLS as FILE_TOOLS
 from lx.providers import SPARK
 from lx.spark import ModelError, SparkClient
+from lx.spike import wire_reply
 from lx.usage import BudgetScope
 
 URL = "http://172.20.0.1:8888/v1"
+PROBE_SCOPE = "inventory-agent-probe-v2-thinking-on"
 MODEL = "LiquidAI/LFM3-VL-2B-GGUF"
 
 
@@ -85,6 +87,23 @@ class LocalStreamTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             local.agent_profile(URL, " ")
 
+    def test_thinking_switch_and_reply_cap_reach_the_request(self):
+        scope, _ = self._synthetic()
+        def capture(bodies):
+            return lambda body, timeout: bodies.append(body) or wire_reply("ok")
+        for thinking, expected in (("on", {"enable_thinking": True}), ("off", {"enable_thinking": False}), (None, None)):
+            bodies = []
+            client = SparkClient(capture(bodies), scope, max_tokens=8192, profile=local.agent_profile(URL, MODEL, thinking))
+            client.chat([{"role": "user", "content": "hi"}], role="worker", phase="execute")
+            self.assertEqual(bodies[0].get("chat_template_kwargs"), expected)
+            self.assertEqual(bodies[0]["max_tokens"], 8192)
+            validate_body(bodies[0], model=MODEL, tool_sets=(FILE_TOOLS, AGENT_TOOLS))  # the live contract accepts it
+        bodies = []
+        SparkClient(capture(bodies), scope).chat([{"role": "user", "content": "hi"}])
+        self.assertNotIn("chat_template_kwargs", bodies[0])  # Spark's request is unchanged
+        with self.assertRaises(ValueError):
+            local.ProviderProfile(kind="chat", endpoint=URL + "/chat/completions", model=MODEL, enable_thinking="on")
+
     def test_key_comes_from_a_named_variable_never_the_meta_key(self):
         self.assertIsNone(local.key_loader(None))
         for bad in ("MODEL_API_KEY", "META_API_KEY", "lower", "BAD-NAME", ""):
@@ -111,6 +130,8 @@ class LocalStreamTests(unittest.TestCase):
             seen.append((url, key))
             return ["gemma-4-E4B-it-GGUF"]
         refusals = [(["--agent-base-url", "http://example.com/v1"], None),
+                    (["--agent-base-url", URL, "--agent-max-tokens", "9000"], None),
+                    (["--agent-base-url", URL, "--agent-thinking", "maybe"], None),
                     (["--agent-base-url", URL, "--agent-key-env", "META_API_KEY"], None),
                     (["--agent-base-url", URL], unloaded),
                     (["--agent-base-url", URL], lambda url, key: (_ for _ in ()).throw(OSError("down")))]
@@ -148,11 +169,11 @@ class LocalStreamTests(unittest.TestCase):
         with patch.object(local, "LEDGER", path), self.assertRaisesRegex(ValueError, "older than"):
             local.guarded_ledger()
         with patch.multiple(local, LEDGER=path, CHECKPOINT_SPENT=0, CHECKPOINT_CALLS=0):
-            local.guarded_ledger(agent_probe.SCOPE, agent_probe.RUN_CAP_USD)
-            reservation = ledger.reserve("0", "tool", "segment", agent_probe.SCOPE + "/segment/x")
+            local.guarded_ledger(PROBE_SCOPE, agent_probe.RUN_CAP_USD)
+            reservation = ledger.reserve("0", "tool", "segment", PROBE_SCOPE + "/segment/x")
             ledger.settle(reservation, cost_usd=0, input_tokens=0, output_tokens=0)
             with self.assertRaisesRegex(ValueError, "already dispatched"):
-                local.guarded_ledger(agent_probe.SCOPE, agent_probe.RUN_CAP_USD)
+                local.guarded_ledger(PROBE_SCOPE, agent_probe.RUN_CAP_USD)
             local.guarded_ledger()  # the stream scope is separate
 
     def test_fixed_request_constants(self):
@@ -162,7 +183,10 @@ class LocalStreamTests(unittest.TestCase):
         self.assertEqual(local.LIMITS, {"agent_chat": 600, "improver_chat": 500, "segment": 300, "transcribe": 40})
         self.assertEqual((local.CHECKPOINT_SPENT, local.CHECKPOINT_CALLS), (local.Decimal("2.054275772"), 3576))
         self.assertEqual(local.APPROVED_DATASET, "db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322")
-        self.assertEqual((agent_probe.SCOPE, agent_probe.RUN_CAP_USD), ("inventory-agent-probe-v1", "0.10"))
+        self.assertEqual(agent_probe.RUN_CAP_USD, "0.10")
+        for thinking, scope in (("on", PROBE_SCOPE), ("off", "inventory-agent-probe-v2-thinking-off"),
+                                (None, "inventory-agent-probe-v2-thinking-default")):
+            self.assertEqual(agent_probe.scope_for(type("A", (), {"agent_thinking": thinking})), scope)
         self.assertEqual(agent_probe.RUN_SAMPLES, ("fsc-calibration-02", "mix-calibration-colourcount-01"))
         self.assertEqual(agent_probe.LIMITS, {"agent_chat": 30, "segment": 20, "transcribe": 4})
 

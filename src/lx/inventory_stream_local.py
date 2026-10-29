@@ -43,10 +43,14 @@ KEY_ENV = re.compile(r"[A-Z][A-Z0-9_]{0,63}")
 SPARK_KEY_ENVS = {"MODEL_API_KEY", "META_API_KEY"}
 
 
-def agent_profile(base_url, model):
-    """A keyless-price chat provider entry at the stated base URL (validated like any provider endpoint)."""
+THINKING = {"on": True, "off": False, None: None}
+
+
+def agent_profile(base_url, model, thinking=None):
+    """A keyless-price chat provider entry at the stated base URL (validated like any provider endpoint);
+    ``thinking`` "on"/"off" sets the server's thinking switch, None leaves the server default."""
     return ProviderProfile(kind="chat", endpoint=chat_endpoint(base_url), model=model, token_param="max_tokens",
-                           accepts_images=True, supports_tools=True)
+                           accepts_images=True, supports_tools=True, enable_thinking=THINKING[thinking])
 
 
 def key_loader(name):
@@ -71,14 +75,21 @@ def add_agent_arguments(parser):
                         help="The agent provider's OpenAI-compatible base URL, as approved (e.g. http://host:8888/v1)")
     parser.add_argument("--agent-model", required=True, help="The agent model id, as approved")
     parser.add_argument("--agent-key-env", help="Optional: environment variable holding the agent provider's key")
+    parser.add_argument("--agent-thinking", choices=("on", "off"),
+                        help="Optional: switch the model's thinking on or off (default: the server's setting)")
+    parser.add_argument("--agent-max-tokens", type=int, default=MAX_OUTPUT_TOKENS,
+                        help=f"Reply cap per agent call (default {MAX_OUTPUT_TOKENS}, as E-C; at most 8192)")
 
 
 def checked_agent(parser, args):
     """Profile and key loader for the stated agent, after its server reports the model as loaded."""
     try:
-        profile, loader = agent_profile(args.agent_base_url, args.agent_model), key_loader(args.agent_key_env)
+        profile = agent_profile(args.agent_base_url, args.agent_model, args.agent_thinking)
+        loader = key_loader(args.agent_key_env)
     except ValueError as exc:
         parser.error(str(exc))
+    if not 1 <= args.agent_max_tokens <= 8192:
+        parser.error("--agent-max-tokens must be between 1 and 8192")
     try:
         models = served_models(url=args.agent_base_url.rstrip("/")+"/models", key=loader() if loader else None)
     except (OSError, ModelError):
@@ -88,13 +99,19 @@ def checked_agent(parser, args):
     return profile, loader
 
 
-def agent_client(profile, loader, scope, limit):
-    """The agent provider accepts exactly the agent tools, with the E-C reply cap."""
+def agent_settings(args):
+    """The agent settings recorded with each run (the key's variable name, never its value)."""
+    return {"agent": args.agent_model, "agent_base_url": args.agent_base_url, "agent_key_env": args.agent_key_env,
+            "agent_thinking": args.agent_thinking, "agent_max_tokens": args.agent_max_tokens}
+
+
+def agent_client(profile, loader, scope, limit, max_tokens=MAX_OUTPUT_TOKENS):
+    """The agent provider accepts exactly the agent tools, with the stated reply cap."""
     from .live_transport import LiveMetaTransport
     transport = LiveMetaTransport(loader, profile=profile, agent_tools=TOOLS, image_types=("jpeg",),
                                   max_image_bytes=MAX_VIEW_BYTES, max_images=KEEP_IMAGES, call_limit=limit,
                                   call_ceiling=limit)
-    return SparkClient(transport, scope, max_tokens=MAX_OUTPUT_TOKENS, retries=0, profile=profile)
+    return SparkClient(transport, scope, max_tokens=max_tokens, retries=0, profile=profile)
 
 
 def guarded_ledger(scope=SCOPE, cap=RUN_CAP_USD):
@@ -131,14 +148,13 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     # Exclusive marker prevents concurrent dispatch or accidental repeat runs.
     with (output/"started.json").open("x", encoding="utf-8") as marker:
-        json.dump({"dataset_sha256": APPROVED_DATASET, "agent": profile.model, "agent_endpoint": profile.endpoint,
-                   "agent_key_env": args.agent_key_env, "max_output_tokens": MAX_OUTPUT_TOKENS,
-                   "run_cap_usd": RUN_CAP_USD, **LIMITS}, marker)
+        json.dump({"dataset_sha256": APPROVED_DATASET, **agent_settings(args), "run_cap_usd": RUN_CAP_USD, **LIMITS},
+                  marker)
     scope = BudgetScope(ledger, SCOPE, RUN_CAP_USD)
     perception = PerceptionClient(MetaToolTransport(SAM, _runtime_key, call_limit=LIMITS["segment"]),
                                   MetaToolTransport(TRANSCRIBE, _runtime_key, call_limit=LIMITS["transcribe"]),
                                   scope, PerceptionCache(ROOT/".lx"/"perception-cache"/"inventory-mix-v1"))
-    agent = agent_client(profile, loader, scope, LIMITS["agent_chat"])
+    agent = agent_client(profile, loader, scope, LIMITS["agent_chat"], args.agent_max_tokens)
     # Spark accepts only the improver file tools.
     improver = SparkClient(LiveMetaTransport(_runtime_key, image_types=("jpeg",), max_image_bytes=MAX_VIEW_BYTES,
                                              max_images=KEEP_IMAGES, call_limit=LIMITS["improver_chat"],

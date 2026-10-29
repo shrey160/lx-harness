@@ -121,6 +121,8 @@ class SparkClient:
         body = {"model": profile.model, "messages": copy.deepcopy(messages), profile.token_param: self.max_tokens}
         if profile.reasoning_effort:
             body["reasoning_effort"] = profile.reasoning_effort
+        if profile.enable_thinking is not None:
+            body["chat_template_kwargs"] = {"enable_thinking": profile.enable_thinking}
         if tools:
             body["tools"] = tools
         # Reserve the entire context ceiling instead of relying on a guessed tokenizer.

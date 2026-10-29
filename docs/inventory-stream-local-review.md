@@ -97,6 +97,49 @@ Command (Windows PowerShell, from `main_LX`, approved):
 $env:PYTHONPATH="src;..\harness2_portable_core\vendor\harness2-cli"; & .\.lx\tts-venv\Scripts\python.exe -m lx.inventory_agent_probe --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url http://127.0.0.1:8888/v1 --agent-model LiquidAI/LFM3-VL-2B-GGUF --agent-key-env UNSLOTH_API_KEY
 ```
 
+## G1b v2 — two thinking modes (30 Oct, user "Probe both")
+
+**G1b v1 failed** (`8832d9a`): no tool call. A follow-up 3-request
+diagnostic (logs, 30 Oct) found the cause. Unsloth runs LFM3 with thinking
+on, and its reasoning (about 3,700 tokens even for the view check) used the
+whole 1,536-token cap. The server's tool-call parsing works:
+- with thinking on and a 4,096-token cap, LFM3 made a correct `view` call;
+- with thinking off, it made a correct `view` call in 0.3 s, but on the
+  bare base prompt it skipped the tools.
+
+**Two new settings on the agent entry** (the llama.cpp server's own switch,
+the counterpart of Spark's `reasoning_effort`):
+- `--agent-thinking on|off`, sent as `chat_template_kwargs.enable_thinking`;
+  omitted means the server default;
+- `--agent-max-tokens` (1–8192, default 1,536 as in E-C).
+
+Both are recorded in `started.json`.
+
+**The probe is the same as v1:** a view check plus base runs on the same two
+samples, $0.10 cap and the same limits. Each mode gets its own scope,
+`inventory-agent-probe-v2-thinking-on` and `inventory-agent-probe-v2-thinking-off`.
+"answered" now counts only answers in the contract's shape; v1 counted the
+echoed input.
+
+| Mode | Cap | Expected time |
+|---|---|---|
+| thinking on | 8,192 | up to about 20 minutes (about 36 s per turn, at most 29 calls) |
+| thinking off | 1,536 | about 1 minute |
+
+Commands (Windows PowerShell, from `main_LX`; one per mode):
+```
+$env:PYTHONPATH="src;..\harness2_portable_core\vendor\harness2-cli"; & .\.lx\tts-venv\Scripts\python.exe -m lx.inventory_agent_probe --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url http://127.0.0.1:8888/v1 --agent-model LiquidAI/LFM3-VL-2B-GGUF --agent-key-env UNSLOTH_API_KEY --agent-thinking off
+```
+```
+$env:PYTHONPATH="src;..\harness2_portable_core\vendor\harness2-cli"; & .\.lx\tts-venv\Scripts\python.exe -m lx.inventory_agent_probe --approve-dataset db6c70f672638848475e9d782e5a40f2df9f8680c68b72b62f76ddecdd01c322 --agent-base-url http://127.0.0.1:8888/v1 --agent-model LiquidAI/LFM3-VL-2B-GGUF --agent-key-env UNSLOTH_API_KEY --agent-thinking on --agent-max-tokens 8192
+```
+
+**Reading:** pick the mode for G2 from tools used, contract-shaped answers,
+scores, cut-offs and time per turn.
+- **Thinking off and the tools skipped:** that is base-harness headroom the
+  loop could fix, if the model follows a skill.
+- **Thinking on:** slower, but may follow the task unaided.
+
 ## G2 — E-A stream (second request; T8's loop, only the agent changed)
 
 - Harness² k=1, sequential mode, experience library carried, on the 6
