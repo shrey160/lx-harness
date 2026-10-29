@@ -1,0 +1,140 @@
+{
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 2805357,
+        "output_tokens": 292279,
+        "spent_usd": 0.189126764
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.733664
+      }
+    },
+    "per_phase": {
+      "worker/execute": {
+        "settled_calls": 663,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.189126764
+      },
+      "tool/transcribe": {
+        "settled_calls": 31,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.003664
+      },
+      "tool/segment": {
+        "settled_calls": 292,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.73
+      }
+    },
+    "settled_calls": 986,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.922790764
+  },
+  "ledger_before": {
+    "cap_usd": 20.0,
+    "spent_usd": 0.821485008,
+    "reserved_usd": 0.1056768,
+    "remaining_usd": 19.072838192,
+    "settled_calls": 1598,
+    "reserved_calls": 0,
+    "unknown_count": 1,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.179895476,
+        "reserved_usd": 0.0,
+        "input_tokens": 3885095,
+        "output_tokens": 230826,
+        "settled_calls": 512,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 0.47372,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 249,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.166683432,
+        "reserved_usd": 0.1056768,
+        "input_tokens": 2130245,
+        "output_tokens": 355039,
+        "settled_calls": 835,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "ledger_after": {
+    "cap_usd": 20.0,
+    "spent_usd": 1.744275772,
+    "reserved_usd": 0.1056768,
+    "remaining_usd": 18.150047428,
+    "settled_calls": 2584,
+    "reserved_calls": 0,
+    "unknown_count": 1,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.179895476,
+        "reserved_usd": 0.0,
+        "input_tokens": 3885095,
+        "output_tokens": 230826,
+        "settled_calls": 512,
+        "reserved_calls": 0
+      },
+      "orchestrator": {
+        "spent_usd": 0.0001861,
+        "reserved_usd": 0.0,
+        "input_tokens": 431,
+        "output_tokens": 715,
+        "settled_calls": 2,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 1.207384,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 572,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.355810196,
+        "reserved_usd": 0.1056768,
+        "input_tokens": 4935602,
+        "output_tokens": 647318,
+        "settled_calls": 1498,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  }
+}

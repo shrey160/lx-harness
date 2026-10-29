@@ -1,6 +1,6 @@
 # E-B live evaluation request — PROD-004 inventory (prepared 29 Oct 2026)
 
-Status: **PREPARED, NOT RUN.** Needs the user's explicit approval.
+Status: **RUN 29 Oct 2026 — criterion met** (held-out gain +0.231, 95% interval [0.106, 0.366]); evidence in `evidence/2026-10-29-inventory-eval/`.
 Controller: `lx.inventory_eval`, offline-tested in
 `tests/test_inventory_eval.py`. Authority: D-008, D-010 (E-A, then E-B and
 E-C) and D-012.
