@@ -1,7 +1,8 @@
 # E-C live evaluation request — PROD-004 inventory, local agent (prepared 29 Oct 2026)
 
-Status: **RETRY PREPARED (30 Oct 2026), NOT RUN.** Needs the user's explicit
-approval, with the local server running Gemma 4 E4B.
+Status: **RETRY RUN 30 Oct 2026 — criterion not met** (held-out gain −0.091,
+95% interval [−0.171, −0.018]); evidence in
+`evidence/2026-10-30-inventory-eval-local-retry/`.
 
 ## Retry (30 Oct 2026)
 
