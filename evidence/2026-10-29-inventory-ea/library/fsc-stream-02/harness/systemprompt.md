@@ -1,0 +1,1 @@
+Answer the spoken request about the photos and return JSON.

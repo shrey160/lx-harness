@@ -1,0 +1,135 @@
+{
+  "means": {
+    "base": 0.3148148148148148,
+    "harness2": 0.6574074074074074
+  },
+  "gains": {
+    "fsc-stream-01": -0.11111111111111105,
+    "mix-stream-colourcount-01": 0.0,
+    "mix-stream-inventory-01": 0.0,
+    "fsc-stream-02": 1.0,
+    "mix-stream-colourcount-02": 0.6666666666666666,
+    "mix-stream-inventory-02": 0.5
+  },
+  "improved": [
+    "fsc-stream-02",
+    "mix-stream-colourcount-02",
+    "mix-stream-inventory-02"
+  ],
+  "regressed": [
+    "fsc-stream-01"
+  ],
+  "run": {
+    "domain": "lx_inventory",
+    "n_tasks": 6,
+    "seed": null,
+    "done": 6,
+    "failed": 0,
+    "tasks": [
+      {
+        "task": "fsc-stream-01",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 0
+        }
+      },
+      {
+        "task": "mix-stream-colourcount-01",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 0
+        }
+      },
+      {
+        "task": "mix-stream-inventory-01",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 1
+        }
+      },
+      {
+        "task": "fsc-stream-02",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 1
+        }
+      },
+      {
+        "task": "mix-stream-colourcount-02",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 2
+        }
+      },
+      {
+        "task": "mix-stream-inventory-02",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 2
+        }
+      }
+    ]
+  },
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 2278755,
+        "output_tokens": 110727,
+        "spent_usd": 0.109839152
+      },
+      "worker": {
+        "input_tokens": 1051347,
+        "output_tokens": 106473,
+        "spent_usd": 0.072456486
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.133156
+      }
+    },
+    "per_phase": {
+      "worker/execute": {
+        "settled_calls": 255,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.072456486
+      },
+      "tool/transcribe": {
+        "settled_calls": 6,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.000656
+      },
+      "tool/segment": {
+        "settled_calls": 53,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.1325
+      },
+      "improver/improvement": {
+        "settled_calls": 179,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.066554034
+      },
+      "improver/reflection": {
+        "settled_calls": 47,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.043285118
+      }
+    },
+    "settled_calls": 540,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.315451638
+  },
+  "cache_hits": 93,
+  "live_tool_calls": 59
+}

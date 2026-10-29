@@ -1,0 +1,198 @@
+{
+  "experiment": "E-A",
+  "k": 1,
+  "mode": "seq",
+  "stream": [
+    "fsc-stream-01",
+    "mix-stream-colourcount-01",
+    "mix-stream-inventory-01",
+    "fsc-stream-02",
+    "mix-stream-colourcount-02",
+    "mix-stream-inventory-02"
+  ],
+  "run": {
+    "domain": "lx_inventory",
+    "n_tasks": 6,
+    "seed": null,
+    "done": 6,
+    "failed": 0,
+    "tasks": [
+      {
+        "task": "fsc-stream-01",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 0
+        }
+      },
+      {
+        "task": "mix-stream-colourcount-01",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 0
+        }
+      },
+      {
+        "task": "mix-stream-inventory-01",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 1
+        }
+      },
+      {
+        "task": "fsc-stream-02",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 1
+        }
+      },
+      {
+        "task": "mix-stream-colourcount-02",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 2
+        }
+      },
+      {
+        "task": "mix-stream-inventory-02",
+        "status": "ok",
+        "library_entries_before": {
+          "seq": 2
+        }
+      }
+    ]
+  },
+  "per_sample": {
+    "fsc-stream-01": {
+      "base": {
+        "score": 0.8888888888888888,
+        "passed": 8,
+        "checks": 9
+      },
+      "harness2": {
+        "score": 0.7777777777777778,
+        "passed": 7,
+        "checks": 9
+      },
+      "chosen_label": "c1",
+      "chosen_is_base": false,
+      "files_added": [
+        "skills/photo-inventory/SKILL.md"
+      ],
+      "status": "ok"
+    },
+    "mix-stream-colourcount-01": {
+      "base": {
+        "score": 1.0,
+        "passed": 8,
+        "checks": 8
+      },
+      "harness2": {
+        "score": 1.0,
+        "passed": 8,
+        "checks": 8
+      },
+      "chosen_label": "c1",
+      "chosen_is_base": false,
+      "files_added": [
+        "skills/inventory/SKILL.md"
+      ],
+      "status": "ok"
+    },
+    "mix-stream-inventory-01": {
+      "base": {
+        "score": 0.0,
+        "passed": 0,
+        "checks": 9
+      },
+      "harness2": {
+        "score": 0.0,
+        "passed": 0,
+        "checks": 9
+      },
+      "chosen_label": "c1",
+      "chosen_is_base": false,
+      "files_added": [
+        "skills/inventory/SKILL.md"
+      ],
+      "status": "ok"
+    },
+    "fsc-stream-02": {
+      "base": {
+        "score": 0.0,
+        "passed": 0,
+        "checks": 8
+      },
+      "harness2": {
+        "score": 1.0,
+        "passed": 8,
+        "checks": 8
+      },
+      "chosen_label": "c1",
+      "chosen_is_base": false,
+      "files_added": [
+        "skills/inventory/SKILL.md"
+      ],
+      "status": "ok"
+    },
+    "mix-stream-colourcount-02": {
+      "base": {
+        "score": 0.0,
+        "passed": 0,
+        "checks": 9
+      },
+      "harness2": {
+        "score": 0.6666666666666666,
+        "passed": 6,
+        "checks": 9
+      },
+      "chosen_label": "c1",
+      "chosen_is_base": false,
+      "files_added": [
+        "skills/inventory/SKILL.md"
+      ],
+      "status": "ok"
+    },
+    "mix-stream-inventory-02": {
+      "base": {
+        "score": 0.0,
+        "passed": 0,
+        "checks": 8
+      },
+      "harness2": {
+        "score": 0.5,
+        "passed": 4,
+        "checks": 8
+      },
+      "chosen_label": "c1",
+      "chosen_is_base": false,
+      "files_added": [
+        "skills/inventory/SKILL.md"
+      ],
+      "status": "ok"
+    }
+  },
+  "means": {
+    "base": 0.3148148148148148,
+    "harness2": 0.6574074074074074
+  },
+  "grading": "controller-side checklist after the run; never shown to the improver",
+  "executions_this_invocation": 24,
+  "live": true,
+  "capability_evidence": true,
+  "gains": {
+    "fsc-stream-01": -0.11111111111111105,
+    "mix-stream-colourcount-01": 0.0,
+    "mix-stream-inventory-01": 0.0,
+    "fsc-stream-02": 1.0,
+    "mix-stream-colourcount-02": 0.6666666666666666,
+    "mix-stream-inventory-02": 0.5
+  },
+  "improved": [
+    "fsc-stream-02",
+    "mix-stream-colourcount-02",
+    "mix-stream-inventory-02"
+  ],
+  "regressed": [
+    "fsc-stream-01"
+  ]
+}
