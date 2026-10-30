@@ -97,19 +97,21 @@ keys, budgets and approvals. A provider added in one does not appear in the othe
 A preview makes no live calls and spends nothing. Its responses are scripted, and
 its usage is simulated.
 
-1. On Workflows, enter a name and a workspace folder. Browse opens a folder dialog
-   on native Windows; elsewhere, type the path.
-2. Set Task to Photo inventory, and Samples to Add the synthetic demo samples.
-3. Create the workflow, go to the spec step, tick the approvals and approve.
-4. Start the controlled preview. The run page updates as it goes.
+1. Choose New workspace and enter a folder. Browse opens a folder dialog on native
+   Windows; elsewhere, type the path.
+2. Keep Task on Photo inventory, set Samples to Add the synthetic samples, and create
+   the workspace.
+3. On the Spec tab, choose Review and approve, then Approve.
+4. On the Runs tab, start the preview. The run's page updates as it goes.
 
-The default task, Image annotation demo, is the older pixel-box demo. It accepts
-only its constructed samples and is a poor test of the loop.
+The other task, Image annotation demo, is the older pixel-box demo. It accepts only
+its constructed samples and is a poor test of the loop.
 
 ## Set up a provider
 
-Under Models, add an entry. Any chat provider with an OpenAI-compatible endpoint can
-fill any role: orchestrator, improver or worker.
+In Settings, under Providers, choose Add provider. Presets fill in OpenRouter, NVIDIA
+or a local server, and you can change any value. Any chat provider with an
+OpenAI-compatible endpoint can fill any role: orchestrator, improver or worker.
 
 | Field | Notes |
 |---|---|
@@ -136,11 +138,11 @@ server. Other hosts need HTTPS.
 
 Test on a provider's entry sends one short live message to check the key, endpoint
 and model. It does not test images or tool calls, and it spends from a separate $1
-ledger. Then assign providers to roles on the spec page.
+ledger. Then assign providers to roles on a workspace's Spec tab.
 
 At $0 a budget counts nothing, so only the call limits bound the run. A live spec
 warns about this. A provider that states each call's cost, as OpenRouter does, gets
-a comparison with your prices on the run page, and a warning above 5%.
+a comparison with your prices on the run's page, and a warning above 5%.
 
 ### Meta models
 
@@ -187,6 +189,7 @@ samples/
   every sample; `request.txt` works only in a preview. To convert a recording:
   `ffmpeg -i in.m4a -ac 1 -ar 16000 -sample_fmt s16 request.wav`
 - **Size:** at most 100 files and 200 MiB for a task. A ZIP upload is limited to 20 MiB.
+- **From a frozen dataset:** `scripts/export_samples.py` writes this layout.
 - **Truth:** `truth.json` reaches only the check, never the worker or the improver.
 
 For the inventory task, `truth.json` holds what is really in each photo. Each photo
@@ -255,7 +258,7 @@ full example.
 
 ## Run limits
 
-Set these on the spec page under Run limits. Each has a default and a hard outer
+Set these on the Spec tab under Advanced. Each has a default and a hard outer
 bound (`lx.limits`).
 
 | Limit | Default |
@@ -288,8 +291,8 @@ Each spec also has a run budget. Calls are reserved before they are sent, and th
 actual cost comes from reported usage at the prices you entered, which can differ
 from your provider's bill.
 
-The run page shows agent runs answered, improver sessions finished, why any failed,
-and samples left ungraded. From there:
+The Runs tab lists every run. A run's page shows samples done, agent runs answered,
+improver sessions finished, why any failed, and samples left ungraded. From there:
 
 - **Stop and Resume:** a failed, cancelled or interrupted run can resume.
 - **Grade saved answers:** a failed task run whose loop finished can be graded from
@@ -312,6 +315,9 @@ Your workspace holds `.lx/`, which LX adds to a `.gitignore`:
   packages/<id>/        the reusable harness
   preview-usage.sqlite3 simulated usage
 ```
+
+Settings shows spending across workspaces, the script sandbox's status and the tools
+an agent can call.
 
 Provider entries, approvals, budgets and real-spend ledgers stay in user-level state
 at `~/.local/state/lx-harness/`, so writing to the folder cannot approve a run. Any

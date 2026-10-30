@@ -4,8 +4,16 @@ The React interface, served by `lx.server` from `web/dist/`.
 
 | Path | Purpose |
 |---|---|
-| `src/app.jsx` | The whole interface: workflow steps, Models, Usage, Evidence |
-| `src/style.css` | Styles |
+| `src/app.jsx` | Entry point: loads state every 1.2 seconds and chooses the page |
+| `src/api.js` | API calls and shared display helpers |
+| `src/Sidebar.jsx` | New workspace, the workspace list, Settings |
+| `src/NewWorkspace.jsx` | Create or open a workspace |
+| `src/Workspace.jsx` | Workspace header and tabs; the Samples and Discuss tabs |
+| `src/SpecTab.jsx` | Spec, limits and the approval review |
+| `src/RunsTab.jsx` | Run list and run page |
+| `src/Settings.jsx` | Settings: Tools, Usage, General |
+| `src/Providers.jsx` | Settings: the provider list and form |
+| `src/style.css` | The dark theme: colours are tokens at the top |
 | `src/index.html` | Page shell |
 | `build.mjs` | esbuild bundling into `dist/` |
 
