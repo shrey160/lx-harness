@@ -14,12 +14,23 @@ from lx.budget import BudgetExceeded
 from lx.usage import BudgetScope
 
 
+class MemoryKeychain:
+    """Never the real Credential Manager in tests."""
+    def __init__(self, usable=True):
+        self.values, self.usable = {}, usable
+    def available(self): return self.usable
+    def set(self, name, value): self.values[name] = value
+    def get(self, name): return self.values.get(name)
+    def delete(self, name): self.values.pop(name, None)
+
+
 @unittest.skipUnless(os.name in ("posix","nt"),"requires a WSL, Linux or Windows controller")
 class ApplicationFlowTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.app = Engine(Path(self.temp.name)/"state")
+        self.keychain = MemoryKeychain()
+        self.app = Engine(Path(self.temp.name)/"state",keychain=self.keychain)
 
     def folder(self):
         return tempfile.mkdtemp(dir=self.temp.name)
@@ -39,7 +50,8 @@ class ApplicationFlowTests(unittest.TestCase):
         self.assertIsNone(p["approved"])
         self.assertEqual(p["draft"]["version"],2)
         with self.assertRaises(ValueError): self.app.start(p["id"],launch=False)
-        with self.assertRaises(ValueError): self.app.edit_spec(p["id"],{"model":"sam-catalog"})
+        with self.assertRaises(ValueError):
+            self.app.edit_spec(p["id"],{"roles":{"orchestrator":"sam-catalog","improver":"spark-contributor","worker":"spark-contributor"}})
 
     def test_real_managed_core_job_package_and_fresh_reuse(self):
         project = self.project()
@@ -127,7 +139,7 @@ class ApplicationFlowTests(unittest.TestCase):
         workspace = self.workspace(p)
         snapshot = workspace.run_dir(job["id"])/"snapshot"
         (snapshot/"manifest.json").write_text("changed", encoding="utf-8")
-        with patch.object(self.app,"build_client") as client:
+        with patch.object(self.app,"build_clients") as client:
             with self.assertRaisesRegex(ValueError,"Frozen snapshot changed"):
                 execute(self.app,workspace,job["id"],snapshot)
         client.assert_not_called()
@@ -204,3 +216,101 @@ class ApplicationFlowTests(unittest.TestCase):
         self.assertEqual([p["id"] for p in state["projects"]],[keep["id"]])
         self.assertEqual(state["missing_workspaces"],[str(Path(gone["path"]))])
 
+    def entry(self,name,**fields):
+        values = {"base_url":"https://openrouter.ai/api/v1","accepts_images":True,"supports_tools":True,
+                  "pricing":{"input_per_million":0.0375,"output_per_million":0.15},"context_limit":32768}
+        return self.app.registry.create(name,"test/"+name,["General"],**{**values,**fields})
+
+    def three_roles(self):
+        return {"orchestrator":self.entry("gilmer",api_key="dummy-key-gilmer")["id"],
+                "improver":self.entry("local",base_url="http://127.0.0.1:8888/v1",pricing={"input_per_million":0,"output_per_million":0})["id"],
+                "worker":self.entry("vision",api_key="dummy-key-vision")["id"]}
+
+    def test_three_providers_in_three_roles_complete_a_run_and_keys_stay_out_of_the_folder(self):
+        roles = self.three_roles()
+        project = self.app.edit_spec(self.project()["id"],{"goal":"Three providers","budget_usd":1,"roles":roles})
+        self.assertEqual(project["draft"]["roles"],roles)
+        self.assertEqual(project["draft"]["providers"]["orchestrator"]["base_url"],"https://openrouter.ai/api/v1")
+        project = self.app.approve(project["id"],{"version":project["draft"]["version"],"data_approved":True})
+        job = self.app.start(project["id"],launch=False)
+        run = subprocess.run([sys.executable,"-m","lx.worker","--root",str(self.app.root),"--workspace",project["path"],"--job",job["id"]],
+                             capture_output=True,text=True,timeout=90)
+        self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+        workspace = self.workspace(project)
+        saved = workspace.run(job["id"])
+        self.assertEqual(saved["status"],"completed",saved)
+        self.assertTrue(all(saved["result"]["checks"]["heldout"].values()))
+        usage = workspace.preview_ledger.summary()["per_role"]
+        for role in roles:
+            self.assertGreater(usage[role]["input_tokens"],0,role)
+        self.assertEqual(usage["improver"]["spent_usd"],0)  # its entry is free
+        self.assertGreater(usage["worker"]["spent_usd"],0)
+        self.assertEqual(self.app.state()["jobs"][0]["status"],"completed")
+        for path in [*Path(project["path"]).rglob("*"),*self.app.root.rglob("*")]:
+            if path.is_file():
+                self.assertNotIn(b"dummy-key-",path.read_bytes(),path)
+        self.assertEqual(sorted(self.keychain.values.values()),["dummy-key-gilmer","dummy-key-vision"])
+
+    def test_a_provider_changed_after_approval_stops_the_run(self):
+        roles = self.three_roles()
+        project = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})
+        project = self.app.approve(project["id"],{"version":project["draft"]["version"],"data_approved":True})
+        self.app.registry.update(roles["worker"],base_url="https://elsewhere.example/v1")
+        with self.assertRaisesRegex(ValueError,"provider changed"):
+            self.app.start(project["id"],launch=False)
+
+    def test_roles_need_the_abilities_they_use(self):
+        p = self.project()
+        good = self.entry("good")["id"]
+        def spec(**roles):
+            return self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"roles":{"orchestrator":good,"improver":good,"worker":good,**roles}})
+        with self.assertRaisesRegex(ValueError,"tool calls"):
+            spec(improver=self.entry("no-tools",supports_tools=False)["id"])
+        with self.assertRaisesRegex(ValueError,"accept images"):
+            spec(worker=self.entry("no-images",accepts_images=False)["id"])
+        with self.assertRaisesRegex(ValueError,"chat provider"):
+            spec(worker=self.app.registry.create("no-url","test/no-url",["General"])["id"])
+        self.assertEqual(spec()["draft"]["roles"]["worker"],good)
+        with self.assertRaisesRegex(ValueError,"Assign a provider"):
+            self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"roles":{"worker":good}})
+
+    def test_a_live_run_needs_prices_so_its_budget_means_something(self):
+        p = self.project()
+        unpriced = self.entry("unpriced",pricing=None)["id"]
+        with self.assertRaisesRegex(ValueError,"prices"):
+            self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"mode":"live","roles":{"orchestrator":unpriced,"improver":unpriced,"worker":unpriced}})
+
+    def test_contributor_disclosure_is_asked_only_when_spark_has_a_role(self):
+        p = self.project()
+        with self.assertRaisesRegex(ValueError,"Contributor"):
+            self.app.approve(p["id"],{"version":p["draft"]["version"],"data_approved":True})
+
+    def test_real_spend_is_per_workspace_and_kept_outside_the_folder(self):
+        from lx.workflow import PreviewTransport
+        self.app._live_transport_factory = lambda hint=None: PreviewTransport(hint if hint is not None else self.app.demo.controller_truth)
+        roles = {r:self.entry("paid-"+r)["id"] for r in ("orchestrator","improver","worker")}
+        first = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"mode":"live","roles":roles})
+        other = self.project()
+        workspace = self.workspace(first)
+        clients = self.app.build_clients(workspace,first["draft"],"scope",1)
+        clients["worker"].chat([{"role":"developer","content":"LX_PREFLIGHT"}],role="worker",phase="preflight",candidate="one")
+        self.assertGreater(self.app._ledger(workspace).summary()["settled_calls"],0)
+        self.assertEqual(self.app._ledger(self.workspace(other)).summary()["settled_calls"],0)
+        self.assertFalse(list(workspace.home.rglob("*ledger*")))
+        self.app.set_budget(first["id"],0.11)
+        before = self.app.project(first["id"])["budget"]["spent_usd"]
+        self.assertGreater(before,0)
+        self.assertEqual(self.app.project(first["id"])["budget"]["cap_usd"],0.11)
+
+    def test_a_run_budget_over_the_workspace_budget_is_refused_at_approval(self):
+        roles = {r:self.entry("big-"+r)["id"] for r in ("orchestrator","improver","worker")}
+        p = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":2,"mode":"live","roles":roles})
+        self.app.set_budget(p["id"],1)
+        with self.assertRaisesRegex(ValueError,"workspace budget"):
+            self.app.approve(p["id"],{"version":p["draft"]["version"],"data_approved":True})
+
+    def test_a_scratch_root_never_builds_a_real_transport(self):
+        roles = {r:self.entry("scratch-"+r)["id"] for r in ("orchestrator","improver","worker")}
+        p = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"mode":"live","roles":roles})
+        with self.assertRaisesRegex(ValueError,"Live runs are unavailable"):
+            self.app.discuss(p["id"],"hello",True)

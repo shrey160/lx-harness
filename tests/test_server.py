@@ -14,11 +14,22 @@ from lx.engine import Engine
 from lx.server import server_for
 
 
+class MemoryKeychain:
+    """Never the real Credential Manager in tests."""
+    def __init__(self, usable=True):
+        self.values, self.usable = {}, usable
+    def available(self): return self.usable
+    def set(self, name, value): self.values[name] = value
+    def get(self, name): return self.values.get(name)
+    def delete(self, name): self.values.pop(name, None)
+
+
 class ServerBoundaryTests(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory(dir=None if os.name == "posix" else Path(__file__).resolve().parents[1])
         self.addCleanup(self.tempdir.cleanup)
-        self.app = Engine(Path(self.tempdir.name) / "app-root")
+        self.keychain = MemoryKeychain()
+        self.app = Engine(Path(self.tempdir.name) / "app-root", keychain=self.keychain)
         self.assertIsNone(self.app.live_ledger)
         self.server = server_for(self.app, 0)
         self.thread = Thread(target=self.server.serve_forever, daemon=True)
@@ -68,7 +79,7 @@ class ServerBoundaryTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(state["mode"], "controlled_preview")
         self.assertTrue(state["live_application_enabled"])
-        self.assertEqual(state["live_flow"], "approval_gated_spark_only")
+        self.assertEqual(state["live_flow"], "approval_gated_any_provider")
         self.assertIsNone(state["live_usage"])
         serialized = json.dumps(state)
         self.assertNotIn("secret_ref", serialized)
@@ -157,10 +168,16 @@ class ServerBoundaryTests(unittest.TestCase):
         self.assertEqual(status, 200)
         project_id = project["id"]
         status, rejected, _ = self.request(
-            "POST", f"/api/projects/{project_id}/spec", {"model": "sam-catalog"}, token=self.token
+            "POST", f"/api/projects/{project_id}/spec",
+            {"roles": {"orchestrator": "sam-catalog", "improver": "spark-contributor", "worker": "spark-contributor"}},
+            token=self.token,
         )
         self.assertEqual(status, 400)
-        self.assertIn("Only Spark Contributor", rejected["error"])
+        self.assertIn("chat provider", rejected["error"])
+        status, budgeted, _ = self.request("POST", f"/api/projects/{project_id}/budget", {"cap_usd": 3}, token=self.token)
+        self.assertEqual(status, 200, budgeted)
+        self.assertEqual(budgeted["budget"]["cap_usd"], 3)
+        self.assertEqual(list(self.keychain.values.values()), ["dummy-rotated-key"])
 
         status, state, _ = self.request("GET", "/api/state")
         self.assertEqual(status, 200)

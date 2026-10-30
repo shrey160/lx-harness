@@ -118,12 +118,10 @@ class LiveTransportTests(unittest.TestCase):
 class LiveWiringTests(unittest.TestCase):
     def setUp(self):
         from lx.engine import Engine
-        from lx.budget import BudgetLedger
         from lx.workflow import PreviewTransport
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.app = Engine(Path(self.temp.name))
-        self.app.live_ledger = BudgetLedger(Path(self.temp.name) / "live.sqlite3", initial_spend_usd=0)
         truth = self.app.demo.controller_truth
         self.app._live_transport_factory = lambda hint=None: PreviewTransport(hint if hint is not None else truth)
 
@@ -137,13 +135,14 @@ class LiveWiringTests(unittest.TestCase):
         return self.app.approve(project["id"], {"version": project["draft"]["version"],
                                                 "data_approved": True, "contributor_accepted": True})
 
-    def test_live_discussion_uses_live_ledger_only(self):
+    def test_live_discussion_uses_the_workspace_ledger_only(self):
         project = self._live_project()
         ledger = self.app.workspace(project["id"]).preview_ledger
         before = ledger.summary()["settled_calls"]
         updated = self.app.discuss(project["id"], "Keep exact text", True, "live")
         self.assertEqual(len(updated["messages"]), 2)
-        rows = [r for r in __import__("lx.usage", fromlist=["usage_rows"]).usage_rows(self.app.live_ledger, "discussion-")]
+        spending = self.app._ledger(self.app.workspace(project["id"]))
+        rows = [r for r in __import__("lx.usage", fromlist=["usage_rows"]).usage_rows(spending, "discussion-")]
         self.assertTrue(rows)
         self.assertEqual(ledger.summary()["settled_calls"], before)
 
@@ -156,7 +155,7 @@ class LiveWiringTests(unittest.TestCase):
         self.assertTrue(result["live"])
         self.assertFalse(result["simulated_usage"])
         self.assertTrue(all(result["checks"]["heldout"].values()))
-        self.assertGreater(self.app.live_ledger.summary()["settled_calls"], 0)
+        self.assertGreater(self.app._ledger(workspace).summary()["settled_calls"], 0)
         reuse = self.app.fresh(project["id"], job["id"])
         self.assertEqual(reuse["mode"], "live")
         self.assertTrue(reuse["accepted"], reuse)

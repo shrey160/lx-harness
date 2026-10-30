@@ -1,10 +1,11 @@
-"""Constrained Meta transport for the O-11 application live flow.
+"""Constrained chat transport for live application calls.
 
-Approval: application-live-review.md, approved by the user on execution of
-the PROD-001 continuation plan. This transport is deliberately not generic:
-fixed endpoint, one model, approved payload shapes only. Credentials are
-supplied by a caller-provided loader at construction time in the WSL
-controller only; no value is logged, returned, or passed to workers.
+Approved payload shapes only, one profile per transport, no redirects, and a
+provider's error bodies are withheld. Spark was the only provider at first
+(O-11, application-live-review.md); D-015 opens this to any provider entry a
+human approved in the spec. Credentials come from a caller-provided loader at
+construction time in the controller only; no value is logged, returned, or
+passed to workers.
 """
 from __future__ import annotations
 
@@ -126,7 +127,7 @@ class LiveMetaTransport:
             raise ModelError("call limit outside approved bounds")
         self._key = credential_loader() if credential_loader is not None else None
         if credential_loader is not None and (not isinstance(self._key, str) or not self._key):
-            raise ModelError("Spark credential unavailable to the application runtime")
+            raise ModelError("credential unavailable to the application runtime")
         self.profile = profile
         self._contract = {"model": profile.model, "tool_sets": (TOOLS,) + ((agent_tools,) if agent_tools else ()),
                           "image_types": tuple(image_types), "max_image_bytes": max_image_bytes,

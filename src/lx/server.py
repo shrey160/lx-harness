@@ -89,17 +89,18 @@ def server_for(app, port=8765):
                 elif route == ["api","models"]:
                     result = app.registry.create(data.get("name"),data.get("model_id"),data.get("capabilities"),data.get("api_key"),
                         base_url=data.get("base_url"),accepts_images=data.get("accepts_images",False),
-                        supports_tools=data.get("supports_tools",False),pricing=data.get("pricing"))
+                        supports_tools=data.get("supports_tools",False),pricing=data.get("pricing"),context_limit=data.get("context_limit"))
                 elif len(route)==4 and route[:2]==["api","models"]:
                     if route[3]=="update": result = app.registry.update(route[2],name=data.get("name"),capabilities=data.get("capabilities"),api_key=data.get("api_key"),
                         base_url=data.get("base_url"),accepts_images=data.get("accepts_images"),
-                        supports_tools=data.get("supports_tools"),pricing=data.get("pricing"))
+                        supports_tools=data.get("supports_tools"),pricing=data.get("pricing"),context_limit=data.get("context_limit"))
                     elif route[3]=="delete": app.registry.delete(route[2]); result={"deleted":True}
                     else: raise ValueError("Unknown model action")
                 elif len(route)==4 and route[:2]==["api","projects"]:
                     identifier,action = route[2:]
                     if action=="discuss": result=app.discuss(identifier,data.get("text"),data.get("data_approved"),data.get("mode"))
                     elif action=="spec": result=app.edit_spec(identifier,data)
+                    elif action=="budget": result=app.set_budget(identifier,data.get("cap_usd"))
                     elif action=="approve": result=app.approve(identifier,data)
                     elif action=="run": result=app.start(identifier)
                     else: raise ValueError("Unknown project action")

@@ -2,12 +2,15 @@
 
 Every project is a workspace folder (lx.workspace). The engine itself is
 user-level: it remembers which folders are open and holds the model registry,
-the demo truth and the approval records. Approval lives here, not in the folder,
-so an agent working in a workspace cannot write itself an approval.
+the demo truth, the approval records and each workspace's real-spend ledger.
+Those live here, not in the folder, so an agent working in a workspace can
+neither approve a run nor reset what it has spent.
 
-Specs default to controlled preview. A spec saved with mode "live" runs real
-Spark calls only after versioned spec, data, budget and Contributor approval,
-under the shared $20 pilot ledger. The JSON live spike stays in lx.live.
+Any chat provider entry can fill any role, and the spec binds each role to that
+entry's endpoint and prices. Specs default to controlled preview. A spec saved
+with mode "live" makes real calls only after versioned spec, data and budget
+approval, under the workspace's own cap. The shared $20 pilot ledger
+(live_ledger) stays for our experiments only.
 """
 from __future__ import annotations
 
@@ -28,6 +31,7 @@ import zipfile
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
 from .intake import IntakeError, inspect_folder, snapshot_folder, snapshot_zip
+from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveMetaTransport
 from .registry import Registry
 from .spark import SparkClient
@@ -39,6 +43,9 @@ from .workspace import Workspace, native_path
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ROOT = Path.home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
 SAMPLES = "samples"
+ROLES = ("orchestrator","improver","worker")
+DEFAULT_ROLE_ENTRY = "spark-contributor"
+DEFAULT_WORKSPACE_BUDGET = 5
 
 
 def fingerprint(value):
@@ -46,16 +53,17 @@ def fingerprint(value):
 
 
 class Engine:
-    def __init__(self, root=DEFAULT_ROOT):
+    def __init__(self, root=DEFAULT_ROOT, keychain=None):
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.store = Store(self.root/"app.sqlite3")
         secret_root = (Path.home()/".local"/"share"/"lx-harness"/fingerprint(str(ROOT))[:16]/"secrets"
                        if self.root == DEFAULT_ROOT.resolve() and os.name == "posix" else self.root/"secrets")
-        self.registry = Registry(self.root/"app.sqlite3", secret_root)
+        self.registry = Registry(self.root/"app.sqlite3", secret_root, keychain or SystemKeychain())
         self.demo = build_demo_dataset(self.root/"demo")
         # Real pilot spend is never reset by creating the engine or previews.
         self.live_ledger = BudgetLedger(ROOT/".lx"/"live-spike"/"pilot-budget.sqlite3") if self.root == DEFAULT_ROOT.resolve() else None
+        self.live_enabled = self.root == DEFAULT_ROOT.resolve()  # a scratch root never makes real calls
         self._live_transport_factory = None
 
     def make_live_transport(self, call_limit=RUN_CALL_LIMIT, truth_hint=None):
@@ -63,16 +71,77 @@ class Engine:
             return self._live_transport_factory(truth_hint)
         return LiveMetaTransport(lambda: self.registry.credential("spark-contributor"), call_limit=call_limit)
 
-    def build_client(self, workspace, mode, scope_id, cap_usd, *, call_limit=RUN_CALL_LIMIT):
-        """Live mode spends from the shared pilot ledger; preview never does."""
-        if mode == "live":
-            if self.live_ledger is None:
-                raise ValueError("Live runs are unavailable in this workspace; use the local app workspace")
-            transport = self.make_live_transport(call_limit, self.demo.controller_truth)
-            return SparkClient(transport, BudgetScope(self.live_ledger, scope_id, cap_usd))
-        if mode == "controlled_preview":
-            return SparkClient(PreviewTransport(self.demo.controller_truth), BudgetScope(workspace.preview_ledger, scope_id, cap_usd))
-        raise ValueError("Unknown run mode")
+    def _transport(self, entry, profile, call_limit, truth):
+        if self._live_transport_factory is not None:
+            return self._live_transport_factory(truth)
+        if not self.live_enabled:
+            raise ValueError("Live runs are unavailable here; use the local app workspace")
+        if entry == DEFAULT_ROLE_ENTRY:
+            return self.make_live_transport(call_limit, truth)
+        keyed = any(m["id"] == entry and m["has_key"] for m in self.registry.list_models())
+        return LiveMetaTransport((lambda: self.registry.credential(entry)) if keyed else None,
+                                 call_limit=call_limit, profile=profile)
+
+    def build_clients(self, workspace, spec, scope_id, cap_usd, *, call_limit=RUN_CALL_LIMIT, truth=None):
+        """One client per role. Live spends from the workspace ledger; preview never does.
+
+        Roles sharing an entry share a transport, so its call limit covers the run."""
+        mode = spec.get("mode")
+        if mode not in {"live","controlled_preview"}:
+            raise ValueError("Unknown run mode")
+        truth = truth if truth is not None else self.demo.controller_truth
+        ledger = self._ledger(workspace) if mode == "live" else workspace.preview_ledger
+        transports, clients = {}, {}
+        for role in ROLES:
+            entry = spec["roles"][role]
+            profile = self.registry.profile(entry)
+            if entry not in transports:
+                transports[entry] = self._transport(entry, profile, call_limit, truth) if mode == "live" else PreviewTransport(truth)
+            clients[role] = SparkClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile)
+        return clients
+
+    def _ledger(self, workspace):
+        identifier = workspace.project()["id"]
+        return BudgetLedger(self.root/"ledgers"/f"{identifier}.sqlite3", self._workspace_budget(identifier), 0, adopt_cap=True)
+
+    def _workspace_budget(self, identifier):
+        try:
+            return self.store.get("budget", identifier)["cap_usd"]
+        except ValueError:
+            return DEFAULT_WORKSPACE_BUDGET
+
+    def set_budget(self, identifier, cap_usd):
+        """The most this workspace may spend in total, across runs. Recorded spend stays."""
+        self.workspace(identifier)
+        if isinstance(cap_usd, bool) or not isinstance(cap_usd, (int,float)) or not math.isfinite(cap_usd) or not 0.11 <= cap_usd <= 20:
+            raise ValueError("A workspace budget must be between $0.11 and $20")
+        self.store.save("budget", {"id":identifier,"cap_usd":cap_usd})
+        return self.project(identifier)
+
+    def _provider(self, entry):
+        """What an approval binds for a role: where its data goes and the price. Never the key."""
+        model = next((m for m in self.registry.list_models() if m["id"] == entry), None)
+        if model is None or not model["role_ready"]:
+            raise ValueError("Each role needs a chat provider entry with an endpoint")
+        return {key:model[key] for key in ("id","name","model_id","base_url","pricing","context_limit","accepts_images","supports_tools","priced")}
+
+    def _assign(self, roles, mode):
+        unknown = set(roles) - set(ROLES)
+        if unknown or set(roles) != set(ROLES):
+            raise ValueError("Assign a provider to the orchestrator, improver and worker")
+        providers = {role:self._provider(roles[role]) for role in ROLES}
+        if not providers["improver"]["supports_tools"]:
+            raise ValueError("The improver's provider must support tool calls")
+        if not providers["worker"]["accepts_images"]:
+            raise ValueError("The worker's provider must accept images for this workflow")
+        if mode == "live" and not all(p["priced"] for p in providers.values()):
+            raise ValueError("A live run needs input and output prices on every provider, so its budget can be enforced; use 0 for a free one")
+        return providers
+
+    def _check_providers(self, spec):
+        current = {role:self._provider(spec["roles"][role]) for role in ROLES}
+        if spec.get("providers") != current:
+            raise ValueError("A provider changed since approval; approve again")
 
     # Workspaces
 
@@ -91,7 +160,9 @@ class Engine:
     def _view(self, workspace):
         record = workspace.project()
         return {**record, "path": str(workspace.folder), "draft": workspace.spec(record["spec_version"]),
-                "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"])}
+                "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
+                "budget": {key:value for key,value in self._ledger(workspace).summary().items()
+                           if key in {"cap_usd","spent_usd","reserved_usd","remaining_usd"}}}
 
     def project(self, identifier):
         return self._view(self.workspace(identifier))
@@ -146,23 +217,28 @@ class Engine:
         except ValueError:
             return None
 
-    def _draft(self, workspace, record, goal=None, budget=1, mode=None):
+    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None):
         """Write the next spec version; any new version clears approval."""
         if isinstance(budget, bool) or not isinstance(budget, (int,float)) or not math.isfinite(budget) or not 0.11 <= budget <= 20:
             raise ValueError("Budget must be between $0.11 and $20")
+        previous = workspace.spec(record["spec_version"]) if record["spec_version"] else {}
         if mode is None:
-            mode = workspace.spec(record["spec_version"]).get("mode", "controlled_preview") if record["spec_version"] else "controlled_preview"
+            mode = previous.get("mode", "controlled_preview")
         if mode not in {"controlled_preview", "live"}:
-            raise ValueError("Choose controlled preview or a live Spark run")
+            raise ValueError("Choose controlled preview or a live run")
+        roles = roles if roles is not None else previous.get("roles", {r:DEFAULT_ROLE_ENTRY for r in ROLES})
+        if not isinstance(roles, dict):
+            raise ValueError("Assign a provider to the orchestrator, improver and worker")
+        providers = self._assign(roles, mode)
         goal = goal if goal is not None else record["goal"]
         if not isinstance(goal, str) or not goal.strip() or len(goal) > 4000:
             raise ValueError("Enter a goal of at most 4000 characters")
         versions = workspace.spec_versions()
         spec = {"version": (versions[-1] if versions else 0)+1, "goal": goal.strip(), "budget_usd": budget,
-                "model": "spark-contributor", "roles": {r:"spark-contributor" for r in ("orchestrator","improver","worker")},
+                "roles": {r:roles[r] for r in ROLES}, "providers": providers,
                 "domain": "images-and-supplied-transcripts", "output": {"objects": [{"label":"color_shape", "box":["x1","y1","x2","y2"]}], "text":"exact supplied transcript"},
                 "box_edge_tolerance_px": 1, "test_data": "synthetic/public only", "mode": mode}
-        spec["estimated_cost_usd"] = ({"basis":"Live cost reserved before each call under the shared $20 cap; actual cost from reported usage, unknown until reported"}
+        spec["estimated_cost_usd"] = ({"basis":"Live cost reserved before each call under the workspace budget; actual cost from reported usage at the entry's prices, unknown until reported"}
             if mode == "live" else {"orchestrator":0.00002,"improver":0.0003,"worker":0.0003,"basis":"Approximate controlled preview only; live cost unknown"})
         workspace.add_spec(spec)
         record.update(goal=goal.strip(), spec_version=spec["version"])
@@ -185,8 +261,8 @@ class Engine:
         workspace = self.workspace(identifier)
         project = self._view(workspace)
         mode = mode or project["draft"].get("mode", "controlled_preview")
-        client = self.build_client(workspace, mode, "discussion-"+identifier, project["draft"]["budget_usd"],
-                                   call_limit=DISCUSSION_CALL_LIMIT if mode == "live" else RUN_CALL_LIMIT)
+        client = self.build_clients(workspace, {**project["draft"],"mode":mode}, "discussion-"+identifier, project["draft"]["budget_usd"],
+                                    call_limit=DISCUSSION_CALL_LIMIT if mode == "live" else RUN_CALL_LIMIT)["orchestrator"]
         history = [{"role":"developer","content":"LX_DISCUSSION\nUse inventory metadata first; ask only consequential questions."},
             {"role":"user","content":json.dumps({"goal":project["goal"],"inventory":project["inventory"],"message":text})}]
         reply,_ = client.chat(history, role="orchestrator",phase="discussion",candidate=identifier)
@@ -202,9 +278,7 @@ class Engine:
         with workspace.lock():
             if any(j["status"] in {"queued","running"} for j in workspace.runs()):
                 raise ValueError("Stop the active run before editing its spec")
-            if data.get("model", "spark-contributor") != "spark-contributor":
-                raise ValueError("Only Spark Contributor may fill a live role")
-            self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"))
+            self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"), data.get("roles"))
         return self._view(workspace)
 
     def approve(self, identifier, data):
@@ -213,8 +287,13 @@ class Engine:
         with workspace.lock():
             record = workspace.project()
             draft = workspace.spec(record["spec_version"])
-            if data.get("version") != draft["version"] or data.get("data_approved") is not True or data.get("contributor_accepted") is not True:
-                raise ValueError("Approve the current spec, synthetic data and Contributor disclosure")
+            if data.get("version") != draft["version"] or data.get("data_approved") is not True:
+                raise ValueError("Approve the current spec and synthetic data")
+            if DEFAULT_ROLE_ENTRY in draft["roles"].values() and data.get("contributor_accepted") is not True:
+                raise ValueError("Accept the Contributor disclosure for Spark")
+            self._check_providers(draft)
+            if draft["mode"] == "live" and draft["budget_usd"] > self._workspace_budget(identifier):
+                raise ValueError("This run's budget is more than the workspace budget")
             record.update(inventory=workspace.inspect_samples(), compatible_demo=self._matches_demo(workspace.samples_path))
             workspace.write_project(record)
             if not record["compatible_demo"]:
@@ -237,6 +316,7 @@ class Engine:
             approved = self._approval(identifier)
             if not approved or approved["spec_hash"] != fingerprint(draft):
                 raise ValueError("Approve the current spec before starting")
+            self._check_providers(draft)
             if any(j["status"] in {"queued","running"} for j in workspace.runs()):
                 raise ValueError("One run is already active")
             job_id = uuid.uuid4().hex[:12]
@@ -257,6 +337,7 @@ class Engine:
         if (not approved or _approval_identity(approved) != job["approved"] or fingerprint(job["spec"]) != approved["spec_hash"]
             or fingerprint(workspace.spec(job["spec"]["version"])) != approved["spec_hash"]):
             raise ValueError("Approval changed before execution; approve a new run")
+        self._check_providers(job["spec"])
         for item in approved["inventory"]:
             target = Path(snapshot)
             for part in PureSafe(item["path"]):
@@ -310,8 +391,8 @@ class Engine:
         from h2portable.jobs import read_job
         jobs = workspace.runs()
         for job in jobs:
-            live = job.get("spec",{}).get("mode") == "live" and self.live_ledger is not None
-            job["usage"] = summarize(usage_rows(self.live_ledger if live else workspace.preview_ledger,job["id"]+"/"))
+            live = job.get("spec",{}).get("mode") == "live"
+            job["usage"] = summarize(usage_rows(self._ledger(workspace) if live else workspace.preview_ledger,job["id"]+"/"))
             if not job.get("launch_pending") and job["status"] in {"queued", "running", "interrupted", "cancelled", "failed"}:
                 try:
                     core = read_job(job["id"], workspace.home/"core-jobs")
@@ -327,7 +408,7 @@ class Engine:
         return jobs
 
     def state(self):
-        projects, jobs, rows, missing = [], [], [], []
+        projects, jobs, rows, spent, missing = [], [], [], [], []
         for entry in self.store.list("workspace"):
             try:
                 workspace = self.workspace(entry["id"])
@@ -337,10 +418,11 @@ class Engine:
             projects.append(self._view(workspace))
             jobs.extend(self._jobs(workspace))
             rows.extend(usage_rows(workspace.preview_ledger))
-        return {"mode": "controlled_preview", "live_application_enabled": True, "live_flow": "approval_gated_spark_only",
+            spent.extend(usage_rows(self._ledger(workspace)))
+        return {"mode": "controlled_preview", "live_application_enabled": True, "live_flow": "approval_gated_any_provider",
                 "models": self.registry.list_models(), "projects": projects, "missing_workspaces": missing,
                 "jobs": jobs, "preview_usage": summarize(rows),
-                "usage_events": (rows + (usage_rows(self.live_ledger) if self.live_ledger else []))[-80:],
+                "usage_events": (rows + spent)[-80:],
                 "live_usage": self.live_ledger.summary() if self.live_ledger else None}
 
     # Packages
@@ -374,18 +456,13 @@ class Engine:
         (root/"manifest.json").write_text(json.dumps({"samples":[sample]}),encoding="utf-8")
         truth = {"fresh-scene":{"objects":[{"label":r.label,"box":list(r.box)} for r in rectangles],"text":sample["transcript"]}}
         mode = job["spec"].get("mode","controlled_preview")
-        if mode == "live":
-            if self.live_ledger is None:
-                raise ValueError("Live reuse is unavailable in this workspace; use the local app workspace")
-            client = SparkClient(self.make_live_transport(truth_hint=truth), BudgetScope(self.live_ledger,"reuse-"+job_id,job["spec"]["budget_usd"]))
-        else:
-            client = SparkClient(PreviewTransport(truth),BudgetScope(workspace.preview_ledger,"reuse-"+job_id,1))
+        client = self.build_clients(workspace, job["spec"], "reuse-"+job_id, job["spec"]["budget_usd"], truth=truth)["worker"]
         adapter = ImagesAdapter(root,root/"execution",client,mode=mode)
         run = adapter.execute("fresh-scene",workspace.package_dir(job_id)/"harness","fresh")
         answer = json.loads(adapter.deliverable_text(run))
         checked = verify_output(truth["fresh-scene"],answer)
         result = {"mode":mode,"accepted":checked.accepted,"errors":checked.errors,"answer":answer,
-                  "source_scene_id":sample["source_scene_id"],"note":("New constructed scene; live Spark call" if mode=="live" else "New constructed scene; controlled response, no live model call")}
+                  "source_scene_id":sample["source_scene_id"],"note":("New constructed scene; live provider call" if mode=="live" else "New constructed scene; controlled response, no live model call")}
         workspace.update_run(job_id,fresh_result=result)
         return result
 

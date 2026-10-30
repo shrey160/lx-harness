@@ -223,8 +223,9 @@ class ImagesAdapter:
                 "n_criteria": getattr(result, "n_criteria", 1), "all_pass": result.accepted}
 
 
-def optimize_preview(snapshot, output, client, truth, spec, *, live=False):
-    adapter = ImagesAdapter(snapshot, output, client, mode="live" if live else "controlled_preview", truth=truth)
+def optimize_preview(snapshot, output, client, truth, spec, *, live=False, worker_client=None):
+    """client is the improver; worker_client, when given, is a different provider for the worker role."""
+    adapter = ImagesAdapter(snapshot, output, worker_client or client, mode="live" if live else "controlled_preview", truth=truth)
     return optimize_adapter(adapter, output, client, spec, live=live)
 
 

@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from .engine import Engine
+from .engine import ROLES, Engine
 from .usage import usage_rows, summarize
 from .workflow import optimize_preview
 from .workspace import Workspace, write_json
@@ -17,16 +17,18 @@ def execute(engine, workspace, identifier, snapshot):
     job = workspace.update_run(identifier,status="running",phase="preflight",launch_pending=False,error=None)
     mode = job["spec"].get("mode","controlled_preview")
     live = mode == "live"
-    client = engine.build_client(workspace, mode, identifier, job["spec"]["budget_usd"])
-    message,_ = client.chat([{"role":"developer","content":"LX_PREFLIGHT"},{"role":"user","content":"Reply PREFLIGHT_OK"}],
-                           role="orchestrator",phase="preflight",candidate=identifier)
-    if (message["content"] or "").strip() != "PREFLIGHT_OK":
-        raise ValueError("Live preflight failed" if live else "Controlled preflight failed")
+    clients = engine.build_clients(workspace, job["spec"], identifier, job["spec"]["budget_usd"])
+    # Once per provider entry: a bad key or endpoint stops the run before the loop starts.
+    for role in {job["spec"]["roles"][r]:r for r in reversed(ROLES)}.values():
+        message,_ = clients[role].chat([{"role":"developer","content":"LX_PREFLIGHT"},{"role":"user","content":"Reply PREFLIGHT_OK"}],
+                                       role=role,phase="preflight",candidate=identifier)
+        if (message["content"] or "").strip() != "PREFLIGHT_OK":
+            raise ValueError("Live preflight failed" if live else "Controlled preflight failed")
     workspace.update_run(identifier,phase="improving")
     output = workspace.run_dir(identifier)/"outputs"
-    result = optimize_preview(snapshot,output,client,engine.demo.controller_truth,job["spec"],live=live)
-    result["usage"] = summarize(usage_rows(engine.live_ledger if live else workspace.preview_ledger,identifier+"/"))
-    result["usage_basis"] = ("live Spark usage at verified Contributor list prices; not provider billing"
+    result = optimize_preview(snapshot,output,clients["improver"],engine.demo.controller_truth,job["spec"],live=live,worker_client=clients["worker"])
+    result["usage"] = summarize(usage_rows(engine._ledger(workspace) if live else workspace.preview_ledger,identifier+"/"))
+    result["usage_basis"] = ("live usage at the prices in each provider entry; not provider billing"
                              if live else "simulated provider usage; no live calls or charges")
     result["package_version"] = identifier+"-spec-v"+str(job["spec"]["version"])
     write_json(output/"package"/"usage.json",result["usage"])

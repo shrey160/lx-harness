@@ -8,7 +8,7 @@ small JSON integration, not broader multimodal capability. The local app uses
 the user-approved React + Python/SQLite architecture. The
 application defaults to a **controlled preview**: its discussion/worker/improver responses
 are predetermined and never load credentials or spend credits. Application
-live flow (O-11) was approved 28 Oct 2026 and executed: a spec saved with mode `live` runs real Spark calls after spec/data/budget/Contributor approval under the shared $20 ledger. First live result was honestly negative (no pixel-accurate boxes; base retained). See `evidence/2026-10-28-live-app/live-report.json`.
+live flow (O-11) was approved 28 Oct 2026 and executed: a spec saved with mode `live` ran real Spark calls after spec/data/budget/Contributor approval under the shared $20 ledger (the app now uses the workspace budget described below; that ledger stays for experiments). First live result was honestly negative (no pixel-accurate boxes; base retained). See `evidence/2026-10-28-live-app/live-report.json`.
 
 ## Get the code (two repos, side by side)
 
@@ -65,11 +65,29 @@ cannot approve a run, and any change to a spec file voids its approval. An agent
 with full access to this machine is not stopped by this; the human confirmation
 step comes with the CLI and MCP server.
 
+Any chat provider with an OpenAI-compatible endpoint can fill any role
+(orchestrator, improver, worker). Add it under Providers with its base URL,
+model id, key, prices and context limit, then assign it in the spec. The spec
+records each role's endpoint and prices, so changing an entry after approval
+stops the run until it is approved again. Live runs need prices on every entry
+so the budget can be enforced. Each call reserves its context limit at the input
+price, so set that limit for paid models or a small budget has no room.
+
+Each workspace has its own budget and real-spend ledger, kept in user-level
+state so they do not depend on files in the folder. The default is $5 and the
+most is $20. Preview usage is simulated and stays in `.lx/`. Live runs are still
+limited to the demo samples until the general task spec lands.
+
+Keys go to the operating system's keychain (Windows Credential Manager on
+Windows) and never enter a workspace. Keys saved earlier as files move there on
+the next start. Where there is no keychain, as in WSL and headless Linux, keys
+use native local-share storage with owner-only files, and the service refuses
+key writes on filesystems that cannot enforce private POSIX permissions. On
+Windows, a key is refused rather than written to a file if the Credential
+Manager is unavailable.
+
 The list of open workspaces, the model registry and approvals use the user's
-native local-state directory;
-private credentials use native local-share storage with owner-only files.
-The service refuses key writes on filesystems that cannot enforce private
-POSIX permissions. Its secret directory is separate from samples and exports.
+native local-state directory.
 
 The workflow supports model create/update/delete metadata and write-only key
 replacement, folder/ZIP intake and inventory, metadata-first discussion,
