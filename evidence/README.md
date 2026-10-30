@@ -34,3 +34,4 @@ anything about a model.
 | `10-30-nvidia-demo` | Glimmer on NVIDIA: failed on old time limits | Live |
 | `10-30-openrouter-demo` | Glimmer on the pixel-box demo: no improvement | Live |
 | `10-30-openrouter-inventory` | Glimmer on inventory: 0.00, agent never answered | Live |
+| `10-31-openrouter-rerun-stopped` | Glimmer rerun, stopped by the user in the first sample: no score | Live |

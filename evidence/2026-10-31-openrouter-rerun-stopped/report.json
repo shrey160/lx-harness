@@ -1,0 +1,165 @@
+{
+  "approved_by": "user in chat: 'can you run it, using computer skills'; the agent clicked approve and start in the built-in browser",
+  "stopped_by": "user in chat: 'hey, lets stop gilmer runs for now, lets get things right with spark first'",
+  "attempts": [
+    "1: 02:25:08 to 02:41:09, stopped from the page",
+    "2: 02:41:33 to 02:42:18, resumed by the user as a test, then stopped by the agent"
+  ],
+  "run": "a92a74bbfb4a",
+  "model": "meta/muse-glimmer-30b",
+  "spec_version": 3,
+  "status": "cancelled",
+  "limits_set": {
+    "stop_after_empty_runs": 4
+  },
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 74,
+        "output_tokens": 198,
+        "spent_usd": 0.0002598
+      },
+      "improver": {
+        "input_tokens": 194081,
+        "output_tokens": 9737,
+        "spent_usd": 0.0699087
+      },
+      "worker": {
+        "input_tokens": 158740,
+        "output_tokens": 14014,
+        "spent_usd": 0.0644388
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.010124
+      }
+    },
+    "per_phase": {
+      "orchestrator/preflight": {
+        "settled_calls": 2,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0002598
+      },
+      "worker/execute": {
+        "settled_calls": 25,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0644388
+      },
+      "tool/transcribe": {
+        "settled_calls": 1,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.000124
+      },
+      "tool/segment": {
+        "settled_calls": 4,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.01
+      },
+      "improver/improvement": {
+        "settled_calls": 33,
+        "unknown_calls": 0,
+        "reserved_calls": 4,
+        "spent_usd": 0.0699087
+      }
+    },
+    "settled_calls": 65,
+    "held": {
+      "calls": 4,
+      "usd": 0.196608,
+      "reasons": {
+        "no reason recorded": 4
+      }
+    },
+    "provider_reported": {
+      "calls": 60,
+      "reported_usd": 0.05811322,
+      "computed_usd": 0.1346073
+    },
+    "reserved_calls": 4,
+    "unknown_calls": 0,
+    "spent_usd": 0.1447313
+  },
+  "health": {
+    "agent": {
+      "answered": 0,
+      "no_answer": 1,
+      "reasons": {
+        "more than 54 tool calls": 1
+      }
+    },
+    "improver": {
+      "ok": 0,
+      "failed": 0,
+      "reasons": {}
+    }
+  },
+  "budget": {
+    "cap_usd": 5.0,
+    "spent_usd": 1.413991,
+    "reserved_usd": 0.24576,
+    "remaining_usd": 3.340249,
+    "settled_calls": 623,
+    "reserved_calls": 4,
+    "unknown_count": 1,
+    "per_role": {
+      "improver": {
+        "spent_usd": 0.9218436,
+        "reserved_usd": 0.196608,
+        "input_tokens": 2025880,
+        "output_tokens": 261733,
+        "settled_calls": 327,
+        "reserved_calls": 4
+      },
+      "orchestrator": {
+        "spent_usd": 0.0003693,
+        "reserved_usd": 0.0,
+        "input_tokens": 111,
+        "output_tokens": 280,
+        "settled_calls": 3,
+        "reserved_calls": 0
+      },
+      "tool": {
+        "spent_usd": 0.100984,
+        "reserved_usd": 0.0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "settled_calls": 49,
+        "reserved_calls": 0
+      },
+      "worker": {
+        "spent_usd": 0.3907941,
+        "reserved_usd": 0.049152,
+        "input_tokens": 1003059,
+        "output_tokens": 74897,
+        "settled_calls": 244,
+        "reserved_calls": 0
+      }
+    },
+    "over_budget": false,
+    "error_state": null
+  },
+  "agent_runs": [
+    {
+      "run": "base1",
+      "sample": "sample-01",
+      "turns": 25,
+      "tools": {
+        "transcribe": 1,
+        "view": 48,
+        "load_skill": 1,
+        "segment": 4
+      },
+      "repeated_identical_calls": 39,
+      "stopped": [
+        "more than 54 tool calls"
+      ],
+      "answered": false
+    }
+  ],
+  "note": "Stopped during the first sample. No score and no capability claim."
+}

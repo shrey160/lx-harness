@@ -1,7 +1,8 @@
 # Graded inventory rerun on OpenRouter (prepared 31 Oct 2026)
 
-Status: **PREPARED, NOT RUN.** Needs the user's explicit approval, then the human
-approval step in the app.
+Status: **STOPPED, NO RESULT.** Run `a92a74bbfb4a` started 31 Oct at the user's direction
+and was stopped in its first sample when the user paused Glimmer runs to work on Spark.
+See `evidence/2026-10-31-openrouter-rerun-stopped`.
 
 ## Why
 
