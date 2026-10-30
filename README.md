@@ -1,251 +1,351 @@
-# LX harness product
+# LX harness
 
-Both first product gates passed. The images + supplied-transcripts verifier is
-implemented. The synthetic-only live Spark spike edited, harvested and selected
-a correct candidate through the actual engine in Docker: 35 calls, $0.008337338
-computed token cost, then zero-call/zero-execution resume. This establishes the
-small JSON integration, not broader multimodal capability. The local app uses
-the user-approved React + Python/SQLite architecture. The
-application defaults to a **controlled preview**: its discussion/worker/improver responses
-are predetermined and never load credentials or spend credits. Application
-live flow (O-11) was approved 28 Oct 2026 and executed: a spec saved with mode `live` ran real Spark calls after spec/data/budget/Contributor approval under the shared $20 ledger (the app now uses the workspace budget described below; that ledger stays for experiments). First live result was honestly negative (no pixel-accurate boxes; base retained). See `evidence/2026-10-28-live-app/live-report.json`.
+LX improves the instructions around a model for a task you define. You give it a
+folder of sample data, a goal and a check that scores answers. A larger model
+then edits the harness (prompts, guardrails, skills, helper scripts) while the
+model's weights stay fixed, and the check decides whether the edits helped. You
+keep the result as a package, so a smaller model can do the task later.
 
-## Get the code (two repos, side by side)
+It runs on your own machine as a local web app. You choose the providers, and
+nothing runs live until you approve the spec, the data and the budget.
 
-This app depends on the sibling core repository; clone both under these
-exact folder names so the relative dependency path resolves:
+## What has been shown so far
+
+| Test | Agent | Result |
+|---|---|---|
+| Held-out photo inventory, learned harness against base | Muse Spark | 0.47 to 0.70, gain +0.23, 95% range 0.11 to 0.37 |
+| Same harness moved to a small local model | Gemma 4 E4B | 0.40 to 0.30, gain -0.09: it did not transfer |
+| Full loop on 6 inventory samples through OpenRouter | Muse Glimmer | 0.00 to 0.00, $1.27: the agent never answered within the turn limits of the time |
+
+The turn limits were raised after the last run, and it has not been rerun.
+Previews use scripted responses, so they prove the plumbing and say nothing about
+a model. Earlier results are in [docs/history.md](docs/history.md).
+
+## Install
+
+Clone both repositories side by side under these exact folder names, so the
+relative dependency path resolves:
 
 ```bash
 git clone https://github.com/shrey160/lx-harness.git main_LX
 git clone https://github.com/shrey160/harness2-portable-core.git harness2_portable_core
 ```
 
-Third-party disclosure: the core repo vendors a pinned copy of the
-harness2-cli engine (Apache-2.0; provenance in its `UPSTREAM.md`). That
-engine is pre-existing third-party code, not part of this project's own
-implementation.
+The core repository vendors a pinned copy of the harness2-cli engine (Apache-2.0;
+provenance and the recorded Windows patches are in its `UPSTREAM.md`). That engine
+is third-party code, not part of this project's own implementation.
 
-## Open the app
+You need [uv](https://docs.astral.sh/uv/), Node.js and Python 3.12 or 3.13. uv can
+supply Python on Windows. You also need a script sandbox to run scoring checks and
+helper scripts. That is Docker Desktop on Windows, or Docker or `unshare` on Linux.
+Without one, checks do not run, so graded tasks cannot start, and helper scripts
+are turned off.
 
-Inside WSL, from this repository:
+### Windows
+
+Run these from `main_LX` in PowerShell. A separate environment keeps the WSL
+`.venv` untouched:
+
+```powershell
+$env:UV_PROJECT_ENVIRONMENT = ".venv-win"; uv sync --locked --managed-python --python 3.12
+npm --prefix web ci
+npm --prefix web run build
+.venv-win\Scripts\python.exe scripts\build_sandbox_image.py
+```
+
+The last line needs Docker Desktop running, and builds the `lx-sandbox:pillow-11.3.0`
+image once. The sandbox has no network, a read-only root, no capabilities and an
+unprivileged user.
+
+### WSL or Linux
 
 ```bash
 uv sync --locked --python 3.12
-```
-
-Build the React assets from Windows or WSL:
-
-```bash
 npm --prefix web ci
 npm --prefix web run build
 ```
 
-Then inside WSL:
+In WSL `uv` may not be on the PATH. If you ran the core's setup, it installed a
+copy at `~/projects/harness2_portable_core/.tools/bin/uv`. Sync again whenever
+`uv.lock` changes, because an out-of-date `.venv` fails at import time.
+
+## Start the app
+
+On Windows:
+
+```powershell
+.\scripts\serve.ps1
+```
+
+This uses `.venv-win` if it exists and otherwise starts the server inside WSL. Add
+`-Wsl` to choose WSL, `-Port` to change the port and `-Distro` to name your distro.
+
+In WSL or Linux:
 
 ```bash
 .venv/bin/python -m lx.server --port 8765
 ```
 
-Or from PowerShell after setup: `./scripts/serve.ps1`.
-Open [the local workspace](http://127.0.0.1:8765). The service binds to loopback,
-uses a per-session change token and rejects foreign origins. Close the serving
-terminal to stop it. No hosting/account or public service is configured.
+Open <http://127.0.0.1:8765>. The server binds to loopback only, uses a per-session
+change token and rejects foreign origins. Close the terminal to stop it.
 
-Every project is a workspace: a folder you choose. LX keeps its files in `.lx/`
-inside it (`project.json`, immutable `spec/vN.json`, `runs/<id>/`, `packages/<id>/`,
-`snapshots/`, simulated usage) and adds a `.gitignore` so they stay out of your
-repository. Samples stay in your folder, in `samples/` if that exists; a folder
-holding code needs that subfolder, because dotfiles such as `.git` are refused
-as samples. Approval freezes the samples as they are at that moment, and each
-run uses that frozen copy. Later edits need a new approval to take effect.
+The Windows and WSL servers keep separate state: open workspaces, provider entries,
+keys, budgets and approvals. A provider added in one does not appear in the other.
 
-`lx.engine` is the single service layer behind the app. Approval records stay
-in user-level application state rather than `.lx/`, so writing to the folder
-cannot approve a run, and any change to a spec file voids its approval. An agent
-with full access to this machine is not stopped by this; the human confirmation
-step comes with the CLI and MCP server.
+## Try it in preview
 
-A task is data plus a check file, not code. The spec's `task` holds the contract,
-base prompt and loop wording; `.lx/checks/vN/check.py` scores answers, and the
-spec records its hash, so editing the file stops the run. The first template is
-`photo-request`: each sample is a folder `sample-*/` with `photos/1.jpg` ...
-(3-7 photos), `request.wav` (or `request.txt` in a preview) and `truth.json`.
-Inventory is the first task in it; a coding agent can supply another with its
-own check. Truth reaches only the check, never the worker or the improver.
+A preview makes no live calls and spends nothing. Its responses are scripted, and
+its usage is simulated.
 
-A check is untrusted code, so it runs only in the script sandbox; without Docker
-or the Linux sandbox it does not run at all. Its protocol is in `lx/checks.py`:
-JSON in, a list of named pass/fail checks out, and the score is the fraction
-passed. Approval re-runs a self-test on the frozen samples: a correct answer
-must score 1.0, malformed answers must be graded without crashing and without
-full marks, grading must repeat exactly, another sample's answer must not pass,
-and errors must not reveal expected values. A live task also needs `request.wav`
-in every sample, and SAM and Transcribe spend from the workspace budget.
+1. On Workflows, enter a name and a workspace folder. Browse opens a folder dialog
+   on native Windows; elsewhere, type the path.
+2. Set Task to Photo inventory, and Samples to Add the synthetic demo samples.
+3. Create the workflow, go to the spec step, tick the approvals and approve.
+4. Start the controlled preview. The run page updates as it goes.
 
-A live run first shows who receives what, per role and tool. Accepting covers
-that workspace until a new host would receive data. This replaces the old
-"synthetic or public" confirmation. Previews send nothing out and need no
-notice, and a task preview runs only on the synthetic demo samples.
+The default task, Image annotation demo, is the older pixel-box demo. It accepts
+only its constructed samples and is a poor test of the loop.
 
-Any chat provider with an OpenAI-compatible endpoint can fill any role
-(orchestrator, improver, worker). Add it under Providers with its base URL,
-model id, key, prices and context limit, then assign it in the spec. The spec
-records each role's endpoint and prices, so changing an entry after approval
-stops the run until it is approved again. Live runs need prices on every entry
-so the budget can be enforced. Each call reserves its context limit at the input
-price, so set that limit for paid models or a small budget has no room.
+## Set up a provider
 
-Run limits are yours to set, on the spec page under Run limits: agent turns and
-tool calls per photo, improver turns and session time, time per model call and
-per run, reply length, and call counts per run. Each has a default and a hard
-outer bound (`lx.limits`). Spark keeps its original numbers and other providers
-get longer ones; a provider entry can set its own default for time per call and
-reply length. A field tied to a role takes its default from that role's
-provider; the others take the longest default among the run's providers. The
-spec holds every value, so a change is a new version that needs approval. A run
-keeps the limits it was approved with, so a raised limit reaches a new run, not
-a resumed one. Sandbox rules, check and script run times, the self-test, human
-approval, request size bounds and no-redirects are not settable.
+Under Models, add an entry. Any chat provider with an OpenAI-compatible endpoint can
+fill any role: orchestrator, improver or worker.
 
-A provider entry can also state requests per minute. Calls to it are then spaced
-evenly within a run; two runs at once do not share the pacing. The rate is part
-of what the spec binds, so changing it after approval needs a new approval.
+| Field | Notes |
+|---|---|
+| Name, capabilities | Your own description |
+| Model identifier | Exactly as the provider names it; it cannot be changed later |
+| Base URL | Ending before `/chat/completions`, for example `https://openrouter.ai/api/v1` |
+| Input and output price | Dollars per million tokens. Needed for a live run; 0 means free |
+| Context limit | Each call reserves this many tokens at the input price, so set it for paid models or a small budget has no room |
+| Requests per minute | Optional. Spaces calls evenly within a run; two runs at once do not share the pacing |
+| Seconds per call, reply tokens | Optional defaults for this provider |
+| Accepts images, supports tool calls | The inventory worker needs both |
+| API key | Goes to the keychain, and cannot be read back |
 
-The run page shows how a run is really going: agent runs answered, improver
-sessions finished, why any failed, and samples left ungraded. A run stops early
-after 8 agent runs in a row with no answer (a run limit you can change). A failed
-task run whose loop finished can be graded from its saved answers, with no calls.
+Examples we have used, checked on 30 October 2026. Confirm prices and limits with
+the provider before relying on them:
 
-A call that ends without a known cost stays held against the budget, with its
-reason shown. After checking your provider's bill, release a stopped run's held
-calls as not billed, or count them as spent. Where a provider states each call's
-cost, as OpenRouter does, the run page compares it with the cost from your entered
-prices. The budget still uses your prices, and a live spec warns about any provider
-whose prices are $0, because budgets count nothing for it.
+| Provider | Base URL | Model | Notes |
+|---|---|---|---|
+| OpenRouter | `https://openrouter.ai/api/v1` | `meta/muse-glimmer-30b` | $0.30 and $1.20 per million, context 131,072 |
+| NVIDIA | `https://integrate.api.nvidia.com/v1` | `meta/muse-glimmer-30b` | Trial credits, no published price, 40 requests a minute |
 
-On the Models page, Test sends one short live message to check a key, endpoint and
-model; it does not test images or tool calls. Browse opens a folder dialog on
-native Windows; where none is available, such as WSL, type the path.
+Plain HTTP works only for loopback or private-network hosts, such as a local model
+server. Other hosts need HTTPS.
 
-Each workspace has its own budget and real-spend ledger, kept in user-level
-state so they do not depend on files in the folder. The default is $5 and the
-most is $20. Preview usage is simulated and stays in `.lx/`.
+Test on a provider's entry sends one short live message to check the key, endpoint
+and model. It does not test images or tool calls, and it spends from a separate $1
+ledger. Then assign providers to roles on the spec page.
 
-Keys go to the operating system's keychain (Windows Credential Manager on
-Windows) and never enter a workspace. Keys saved earlier as files move there on
-the next start. Where there is no keychain, as in WSL and headless Linux, keys
-use native local-share storage with owner-only files, and the service refuses
-key writes on filesystems that cannot enforce private POSIX permissions. On
-Windows, a key is refused rather than written to a file if the Credential
-Manager is unavailable.
+At $0 a budget counts nothing, so only the call limits bound the run. A live spec
+warns about this. A provider that states each call's cost, as OpenRouter does, gets
+a comparison with your prices on the run page, and a warning above 5%.
 
-The list of open workspaces, the model registry and approvals use the user's
-native local-state directory.
+### Meta models
 
-The workflow supports model create/update/delete metadata and write-only key
-replacement, folder/ZIP intake and inventory, metadata-first discussion,
-versioned spec editing/approval, one managed run at a time, role/phase/candidate
-usage, stop/resume, package download and fresh constructed-scene reuse. A changed
-spec clears approval; active runs must stop before editing. The worker rechecks
-approval and frozen input hashes before any request.
+The built-in entries are Muse Spark Contributor, SAM 3.1 and Muse Voice Transcribe.
+They share one Meta key, read when needed from the `MODEL_API_KEY` or `META_API_KEY`
+environment variable, or else from the core's `.env`. SAM and Transcribe are the
+worker's tools in a live inventory task, so that task needs the Meta key even when
+another provider fills all three roles. Spark Contributor may use approved content
+for training, and the app asks you to accept that when Spark has a role.
 
-This first optimization template accepts the constructed demo dataset or an
-identical imported snapshot. Other supported public/synthetic files can be
-inventoried and discussed; they are not silently treated as independently
-verifiable tasks. The app offers the demo as `data.zip` for testing both paths.
-Known-negative candidates retain the starting harness and show failed checks.
+### Where keys live
 
-See [application live review](docs/application-live-review.md) for the
-approved O-11 flow. The rejected generic application transport was not added.
+Keys go to the operating system's keychain (Windows Credential Manager on Windows)
+and never enter a workspace. On Windows a key is refused, not written to a file, if
+Credential Manager is unavailable. WSL and headless Linux have no keychain, so keys
+use owner-only files in local-share storage, and a filesystem that cannot enforce
+private permissions refuses them. Keys saved earlier as files move to the keychain
+on the next start.
 
-## Offline setup and checks
+## Prepare your samples
 
-PROD-002 adds a text-only synthetic order-normalization domain, strict graded
-field checks and a five-trial offline runner. See [records contract](docs/records-contract.md).
-The truth-blind no-op preview checks the plumbing and records zero gains; it is
-not capability evidence. The approved [live base-only calibration](docs/records-calibration-review.md)
-scored 100% on all 40 held-out records ($0.004790572). The task has no measured
-headroom, so five live trials remain disabled pending task redesign.
+A workspace is a folder you choose. Put samples in a `samples/` subfolder; a folder
+holding code needs this, because dotfiles such as `.git` are refused as samples.
+Approval freezes the samples as they are at that moment, and each run uses the
+frozen copy, so later edits need a new approval.
 
-Use Python 3.12 or 3.13 inside WSL/Linux with the existing Docker setup.
-Keep this repository beside `harness2_portable_core/`.
+The `photo-request` template expects a folder per sample:
 
-```bash
-uv sync --locked
-.venv/bin/python scripts/validate_product.py --evidence evidence/local-validation
-.venv/bin/python -m lx.spike --core-source ../harness2_portable_core --output .lx/controlled-spike
+```text
+samples/
+  sample-01/
+    photos/1.jpg  2.jpg  3.jpg
+    request.wav
+    truth.json
+  sample-02/
+    ...
 ```
 
-Natively on Windows (D-016), use a separate uv-managed environment so the WSL
-`.venv` stays untouched. Helper scripts run in a Docker sandbox there
-(`lx-sandbox:pillow-11.3.0`: no network, read-only root, no capabilities,
-unprivileged user). Build it once with Docker Desktop running; it uses the
-digest-pinned base image and the Pillow wheel pinned in `uv.lock`. Without
-Docker or the image, scripts are turned off: the agent gets no `run_script` and
-the improver keeps procedures in skills.
+- **Samples:** 6 by default, in folders named `sample-*`. Only the first 6 in sorted
+  order run in the loop.
+- **Photos:** 3 to 7, numbered from 1, as `.jpg`, `.jpeg` or `.png`. Intake applies
+  the EXIF orientation, drops all metadata, and resizes the longest side to 1024.
+- **Request:** `request.wav`, mono 16-bit PCM at 16 or 24 kHz. A live run needs it in
+  every sample; `request.txt` works only in a preview. To convert a recording:
+  `ffmpeg -i in.m4a -ac 1 -ar 16000 -sample_fmt s16 request.wav`
+- **Size:** at most 100 files and 200 MiB for a task. A ZIP upload is limited to 20 MiB.
+- **Truth:** `truth.json` reaches only the check, never the worker or the improver.
+
+For the inventory task, `truth.json` holds what is really in each photo. Each photo
+number lists its items. Include every item a correct answer should count.
+
+```json
+{"request_type": "colour_count", "kind": "pen", "colour": "green",
+ "photos": {"1": [{"kind": "pen", "colour": "green", "count": 2}],
+            "2": [{"kind": "pen", "colour": "blue", "count": 1}],
+            "3": []}}
+```
+
+`request_type` is `count`, `colour_count` or `inventory`. An `inventory` request has
+no `kind` or `colour`. An optional `aliases` maps a kind to other accepted names.
+Counts are exact below 20, then within 5%. Photos must show different items, because
+the task does not de-duplicate across photos.
+
+Everything in the samples goes to the providers you assign. Use photos with no
+people, faces, screens, documents or addresses unless you are content to send them.
+Before a live run the app shows who receives what, per role and tool. Accepting
+covers that workspace until a new host would receive data.
+
+## Write a scoring check
+
+A task is data plus a check, not code. The spec's `task` holds the contract, the
+base prompt and the wording the loop uses. The check file is stored as
+`.lx/checks/vN/check.py`, and the spec records its hash, so editing the file stops
+the run. There is no form for this yet: send it with `Engine.set_task(id, task,
+check)` or `POST /api/projects/<id>/task`, which needs the session token. Each change
+is a new spec version that you still approve.
+
+A check is one Python file, treated as untrusted code, so it runs only in the
+sandbox: no network, a 60-second limit per batch and at most 20,000 characters of
+source. It reads one JSON object on stdin and prints one on stdout:
+
+- `{"items": [{"truth": ..., "answer": ...}]}` prints
+  `{"results": [{"checks": [{"name": str, "passed": bool, "error": str or null}]}]}`
+- `{"examples": [truth, ...]}` prints `{"answers": [a correct answer per truth]}`
+
+The score is the fraction of named checks passed, with at most 200 checks per item.
+This minimal check passes the self-test:
+
+```python
+import json
+import sys
+
+
+def grade(truth, answer):
+    right = type(answer) is dict and answer.get("total") == truth["total"]
+    return {"checks": [{"name": "total", "passed": right, "error": None if right else "total: wrong"}]}
+
+
+payload = json.load(sys.stdin)
+if "examples" in payload:
+    print(json.dumps({"answers": [{"total": truth["total"]} for truth in payload["examples"]]}))
+else:
+    print(json.dumps({"results": [grade(item["truth"], item["answer"]) for item in payload["items"]]}))
+```
+
+Approval re-runs a self-test on the frozen samples. A correct answer must score 1.0,
+malformed answers must be graded without crashing and without full marks, grading
+must repeat exactly, another sample's answer must not pass, and errors must not
+reveal expected values. `Engine.test_check(id)` or
+`POST /api/projects/<id>/check-test` runs it sooner. `src/lx/inventory_check.py` is a
+full example.
+
+## Run limits
+
+Set these on the spec page under Run limits. Each has a default and a hard outer
+bound (`lx.limits`).
+
+| Limit | Default |
+|---|---|
+| Agent turns per photo (plus 4) | 12 |
+| Agent tool calls per photo (plus 6) | 12 |
+| Stop after this many agent runs in a row with no answer | 8 |
+| Improver turns per session | 12 for Spark, 30 otherwise |
+| Improver session | 180 seconds for Spark, 900 otherwise |
+| One model call with its retries | 90 seconds for Spark, 600 otherwise on a task, 300 on the demo |
+| Whole run | 4 hours on a task; 15 minutes on the demo with Spark, 1 hour otherwise |
+| Reply length | 4,096 tokens for Spark, 8,192 otherwise |
+| Model calls per run | 1,400 on a task, 200 on the demo |
+| SAM calls and Transcribe calls per run | 600 and 60 |
+
+A field tied to a role takes its default from that role's provider. The others take
+the longest default among the run's providers, and a provider entry can set its own
+time per call and reply length. The spec holds every value, so a change is a new
+version that needs approval. A run keeps the limits it was approved with, so a
+raised limit reaches a new run, not a resumed one. Spec versions saved before these
+limits existed need approving again, because the spec now binds them.
+
+Sandbox rules, check and script run times, the self-test, human approval, request
+size bounds and no-redirects are not settable.
+
+## Budgets and run health
+
+Each workspace has its own budget and real-spend ledger: $5 by default, at most $20.
+Each spec also has a run budget. Calls are reserved before they are sent, and the
+actual cost comes from reported usage at the prices you entered, which can differ
+from your provider's bill.
+
+The run page shows agent runs answered, improver sessions finished, why any failed,
+and samples left ungraded. From there:
+
+- **Stop and Resume:** a failed, cancelled or interrupted run can resume.
+- **Grade saved answers:** a failed task run whose loop finished can be graded from
+  its saved answers, with no calls.
+- **Held calls:** a call that ends without a known cost stays held against the budget,
+  with its reason shown. After checking your provider's bill, release a stopped run's
+  held calls as not billed, or count them as spent.
+
+## What lives where
+
+Your workspace holds `.lx/`, which LX adds to a `.gitignore`:
+
+```text
+.lx/
+  project.json
+  spec/vN.json          immutable spec versions
+  checks/vN/check.py    the approved scoring check
+  snapshots/            frozen samples
+  runs/<id>/            run record, event log, snapshot, outputs, health.json
+  packages/<id>/        the reusable harness
+  preview-usage.sqlite3 simulated usage
+```
+
+Provider entries, approvals, budgets and real-spend ledgers stay in user-level state
+at `~/.local/state/lx-harness/`, so writing to the folder cannot approve a run. Any
+change to a spec file voids its approval. An agent with full access to this machine
+is not stopped by this; the human confirmation step comes with the CLI and MCP server.
+
+`lx.engine` is the single service layer behind the app. `lx.server` is a thin HTTP
+layer over it, and the React UI is in `web/`.
+
+## Not built yet
+
+- Only the `photo-request` template exists, so tasks are 3 to 7 photos plus a spoken
+  request.
+- The discussion step is not yet a real orchestrator: it does not remember the
+  conversation or edit the spec. That is P5.
+- There is no CLI or MCP server yet (P6), and the GUI redesign is P7.
+- A task package has no limitations file, and reuse on a fresh sample works only for
+  the demo.
+- The Test button has not yet made a real provider call, and request pacing has been
+  tested only with a mocked clock.
+
+## Tests
+
+Run the suite from `main_LX`. With no script sandbox, sandbox tests skip.
 
 ```powershell
-$env:UV_PROJECT_ENVIRONMENT = ".venv-win"; uv sync --locked --managed-python --python 3.12
-.venv-win\Scripts\python.exe scripts\build_sandbox_image.py
 .venv-win\Scripts\python.exe -m unittest discover -s tests
 ```
 
-Repeat the last command with the same output directory: completed task work is
-reused without fresh provider-double calls. These calls simulate token usage;
-they do not spend credits. The test suite separately verifies the proposer
-session cache and harvested workspace, not only whole-task skipping.
+```bash
+.venv/bin/python -m unittest discover -s tests
+```
 
-The core is a declared local library dependency; the engine remains its pinned
-vendored dependency. `uv.lock` uses relative paths. No core source changes are
-required beyond the recorded Windows port patches (`UPSTREAM.md` in the core).
-Tests use the existing synthetic core fixture from the sibling source
-repository. The user confirmed library consumption for S3 on 28 October 2026.
-
-## Implemented contracts
-
-- [Synthetic dataset and output verifier](docs/demo-contract.md): four PNGs,
-  scene-separated development/held-out splits, independent truth, exact text
-  and object matching with one-pixel box-edge tolerance.
-- `lx.budget`: SQLite reservations under one persistent cap (at most $20),
-  atomic concurrent admission, role/phase/candidate records, nanodollar
-  accounting, and retained reservations for unknown usage. A reported overrun
-  is recorded and blocks new spending. New live jobs must share one ledger;
-  creating another database is not a mechanism for resetting the pilot cap.
-- `lx.spark`: injected transport, normalized Meta function calls, complete
-  assistant/tool history, protocol-owned 429 retries, usage validation,
-  pre-call reservation of the entire context-window cost ceiling, cancellation
-  and time bounds. A synchronous in-flight transport may run until its timeout;
-  a late cancelled response is accounted for and never returned for use.
-- `lx.proposer`: preserves upstream `Proposer.call` audit/cache/harvest and
-  forces one upstream transport attempt. Tools read allowed session-context
-  text files and write only inside `harness/`. Unexpected context filenames
-  and links are rejected before upstream fingerprinting/copying.
-
-Contributor prices were verified on 28 October 2026:
-[pricing](https://dev.meta.ai/docs/pricing-rate-limits),
-[chat protocol](https://dev.meta.ai/docs/protocols/chat-completions),
-[tool protocol](https://dev.meta.ai/docs/tool-calling).
-Input $0.10/M, cached input $0.002/M, output $0.20/M. Computed list-price
-cost is distinct from provider billing. The old pilot's recorded $0.001 is
-retained as conservative prior spend; its notes used Standard-mode prices.
-
-App evidence: [validation](evidence/2026-10-28-app-preview/validation.json),
-[core regression](evidence/2026-10-28-app-preview/core-regression.json),
-[browser result](evidence/2026-10-28-app-preview/ui-results.png).
-The preview uses a separate, explicitly simulated usage ledger; the actual live
-pilot ledger is unchanged. Package exports include spec version, instructions,
-check results, simulated usage/cost and limitations; keys/secret references and
-machine paths are excluded.
-
-## Live S1 evidence
-
-See [the approved payload](docs/live-spike-review.md) and
-[live result](evidence/2026-10-28-live-gate/live-report.json).
-The explicit user approval superseded the earlier automatic-review hold for
-this fixed synthetic experiment. `python -m lx.live` accepts no custom input
-path, loads the existing key only at runtime, uses the fixed Meta endpoint,
-requires the approved fixture checksum, and enforces 40 shared calls/$20 cap.
-Generated code runs in Docker under the core's managed job lifecycle. The
-transport refuses redirects and withholds provider error bodies. Candidate
-input copies and selected Docker artifacts are checked. No managed containers
-remained after the run. The adjacent offline suite passed 36 tests.
+`scripts/validate_product.py --evidence <folder>` writes a validation record. The
+core is a declared local library dependency and the engine stays its pinned vendored
+dependency. `uv.lock` uses relative paths. Tests use the synthetic core fixture from
+the sibling repository.
