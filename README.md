@@ -147,11 +147,18 @@ a comparison with your prices on the run's page, and a warning above 5%.
 ### Meta models
 
 The built-in entries are Muse Spark Contributor, SAM 3.1 and Muse Voice Transcribe.
-They share one Meta key, read when needed from the `MODEL_API_KEY` or `META_API_KEY`
-environment variable, or else from the core's `.env`. SAM and Transcribe are the
-worker's tools in a live inventory task, so that task needs the Meta key even when
-another provider fills all three roles. Spark Contributor may use approved content
-for training, and the app asks you to accept that when Spark has a role.
+They are ready once you have a Meta key, and they share that one key. Save it in
+Settings, under Tools, which puts it in the keychain. Otherwise the app reads the
+`MODEL_API_KEY` or `META_API_KEY` environment variable, or else the core's `.env`.
+A saved key is used first. Settings shows whether a key was found, without showing
+the key or calling Meta, so use Test on the Spark provider to check that Meta
+accepts it.
+
+SAM and Transcribe are the worker's tools in a live inventory task, so that task
+needs the Meta key even when another provider fills all three roles. A live spec
+that needs the key and has none cannot be approved or started, and it says why.
+Previews need no key. Spark Contributor may use approved content for training, and
+the app asks you to accept that when Spark has a role.
 
 ### Where keys live
 

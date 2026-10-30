@@ -205,6 +205,20 @@ class Engine:
         current = {role:self._provider(spec["roles"][role]) for role in ROLES}
         if spec.get("providers") != current:
             raise ValueError("A provider changed since approval; approve again")
+        blocked = self._live_blocked(spec)
+        if blocked:
+            raise ValueError(blocked)
+
+    def _live_blocked(self, spec):
+        """Why a live spec cannot call Meta, found here and not partway into its run. Previews need no key."""
+        if spec.get("mode") != "live" or self._live_transport_factory is not None:
+            return None
+        task = spec.get("task")
+        spark, tools = DEFAULT_ROLE_ENTRY in spec["roles"].values(), bool(task) and not tasks.is_text(task)
+        if not (spark or tools) or self.registry.meta_key_source():
+            return None
+        who = "Spark, SAM and Transcribe" if spark and tools else "Spark" if spark else "SAM and Transcribe"
+        return f"A live run needs a Meta key for {who}. Add it in Settings, under Tools."
 
     # Workspaces
 
@@ -231,6 +245,7 @@ class Engine:
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
                 "notice": self.data_notice(draft),
                 "notice_accepted": self._notice_hosts(record["id"]),
+                "live_blocked": self._live_blocked(draft),
                 "budget": {key:value for key,value in self._ledger(workspace).summary().items()
                            if key in {"cap_usd","spent_usd","reserved_usd","remaining_usd"}}}
 
@@ -690,6 +705,7 @@ class Engine:
         from .inventory_probe import TOOLS
         calls = [tool.get("function", tool) for tool in TOOLS]
         return {"version":version("lx-harness"),"state_root":str(self.root),"sandbox":sandbox.backend(),
+                "meta_key":self.registry.meta_key_source(),
                 "agent_tools":[{"name":call["name"],"description":call["description"]} for call in calls]}
 
     # Packages

@@ -7,19 +7,31 @@ const SECTIONS=[['providers','Providers'],['tools','Tools'],['usage','Usage'],['
 
 export function Settings({state,ui,section}){
   const [system,setSystem]=useState(null);
-  useEffect(()=>{api('system').then(setSystem).catch(()=>{});},[]);
+  const refresh=()=>api('system').then(setSystem).catch(()=>{});
+  useEffect(()=>{refresh();},[]);
   return <div className="settings">
     <nav className="settings-nav" aria-label="Settings"><h1>Settings</h1>{SECTIONS.map(([id,label])=><button key={id} aria-current={section===id?'page':undefined} className={'nav-row '+(section===id?'current':'')} onClick={()=>ui.go({page:'settings',section:id})}>{label}</button>)}</nav>
     <div className="settings-body">
       {section==='providers'&&<Providers state={state} ui={ui}/>}
-      {section==='tools'&&<Tools state={state} system={system}/>}
+      {section==='tools'&&<Tools state={state} system={system} ui={ui} refresh={refresh}/>}
       {section==='usage'&&<UsagePage state={state}/>}
       {section==='general'&&<General state={state} system={system}/>}
     </div>
   </div>;
 }
 
-function Tools({state,system}){
+function MetaKey({system,ui,refresh}){
+  const [key,setKey]=useState(''),source=system?.meta_key;
+  const save=()=>ui.act(async()=>{await api('models/spark-contributor/update',{api_key:key});setKey('');await refresh();ui.notify('Meta key saved.');});
+  return <>
+    <h3>Meta key</h3>
+    <p className="muted">One key for Muse Spark, SAM and Transcribe, from your Meta developer account.</p>
+    {!system?<p className="muted">Checking…</p>:source?<p><span className="dot ok"/>Found {source==='registered'?'in your system keychain':'in the environment or the core .env file'}. Found does not mean Meta accepted it: Test on the Spark provider checks that.</p>:<p className="callout warn">No Meta key yet. Previews work without one; live runs that use Meta models do not.</p>}
+    <div className="key-row"><label className="field">{source?'Replace the key':'API key'}<input type="password" autoComplete="new-password" value={key} onChange={e=>setKey(e.target.value)}/><small className="muted">Goes to your system keychain and cannot be read back. A saved key is used before the environment.</small></label><button className="button" disabled={ui.busy||!key} onClick={save}>Save key</button></div>
+  </>;
+}
+
+function Tools({state,system,ui,refresh}){
   const model=state.models.filter(m=>m.kind!=='chat');
   const sandbox={docker:'Docker',['linux-namespace']:'Linux namespaces'}[system?.sandbox];
   return <section>
@@ -27,8 +39,9 @@ function Tools({state,system}){
     <p className="muted">What an agent can call during a run. Providers think; tools do the work they cannot.</p>
     <h3>Script sandbox</h3>
     {!system?<p className="muted">Checking…</p>:sandbox?<p><span className="dot ok"/>Ready, using {sandbox}. Scoring checks and helper scripts run here.</p>:<p className="callout warn">No sandbox found, so scoring checks and helper scripts cannot run. On Windows, start Docker Desktop and run <code>scripts/build_sandbox_image.py</code>.</p>}
+    <MetaKey system={system} ui={ui} refresh={refresh}/>
     <h3>Model tools</h3>
-    <ul className="list">{model.map(m=><li key={m.id}><strong>{m.name}</strong><span className="muted">{m.capabilities.join(' · ')}</span><small className="muted">Uses the Meta key: {m.credential_source==='runtime configuration'?'read when a run needs it':m.has_key?'registered':'none'}</small></li>)}</ul>
+    <ul className="list">{model.map(m=><li key={m.id}><div className="provider-row"><div><strong>{m.name}</strong><span className="muted">{m.capabilities.join(' · ')}</span></div>{system&&<span className={'chip '+(system.meta_key?'ok':'warn')}>{system.meta_key?'Ready':'Needs Meta key'}</span>}</div></li>)}</ul>
     <h3>Agent tools</h3>
     <ul className="list">{system?.agent_tools.map(tool=><li key={tool.name}><code>{tool.name}</code><span className="muted">{tool.description}</span></li>)}</ul>
   </section>;

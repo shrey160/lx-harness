@@ -146,6 +146,10 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .list > li { display: grid; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .provider-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
 .provider-row > div:first-child { flex: 1; min-width: 180px; }
+.provider-row > div:first-child > span { display: block; }
+.key-row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px 12px; margin-top: 10px; }
+.key-row .field { flex: 1; min-width: 220px; }
+.key-row .button { margin-top: 20px; }
 
 @media (max-width: 760px) {
   .shell { display: block; }

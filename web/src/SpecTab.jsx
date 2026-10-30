@@ -36,6 +36,7 @@ export function SpecTab({state,project,ui,setTab}){
       <select aria-label={role+' provider'} value={roles[role]||''} onChange={e=>setRoles({...roles,[role]:e.target.value})}>{state.models.filter(m=>m.role_ready).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select>
       <small className="muted">{hosts[i]}</small></label>)}</div>
     {mode==='live'&&project.free_providers.length>0&&<p className="callout warn" role="status">No spending limit on {project.free_providers.join(', ')}: its prices are $0, so only the call limits apply. Enter its real prices if it bills you.</p>}
+    {!specDirty&&project.live_blocked&&<p className="callout bad" role="status">{project.live_blocked}</p>}
 
     <h2>Budget</h2>
     <div className="three two-up">
@@ -79,6 +80,7 @@ function Review({project,ui,close,done}){
     </dl>
     {live&&<><h3>Who receives what</h3><ul className="plain">{project.notice.map(entry=><li key={entry.who}><strong>{entry.who}</strong> ({entry.host}): {entry.gets}</li>)}</ul></>}
     {usesSpark&&live&&<p className="callout warn">Spark Contributor may use approved content for training.</p>}
-    <div className="actions end"><button className="button" onClick={close}>Cancel</button><button className="button primary" disabled={ui.busy} onClick={approve}>{live?'Approve and accept':'Approve'}</button></div>
+    {project.live_blocked&&<p className="callout bad" role="alert">{project.live_blocked}</p>}
+    <div className="actions end"><button className="button" onClick={close}>Cancel</button><button className="button primary" disabled={ui.busy||Boolean(project.live_blocked)} onClick={approve}>{live?'Approve and accept':'Approve'}</button></div>
   </dialog>;
 }

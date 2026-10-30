@@ -182,6 +182,33 @@ class RegistryTests(unittest.TestCase):
             self.assertEqual(self.registry.credential("transcribe-catalog"), "dummy-runtime-key")
         self.assertEqual(loader.call_count, 2)
 
+    def test_a_key_on_the_spark_entry_serves_sam_and_transcribe(self):
+        registry = self.keyed(MemoryKeychain())
+        registry.update("spark-contributor", api_key="dummy-ui-key")
+        with patch("lx.live._runtime_key") as loader:
+            self.assertEqual(registry.credential("sam-catalog"), "dummy-ui-key")
+            self.assertEqual(registry.credential("transcribe-catalog"), "dummy-ui-key")
+        loader.assert_not_called()
+
+    def test_the_meta_key_source_names_where_it_is_and_never_the_key(self):
+        registry = self.keyed(MemoryKeychain())
+        with patch("lx.live._runtime_key", side_effect=ValueError("none")):
+            self.assertIsNone(registry.meta_key_source())
+        with patch("lx.live._runtime_key", return_value="dummy-runtime-key"):
+            self.assertEqual(registry.meta_key_source(), "runtime configuration")
+        registry.update("spark-contributor", api_key="dummy-ui-key")
+        with patch("lx.live._runtime_key") as loader:
+            self.assertEqual(registry.meta_key_source(), "registered")
+        loader.assert_not_called()
+
+    def test_a_key_on_another_entry_is_not_the_meta_key(self):
+        registry = self.keyed(MemoryKeychain())
+        registry.create("Hosted", "test/model", ["General"], "dummy-other")
+        with patch("lx.live._runtime_key", side_effect=ValueError("none")):
+            self.assertIsNone(registry.meta_key_source())
+            with self.assertRaises(RegistryError):
+                registry.credential("sam-catalog")
+
     def test_non_spark_catalog_is_immutable_and_spark_model_id_cannot_be_created(self):
         with self.assertRaisesRegex(RegistryError, "immutable"):
             self.registry.delete("sam-catalog")

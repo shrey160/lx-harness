@@ -45,6 +45,7 @@ _BUILTINS = (
      TRANSCRIBE),
 )
 _PROFILES = {entry[0]: entry[4] for entry in _BUILTINS}
+_META_KEY_ENTRY = "spark-contributor"
 _COLUMNS = {"kind": "TEXT NOT NULL DEFAULT 'chat'", "base_url": "TEXT",
             "accepts_images": "INTEGER NOT NULL DEFAULT 0", "supports_tools": "INTEGER NOT NULL DEFAULT 0",
             "pricing": "TEXT NOT NULL DEFAULT '{}'", "context_limit": "INTEGER",
@@ -379,7 +380,11 @@ class Registry:
         if row["secret_ref"]:
             return self._read_secret(row["secret_ref"])
         if row["builtin"]:
-            # Spark, SAM and Transcribe share the Meta runtime configuration (D-008).
+            # Spark, SAM and Transcribe share one Meta key: the one on the Spark entry, else the runtime configuration (D-008).
+            with self._connect() as db:
+                shared = db.execute("SELECT secret_ref FROM models WHERE id=?", (_META_KEY_ENTRY,)).fetchone()
+            if shared["secret_ref"]:
+                return self._read_secret(shared["secret_ref"])
             try:
                 from .live import _runtime_key
 
@@ -387,6 +392,16 @@ class Registry:
             except Exception:
                 raise RegistryError("runtime credential unavailable") from None
         raise RegistryError("no API key is registered for this model")
+
+    def meta_key_source(self) -> str | None:
+        """Where the Meta key comes from, or None if it cannot be loaded. The key itself goes no further."""
+        try:
+            self.credential(_META_KEY_ENTRY)
+        except RegistryError:
+            return None
+        with self._connect() as db:
+            row = db.execute("SELECT secret_ref FROM models WHERE id=?", (_META_KEY_ENTRY,)).fetchone()
+        return "registered" if row["secret_ref"] else "runtime configuration"
 
     def profile(self, record_id: str) -> ProviderProfile:
         """Where and how to call an entry; never includes the credential."""

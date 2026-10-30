@@ -6,7 +6,9 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 import zipfile
 
 from lx import sandbox, tasks
@@ -254,8 +256,56 @@ class NoticeAndPreviewTests(Base):
         entry = self.entry("glimmer")
         p = self.inventory()
         p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live", "roles": {r: entry for r in ("orchestrator", "improver", "worker")}})
-        with self.assertRaisesRegex(ValueError, "request.wav"):
+        with patch.object(self.app.registry, "meta_key_source", return_value="registered"), self.assertRaisesRegex(ValueError, "request.wav"):
             self.approve(p, notice_accepted=True)
+
+
+class MetaKeyTests(Base):
+    def roles(self, entry):
+        return {r: entry for r in ("orchestrator", "improver", "worker")}
+
+    def test_a_live_inventory_on_another_provider_still_needs_the_meta_key(self):
+        entry, p = self.entry("glimmer"), self.inventory()
+        with patch.object(self.app.registry, "meta_key_source", return_value=None):
+            self.assertIsNone(self.app.project(p["id"])["live_blocked"])  # a preview needs none
+            p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live", "roles": self.roles(entry)})
+            self.assertRegex(p["live_blocked"], "Meta key for SAM and Transcribe")
+            with self.assertRaisesRegex(ValueError, "Meta key"):
+                self.approve(p, notice_accepted=True)
+
+    def test_spark_in_a_role_needs_the_key_and_says_which_models(self):
+        p = self.app.create_project({"source": "demo", "path": self.folder()})
+        with patch.object(self.app.registry, "meta_key_source", return_value=None):
+            p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live"})
+            self.assertRegex(p["live_blocked"], "Meta key for Spark\\.")
+            p = self.inventory()
+            p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live"})
+            self.assertRegex(p["live_blocked"], "Meta key for Spark, SAM and Transcribe")
+
+    def test_a_task_with_no_meta_model_needs_no_key(self):
+        entry = self.entry("glimmer")
+        p = self.app.create_project({"source": "demo", "task": "records", "path": self.folder()})
+        with patch.object(self.app.registry, "meta_key_source", return_value=None) as source:
+            p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live", "roles": self.roles(entry)})
+        self.assertIsNone(p["live_blocked"])
+        source.assert_not_called()
+
+    def test_a_key_that_goes_after_approval_stops_the_start(self):
+        p = self.app.create_project({"source": "demo", "path": self.folder()})
+        with patch.object(self.app.registry, "meta_key_source", return_value="registered"):
+            p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live"})
+            p = self.approve(p, notice_accepted=True, contributor_accepted=True)
+        with patch.object(self.app.registry, "meta_key_source", return_value=None), self.assertRaisesRegex(ValueError, "Meta key"):
+            self.app.start(p["id"], launch=False)
+
+    def test_the_key_saved_in_the_app_reaches_both_tool_transports(self):
+        app = Engine(self.root/"keyed", keychain=MemoryKeychain())
+        app.live_enabled = True
+        app.registry.update("spark-contributor", api_key="dummy-ui-key")
+        with patch("lx.engine.MetaToolTransport") as transport, patch("lx.live._runtime_key") as loader:
+            app.build_perception(SimpleNamespace(project=lambda: {"id": "a"*32}), "scope", 1, self.root/"cache", {"segment_calls": 1, "transcribe_calls": 1})
+        self.assertEqual([call.args[1]() for call in transport.call_args_list], ["dummy-ui-key", "dummy-ui-key"])
+        loader.assert_not_called()
 
 
 if __name__ == "__main__":
