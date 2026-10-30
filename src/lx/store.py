@@ -44,3 +44,7 @@ class Store:
                        (kind, record["id"], json.dumps(record, allow_nan=False)))
         return record
 
+    def delete(self, kind, identifier):
+        with self.connect() as db:
+            db.execute("DELETE FROM documents WHERE kind=? AND id=?", (kind, identifier))
+
