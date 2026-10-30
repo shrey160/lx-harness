@@ -99,6 +99,8 @@ def server_for(app, port=8765):
                     result = app.open_workspace(data.get("path"))
                 elif route == ["api","pick-folder"]:
                     result = app.pick_folder()
+                elif route == ["api","models","lookup"]:
+                    result = app.provider_models(data.get("base_url"),data.get("api_key"))
                 elif route == ["api","models"]:
                     result = app.registry.create(data.get("name"),data.get("model_id"),data.get("capabilities"),data.get("api_key"),
                         base_url=data.get("base_url"),accepts_images=data.get("accepts_images",False),

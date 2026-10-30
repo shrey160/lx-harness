@@ -109,29 +109,34 @@ its constructed samples and is a poor test of the loop.
 
 ## Set up a provider
 
-In Settings, under Providers, choose Add provider. Presets fill in OpenRouter, NVIDIA
-or a local server, and you can change any value. Any chat provider with an
-OpenAI-compatible endpoint can fill any role: orchestrator, improver or worker.
+In Settings, under Providers, choose Add provider, then OpenRouter, NVIDIA, Local
+server or Other. The app reads that provider's model list, so you pick a model and
+add a key if the provider needs one. You do not type prices or capabilities. Other
+asks for the server's address, because the app cannot find that. Any chat provider
+with an OpenAI-compatible endpoint can fill any role: orchestrator, improver or
+worker.
 
-| Field | Notes |
-|---|---|
-| Name, capabilities | Your own description |
-| Model identifier | Exactly as the provider names it; it cannot be changed later |
-| Base URL | Ending before `/chat/completions`, for example `https://openrouter.ai/api/v1` |
-| Input and output price | Dollars per million tokens. Needed for a live run; 0 means free |
-| Context limit | Each call reserves this many tokens at the input price, so set it for paid models or a small budget has no room |
-| Requests per minute | Optional. Spaces calls evenly within a run; two runs at once do not share the pacing |
-| Seconds per call, reply tokens | Optional defaults for this provider |
-| Accepts images, supports tool calls | The inventory worker needs both |
-| API key | Goes to the keychain, and cannot be read back |
+What the list gives depends on the provider. Checked on 31 October 2026:
 
-Examples we have used, checked on 30 October 2026. Confirm prices and limits with
-the provider before relying on them:
+| Provider | Base URL | What its list gives |
+|---|---|---|
+| OpenRouter | `https://openrouter.ai/api/v1` | Names, prices with the cached rate, context size, image and tool support |
+| NVIDIA | `https://integrate.api.nvidia.com/v1` | Names only. The app paces it at 40 requests a minute |
+| Local server | `http://127.0.0.1:8888/v1` | Usually names only. Counted as free |
 
-| Provider | Base URL | Model | Notes |
-|---|---|---|---|
-| OpenRouter | `https://openrouter.ai/api/v1` | `meta/muse-glimmer-30b` | $0.30 and $1.20 per million, context 131,072 |
-| NVIDIA | `https://integrate.api.nvidia.com/v1` | `meta/muse-glimmer-30b` | Trial credits, no published price, 40 requests a minute |
+For example, `meta/muse-spark-1.3-contributor` on OpenRouter lists $0.10 and $0.20
+per million tokens, and $0.002 for cached input.
+
+Where a list does not say, the app assumes a model accepts images and tool calls,
+and a run tells you if it does not. A listed context above 262,144 tokens is held
+at that number, because each call reserves its whole context at the input price, and
+a large one would otherwise use up a small budget on every call.
+
+If a provider publishes no price, a live run still works, but the budget cannot count
+it, so only the call limits bound the run, and the spec says so. A local server is
+counted at $0 and works the same way. A provider that states each call's cost, as
+OpenRouter does, gets a comparison with the listed prices on the run's page, and a
+warning above 5%. To correct anything the provider gave, use Edit, under Advanced.
 
 Plain HTTP works only for loopback or private-network hosts, such as a local model
 server. Other hosts need HTTPS.
@@ -139,10 +144,6 @@ server. Other hosts need HTTPS.
 Test on a provider's entry sends one short live message to check the key, endpoint
 and model. It does not test images or tool calls, and it spends from a separate $1
 ledger. Then assign providers to roles on a workspace's Spec tab.
-
-At $0 a budget counts nothing, so only the call limits bound the run. A live spec
-warns about this. A provider that states each call's cost, as OpenRouter does, gets
-a comparison with your prices on the run's page, and a warning above 5%.
 
 ### Meta models
 

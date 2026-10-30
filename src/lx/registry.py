@@ -52,6 +52,7 @@ _COLUMNS = {"kind": "TEXT NOT NULL DEFAULT 'chat'", "base_url": "TEXT",
             "requests_per_minute": "INTEGER", "limits": "TEXT NOT NULL DEFAULT '{}'",
             "enabled": "INTEGER NOT NULL DEFAULT 1"}
 _PRICE_FIELDS = ("input_per_million", "output_per_million")
+_CACHED_PRICE = "cached_per_million"
 _MAX_NAME = 120
 _MAX_MODEL_ID = 200
 _MAX_CAPABILITY = 240
@@ -166,7 +167,7 @@ class Registry:
     def _pricing(value: Any) -> dict[str, str]:
         if value is None:
             return {}
-        if not isinstance(value, dict) or not set(value) <= set(_PRICE_FIELDS):
+        if not isinstance(value, dict) or not set(value) <= {*_PRICE_FIELDS, _CACHED_PRICE}:
             raise RegistryError("invalid pricing")
         result = {}
         for field, amount in value.items():
@@ -223,7 +224,7 @@ class Registry:
             "enabled": bool(row["enabled"]),
             # Any chat entry with an endpoint can fill any role; live spending also needs prices.
             "role_ready": row["kind"] == "chat" and bool(row["base_url"]),
-            "priced": bool(row["builtin"]) or set(prices) == set(_PRICE_FIELDS),
+            "priced": bool(row["builtin"]) or set(_PRICE_FIELDS) <= set(prices),
             "has_key": row["secret_ref"] is not None,
             "credential_source": (
                 "registered" if row["secret_ref"] is not None
@@ -438,7 +439,8 @@ class Registry:
         try:
             return ProviderProfile(
                 kind=row["kind"], endpoint=chat_endpoint(row["base_url"]), model=row["model_id"],
-                input_price=per_token("input_per_million"), cached_price=per_token("input_per_million"),
+                input_price=per_token("input_per_million"),
+                cached_price=per_token(_CACHED_PRICE if _CACHED_PRICE in prices else "input_per_million"),
                 output_price=per_token("output_per_million"), token_param="max_tokens",
                 **({"context_limit": row["context_limit"]} if row["context_limit"] else {}),
                 accepts_images=bool(row["accepts_images"]), supports_tools=bool(row["supports_tools"]))

@@ -40,6 +40,7 @@ from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveChatTransport
 from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
 from .providers import META_API, SAM, SPARK, TRANSCRIBE
+from .model_list import read_models
 from .registry import Registry
 from .spark import IncompleteResponse, ModelError, ChatClient
 from .store import Store
@@ -80,6 +81,7 @@ class Engine:
         self.live_enabled = self.root == DEFAULT_ROOT.resolve()  # a scratch root never makes real calls
         self._live_transport_factory = None
         self._live_perception_factory = None
+        self._model_list = None
 
     def make_live_transport(self, call_limit=RUN_CALL_LIMIT, truth_hint=None):
         if self._live_transport_factory is not None:
@@ -208,8 +210,6 @@ class Engine:
             raise ValueError("The worker's provider must accept images for this workflow")
         if task and not providers["worker"]["supports_tools"]:
             raise ValueError("The worker's provider must support tool calls for this task")
-        if mode == "live" and not all(p["priced"] for p in providers.values()):
-            raise ValueError("A live run needs input and output prices on every provider, so its budget can be enforced; use 0 for a free one")
         return providers
 
     def _check_providers(self, spec):
@@ -272,7 +272,7 @@ class Engine:
                 "hidden_limits": self._hidden_limits(draft),
                 "tool_choices": self._tool_choices(draft),
                 "free_providers": sorted({p["name"] for p in draft["providers"].values()
-                                          if p["pricing"] and not any(float(price) for price in p["pricing"].values())}),
+                                          if not p["priced"] or (p["pricing"] and not any(float(price) for price in p["pricing"].values()))}),
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
                 "notice": self.data_notice(draft),
                 "notice_accepted": self._notice_hosts(record["id"]),
@@ -643,6 +643,15 @@ class Engine:
             if row["status"] in {"reserved","unknown"}:
                 ledger.release(row["id"], charged=charged)
         return self._view(workspace)
+
+    def provider_models(self, base_url, api_key=None):
+        """What a provider lists, for the add form to fill in. Calls no model and spends nothing."""
+        if self._model_list is None and not self.live_enabled:
+            raise ValueError("Live runs are unavailable here; use the local app workspace")
+        try:
+            return {"models":(self._model_list or read_models)(base_url, api_key or None)}
+        except ModelError as exc:
+            raise ValueError(str(exc)) from None
 
     def test_provider(self, entry):
         """One short live call, on the owner's click: is this key and model answering?

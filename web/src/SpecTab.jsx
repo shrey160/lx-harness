@@ -35,7 +35,7 @@ export function SpecTab({state,project,ui,setTab}){
     <div className="three">{ROLES.map((role,i)=><label className="field" key={role}><span className="capital">{role}</span>
       <select aria-label={role+' provider'} value={roles[role]||''} onChange={e=>setRoles({...roles,[role]:e.target.value})}>{state.models.filter(m=>m.role_ready).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select>
       <small className="muted">{hosts[i]}</small></label>)}</div>
-    {mode==='live'&&project.free_providers.length>0&&<p className="callout warn" role="status">No spending limit on {project.free_providers.join(', ')}: its prices are $0, so only the call limits apply. Enter its real prices if it bills you.</p>}
+    {mode==='live'&&project.free_providers.length>0&&<p className="callout warn" role="status">No spending limit on {project.free_providers.join(', ')}: it is free or publishes no price, so the budget cannot count it and only the call limits apply.</p>}
     {!specDirty&&project.blocked&&<p className="callout bad" role="status">{project.blocked}</p>}
 
     {project.tool_choices.length>0&&<>

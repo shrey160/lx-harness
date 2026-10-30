@@ -39,6 +39,7 @@ separate `worker.py` process, so credentials load there and never in task worker
 | `registry.py` | Provider entries, with keys held in the keychain |
 | `keychain.py` | The operating system's keychain |
 | `providers.py` | Where a provider is called and what it costs; endpoint rules |
+| `model_list.py` | Reads a provider's model list, so its details need no typing |
 | `spark.py` | The chat protocol; the transport is injected, so it is offline-testable |
 | `live_transport.py` | The constrained chat transport for live calls |
 | `perception.py` | The built-in Meta tools, SAM 3.1 and Muse Voice Transcribe; each can be switched off (`tasks.py`) |

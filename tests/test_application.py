@@ -407,11 +407,14 @@ class ApplicationFlowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"Assign a provider"):
             self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"roles":{"worker":good}})
 
-    def test_a_live_run_needs_prices_so_its_budget_means_something(self):
+    def test_a_provider_with_no_published_price_runs_live_and_the_spec_says_what_that_means(self):
         p = self.project()
-        unpriced = self.entry("unpriced",pricing=None)["id"]
-        with self.assertRaisesRegex(ValueError,"prices"):
-            self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"mode":"live","roles":{"orchestrator":unpriced,"improver":unpriced,"worker":unpriced}})
+        unpriced = self.entry("unpriced",pricing=None)
+        roles = {"orchestrator":unpriced["id"],"improver":unpriced["id"],"worker":unpriced["id"]}
+        p = self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"mode":"live","roles":roles})
+        self.assertEqual(p["free_providers"],[unpriced["name"]])
+        p = self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"mode":"live","roles":{r:"spark-contributor" for r in roles}})
+        self.assertEqual(p["free_providers"],[])  # built-in Spark is priced in code, not in its entry
 
     def test_contributor_disclosure_is_asked_only_when_spark_has_a_role(self):
         p = self.project()
