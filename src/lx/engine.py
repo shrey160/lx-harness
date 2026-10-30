@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 import hashlib
+from importlib.metadata import version
 import io
 import json
 import math
@@ -33,7 +34,7 @@ import zipfile
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
 from .health import read_health
-from . import checks, limits as run_limits, tasks
+from . import checks, limits as run_limits, sandbox, tasks
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveMetaTransport
@@ -621,6 +622,10 @@ class Engine:
             live = job.get("spec",{}).get("mode") == "live"
             job["usage"] = summarize(usage_rows(self._ledger(workspace) if live else workspace.preview_ledger,job["id"]+"/"))
             job["health"] = read_health(workspace.run_dir(job["id"])/"health.json")
+            task = job.get("spec",{}).get("task")
+            if task:  # the loop writes one summary per sample as it finishes it
+                done = sum(1 for _ in workspace.run_dir(job["id"]).glob("outputs/runs/*-agg1/*/summary.json"))
+                job["progress"] = {"done":done,"total":task["stream_samples"]}
             if not job.get("launch_pending") and job["status"] in {"queued", "running", "interrupted", "cancelled", "failed"}:
                 try:
                     core = read_job(job["id"], workspace.home/"core-jobs")
@@ -647,12 +652,18 @@ class Engine:
             jobs.extend(self._jobs(workspace))
             rows.extend(usage_rows(workspace.preview_ledger))
             spent.extend(usage_rows(self._ledger(workspace)))
-        return {"mode": "controlled_preview", "live_application_enabled": True, "live_flow": "approval_gated_any_provider",
-                "models": self.registry.list_models(), "limit_fields": run_limits.field_list(),
+        return {"models": self.registry.list_models(), "limit_fields": run_limits.field_list(),
                 "projects": projects, "missing_workspaces": missing,
                 "jobs": jobs, "preview_usage": summarize(rows),
                 "usage_events": (rows + spent)[-80:],
                 "live_usage": self.live_ledger.summary() if self.live_ledger else None}
+
+    def system(self):
+        """What Settings shows. Apart from state, because finding the sandbox can start Docker's client."""
+        from .inventory_probe import TOOLS
+        calls = [tool.get("function", tool) for tool in TOOLS]
+        return {"version":version("lx-harness"),"state_root":str(self.root),"sandbox":sandbox.backend(),
+                "agent_tools":[{"name":call["name"],"description":call["description"]} for call in calls]}
 
     # Packages
 

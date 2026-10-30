@@ -40,7 +40,7 @@ class ServerBoundaryTests(unittest.TestCase):
         status, session, _ = self.request("GET", "/api/session")
         self.assertEqual(status, 200)
         self.token = session["token"]
-        self.assertEqual(session["mode"], "controlled_preview")
+        self.assertNotIn("mode", session)
 
     def body(self, name):
         folder = Path(self.tempdir.name) / uuid.uuid4().hex
@@ -74,12 +74,15 @@ class ServerBoundaryTests(unittest.TestCase):
             value = payload
         return status, value, response_headers
 
-    def test_state_defaults_to_preview_with_gated_live_and_no_secret_metadata(self):
+    def test_system_reports_sandbox_and_agent_tools(self):
+        status, system, _ = self.request("GET", "/api/system")
+        self.assertEqual(status, 200)
+        self.assertIn(system["sandbox"], {"docker", "linux-namespace", None})
+        self.assertLessEqual({"view", "segment", "run_script"}, {tool["name"] for tool in system["agent_tools"]})
+
+    def test_state_has_no_secret_metadata(self):
         status, state, _ = self.request("GET", "/api/state")
         self.assertEqual(status, 200)
-        self.assertEqual(state["mode"], "controlled_preview")
-        self.assertTrue(state["live_application_enabled"])
-        self.assertEqual(state["live_flow"], "approval_gated_any_provider")
         self.assertIsNone(state["live_usage"])
         serialized = json.dumps(state)
         self.assertNotIn("secret_ref", serialized)

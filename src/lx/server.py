@@ -1,4 +1,4 @@
-"""Loopback-only HTTP API and built React UI for the local controlled preview."""
+"""Loopback-only HTTP API and built React UI for the local app."""
 import argparse
 import base64
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -37,11 +37,11 @@ def server_for(app, port=8765):
             path = urlparse(self.path).path
             try:
                 if path == "/api/session":
-                    return self.respond({"token":token,"mode":"controlled_preview"})
+                    return self.respond({"token":token})
                 if path == "/api/state":
                     return self.respond(app.state())
-                if path == "/api/live-proof":
-                    return self.respond(json.loads((ROOT/"evidence"/"2026-10-28-live-gate"/"live-report.json").read_text(encoding="utf-8")))
+                if path == "/api/system":
+                    return self.respond(app.system())
                 if path == "/api/demo.zip":
                     import io,zipfile
                     stream = io.BytesIO()
