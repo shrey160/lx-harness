@@ -1,4 +1,4 @@
-"""SQLite model catalog with API credentials kept in separate private files.
+"""SQLite model catalog; API keys live in the OS keychain, or private files where there is none.
 
 Each entry is a provider: what it does (kind and plain-language
 capabilities), where it is called (base URL) and what it costs. Built-in Meta
@@ -46,21 +46,23 @@ _BUILTINS = (
 _PROFILES = {entry[0]: entry[4] for entry in _BUILTINS}
 _COLUMNS = {"kind": "TEXT NOT NULL DEFAULT 'chat'", "base_url": "TEXT",
             "accepts_images": "INTEGER NOT NULL DEFAULT 0", "supports_tools": "INTEGER NOT NULL DEFAULT 0",
-            "pricing": "TEXT NOT NULL DEFAULT '{}'"}
+            "pricing": "TEXT NOT NULL DEFAULT '{}'", "context_limit": "INTEGER"}
 _PRICE_FIELDS = ("input_per_million", "output_per_million")
 _MAX_NAME = 120
 _MAX_MODEL_ID = 200
 _MAX_CAPABILITY = 240
 _MAX_CAPABILITIES = 20
 _MAX_KEY = 8192
+_KEYCHAIN = "keychain:"
 
 
 class Registry:
     """Model metadata and runtime-only credential access."""
 
-    def __init__(self, db_path: str | Path, secrets_dir: str | Path):
+    def __init__(self, db_path: str | Path, secrets_dir: str | Path, keychain: Any = None):
         self.db_path = Path(db_path)
         self.secrets_dir = Path(secrets_dir)
+        self.keychain = keychain
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.secrets_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         with self._connect() as db:
@@ -93,6 +95,24 @@ class Registry:
                     db.execute("UPDATE models SET name=?, model_id=?, capabilities=? WHERE id=?",
                                (name, upstream_id, json.dumps(capabilities), model_id))
             db.commit()
+        self._move_files_to_keychain()
+
+    def _keychain_ready(self) -> bool:
+        return self.keychain is not None and self.keychain.available()
+
+    def _move_files_to_keychain(self) -> None:
+        with self._connect() as db:
+            rows = db.execute("SELECT id, secret_ref FROM models WHERE secret_ref IS NOT NULL").fetchall()
+            files = [r for r in rows if not r["secret_ref"].startswith(_KEYCHAIN)]
+            if not files or not self._keychain_ready():
+                return
+            for row in files:
+                try:
+                    reference = self._write_secret(self._read_secret(row["secret_ref"]))
+                except RegistryError:
+                    continue  # the file still serves; the next open tries again
+                db.execute("UPDATE models SET secret_ref=? WHERE id=?", (reference, row["id"]))
+                self._remove_secret(row["secret_ref"])
 
     @contextmanager
     def _connect(self):
@@ -155,7 +175,16 @@ class Registry:
             result[field] = str(price)
         return result
 
+    @staticmethod
+    def _context_limit(value: Any) -> int | None:
+        if value is None:
+            return None
+        if type(value) is not int or not 1024 <= value <= 20_000_000:
+            raise RegistryError("invalid context limit")
+        return value
+
     def _public(self, row: sqlite3.Row) -> dict[str, Any]:
+        prices = json.loads(row["pricing"])
         return {
             "id": row["id"],
             "name": row["name"],
@@ -165,8 +194,11 @@ class Registry:
             "base_url": row["base_url"],
             "accepts_images": bool(row["accepts_images"]),
             "supports_tools": bool(row["supports_tools"]),
-            "pricing": json.loads(row["pricing"]),
-            "live_eligible": row["model_id"] == MODEL,
+            "pricing": prices,
+            "context_limit": row["context_limit"],
+            # Any chat entry with an endpoint can fill any role; live spending also needs prices.
+            "role_ready": row["kind"] == "chat" and bool(row["base_url"]),
+            "priced": bool(row["builtin"]) or set(prices) == set(_PRICE_FIELDS),
             "has_key": row["secret_ref"] is not None,
             "credential_source": (
                 "registered" if row["secret_ref"] is not None
@@ -192,6 +224,7 @@ class Registry:
         accepts_images: bool = False,
         supports_tools: bool = False,
         pricing: dict[str, Any] | None = None,
+        context_limit: int | None = None,
     ) -> dict[str, Any]:
         name = self._text(name, "name", _MAX_NAME)
         model_id = self._text(model_id, "model_id", _MAX_MODEL_ID)
@@ -204,6 +237,7 @@ class Registry:
             raise RegistryError("registered models must be chat providers")
         url = self._base_url(base_url)
         prices = self._pricing(pricing)
+        context = self._context_limit(context_limit)
         if type(accepts_images) is not bool or type(supports_tools) is not bool:
             raise RegistryError("invalid model flags")
         record_id = uuid.uuid4().hex
@@ -213,10 +247,10 @@ class Registry:
                 db.execute("BEGIN IMMEDIATE")
                 db.execute(
                     "INSERT INTO models (id,name,model_id,capabilities,builtin,secret_ref,"
-                    "kind,base_url,accepts_images,supports_tools,pricing) "
-                    "VALUES (?,?,?,?,0,?,?,?,?,?,?)",
+                    "kind,base_url,accepts_images,supports_tools,pricing,context_limit) "
+                    "VALUES (?,?,?,?,0,?,?,?,?,?,?,?)",
                     (record_id, name, model_id, json.dumps(caps), secret_ref,
-                     kind, url, int(accepts_images), int(supports_tools), json.dumps(prices)),
+                     kind, url, int(accepts_images), int(supports_tools), json.dumps(prices), context),
                 )
                 row = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
                 db.commit()
@@ -241,15 +275,17 @@ class Registry:
         accepts_images: bool | None = None,
         supports_tools: bool | None = None,
         pricing: dict[str, Any] | None = None,
+        context_limit: int | None = None,
     ) -> dict[str, Any]:
         if name is not None:
             name = self._text(name, "name", _MAX_NAME)
         caps = None if capabilities is None else self._capabilities(capabilities)
         url = self._base_url(base_url)
         prices = None if pricing is None else self._pricing(pricing)
+        context = self._context_limit(context_limit)
         if any(flag is not None and type(flag) is not bool for flag in (accepts_images, supports_tools)):
             raise RegistryError("invalid model flags")
-        provider_change = any(v is not None for v in (base_url, accepts_images, supports_tools, pricing))
+        provider_change = any(v is not None for v in (base_url, accepts_images, supports_tools, pricing, context))
         key = self._api_key(api_key)
         new_ref = self._write_secret(key) if key is not None else None
         old_ref: str | None = None
@@ -267,11 +303,12 @@ class Registry:
                 next_ref = new_ref if key is not None else old_ref
                 db.execute(
                     "UPDATE models SET name=?, capabilities=?, secret_ref=?, base_url=?, "
-                    "accepts_images=?, supports_tools=?, pricing=? WHERE id=?",
+                    "accepts_images=?, supports_tools=?, pricing=?, context_limit=? WHERE id=?",
                     (next_name, next_caps, next_ref, url if url is not None else row["base_url"],
                      int(accepts_images) if accepts_images is not None else row["accepts_images"],
                      int(supports_tools) if supports_tools is not None else row["supports_tools"],
-                     json.dumps(prices) if prices is not None else row["pricing"], record_id),
+                     json.dumps(prices) if prices is not None else row["pricing"],
+                     context if context is not None else row["context_limit"], record_id),
                 )
                 result = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
                 db.commit()
@@ -306,10 +343,7 @@ class Registry:
         if row is None:
             raise RegistryError("unknown model id")
         if row["secret_ref"]:
-            try:
-                return (self.secrets_dir / row["secret_ref"]).read_text(encoding="utf-8")
-            except OSError:
-                raise RegistryError("registered credential unavailable") from None
+            return self._read_secret(row["secret_ref"])
         if row["builtin"]:
             # Spark, SAM and Transcribe share the Meta runtime configuration (D-008).
             try:
@@ -337,14 +371,36 @@ class Registry:
                 kind=row["kind"], endpoint=chat_endpoint(row["base_url"]), model=row["model_id"],
                 input_price=per_token("input_per_million"), cached_price=per_token("input_per_million"),
                 output_price=per_token("output_per_million"), token_param="max_tokens",
+                **({"context_limit": row["context_limit"]} if row["context_limit"] else {}),
                 accepts_images=bool(row["accepts_images"]), supports_tools=bool(row["supports_tools"]))
         except ValueError as exc:
             raise RegistryError(str(exc)) from None
+
+    def _read_secret(self, reference: str) -> str:
+        try:
+            if reference.startswith(_KEYCHAIN):
+                value = self.keychain.get(reference[len(_KEYCHAIN):]) if self.keychain is not None else None
+                if value is None:
+                    raise RegistryError("registered credential unavailable")
+                return value
+            return (self.secrets_dir / reference).read_text(encoding="utf-8")
+        except RegistryError:
+            raise
+        except Exception:
+            raise RegistryError("registered credential unavailable") from None
 
     def _write_secret(self, key: str | None) -> str | None:
         if key is None:
             return None
         reference = uuid.uuid4().hex
+        if self._keychain_ready():
+            try:
+                self.keychain.set(reference, key)
+            except Exception:
+                raise RegistryError("API key could not be stored") from None
+            return _KEYCHAIN + reference
+        if self.keychain is not None and os.name == "nt":
+            raise RegistryError("the Windows Credential Manager is unavailable")
         path = self.secrets_dir / reference
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
         fd = os.open(path, flags, 0o600)
@@ -364,7 +420,11 @@ class Registry:
 
     def _remove_secret(self, reference: str) -> None:
         try:
+            if reference.startswith(_KEYCHAIN):
+                if self.keychain is not None:
+                    self.keychain.delete(reference[len(_KEYCHAIN):])
+                return
             (self.secrets_dir / reference).unlink(missing_ok=True)
-        except OSError:
+        except Exception:
             # The opaque reference remains inaccessible through the registry.
             pass

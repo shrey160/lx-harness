@@ -9,6 +9,7 @@ description = "Local harness workflow on the pinned portable core"
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "h2portable==0.1.0",
+    "keyring==25.6.0",
     "pillow==11.3.0",
 ]
 

@@ -13,6 +13,16 @@ from lx.registry import Registry, RegistryError
 from lx.spark import MODEL
 
 
+class MemoryKeychain:
+    """Never the real Credential Manager in tests."""
+    def __init__(self, usable=True):
+        self.values, self.usable = {}, usable
+    def available(self): return self.usable
+    def set(self, name, value): self.values[name] = value
+    def get(self, name): return self.values.get(name)
+    def delete(self, name): self.values.pop(name, None)
+
+
 class RegistryTests(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory(dir=None if os.name == "posix" else Path(__file__).resolve().parents[1])
@@ -31,13 +41,13 @@ class RegistryTests(unittest.TestCase):
         spark = next(m for m in models if m["id"] == "spark-contributor")
         self.assertEqual(spark["model_id"], MODEL)
         self.assertEqual(spark["name"], "Muse Spark 1.3 Contributor")
-        self.assertTrue(spark["live_eligible"])
+        self.assertTrue(spark["role_ready"])
         self.assertFalse(spark["has_key"])
         self.assertEqual(spark["credential_source"], "runtime configuration")
         for model in models:
             self.assertEqual(set(model), {
                 "id", "name", "model_id", "capabilities", "kind", "base_url", "accepts_images",
-                "supports_tools", "pricing", "live_eligible", "has_key", "credential_source",
+                "supports_tools", "pricing", "context_limit", "role_ready", "priced", "has_key", "credential_source",
             })
             self.assertNotIn("secret", json.dumps(model).lower())
             self.assertEqual(model["base_url"], "https://api.meta.ai/v1")
@@ -47,8 +57,8 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual((sam["kind"], sam["model_id"]), ("segmentation", "sam-3.1"))
         self.assertEqual((transcribe["kind"], transcribe["model_id"]), ("transcription", "muse-voice-transcribe-1.0"))
         self.assertEqual((spark["kind"], spark["accepts_images"], spark["supports_tools"]), ("chat", True, True))
-        self.assertFalse(sam["live_eligible"])
-        self.assertFalse(transcribe["live_eligible"])
+        self.assertFalse(sam["role_ready"])
+        self.assertFalse(transcribe["role_ready"])
         loader.assert_not_called()
 
     def test_existing_database_is_migrated_to_provider_fields(self):
@@ -108,7 +118,7 @@ class RegistryTests(unittest.TestCase):
         dummy = "synthetic-dummy-key-123"
         record = self.registry.create("Local test model", "test/model-v1", ["summarize"], dummy)
         self.assertTrue(record["has_key"])
-        self.assertFalse(record["live_eligible"])
+        self.assertFalse(record["role_ready"])  # no endpoint yet
         self.assertNotIn(dummy, repr(record))
         db = sqlite3.connect(self.db_path)
         try:
@@ -202,6 +212,60 @@ class RegistryTests(unittest.TestCase):
             self.registry.update(record["id"], model_id="other")
         with self.assertRaisesRegex(RegistryError, "unknown model"):
             self.registry.update("missing", name="Nope")
+
+    def test_any_chat_entry_with_an_endpoint_is_ready_and_prices_are_tracked(self):
+        free = self.registry.create("Gilmer", "muse/gilmer", ["General"], base_url="https://openrouter.ai/api/v1")
+        self.assertTrue(free["role_ready"])
+        self.assertFalse(free["priced"])
+        priced = self.registry.update(free["id"], pricing={"input_per_million": 0.0375, "output_per_million": 0},
+                                      context_limit=32768)
+        self.assertTrue(priced["priced"])
+        profile = self.registry.profile(free["id"])
+        self.assertEqual(profile.context_limit, 32768)
+        self.assertEqual(profile.endpoint, "https://openrouter.ai/api/v1/chat/completions")
+        with self.assertRaises(RegistryError):
+            self.registry.update(free["id"], context_limit=10)
+
+    def keyed(self, keychain):
+        return Registry(self.db_path, self.secrets_dir, keychain)
+
+    def test_keychain_holds_the_key_and_no_file_is_written(self):
+        keychain = MemoryKeychain()
+        registry = self.keyed(keychain)
+        record = registry.create("Hosted", "test/model", ["General"], "dummy-one")
+        self.assertEqual(list(keychain.values.values()), ["dummy-one"])
+        self.assertEqual(list(self.secrets_dir.iterdir()), [])
+        self.assertEqual(registry.credential(record["id"]), "dummy-one")
+        self.assertNotIn(b"dummy-one", self.db_path.read_bytes())
+        registry.update(record["id"], api_key="dummy-two")
+        self.assertEqual(list(keychain.values.values()), ["dummy-two"])
+        registry.delete(record["id"])
+        self.assertEqual(keychain.values, {})
+
+    def test_existing_key_files_move_to_the_keychain(self):
+        record = self.registry.create("Old", "test/old", ["General"], "dummy-old")
+        self.assertEqual(len(list(self.secrets_dir.iterdir())), 1)
+        keychain = MemoryKeychain()
+        registry = self.keyed(keychain)
+        self.assertEqual(list(self.secrets_dir.iterdir()), [])
+        self.assertEqual(registry.credential(record["id"]), "dummy-old")
+
+    def test_no_keychain_uses_private_files_on_posix_and_refuses_on_windows(self):
+        registry = self.keyed(MemoryKeychain(usable=False))
+        if os.name == "nt":
+            with self.assertRaisesRegex(RegistryError, "Credential Manager"):
+                registry.create("Hosted", "test/model", ["General"], "dummy-one")
+        else:
+            record = registry.create("Hosted", "test/model", ["General"], "dummy-one")
+            self.assertEqual(registry.credential(record["id"]), "dummy-one")
+
+    def test_a_missing_keychain_entry_reports_without_detail(self):
+        keychain = MemoryKeychain()
+        registry = self.keyed(keychain)
+        record = registry.create("Hosted", "test/model", ["General"], "dummy-one")
+        keychain.values.clear()
+        with self.assertRaisesRegex(RegistryError, "credential unavailable"):
+            registry.credential(record["id"])
 
 
 if __name__ == "__main__":
