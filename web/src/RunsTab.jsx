@@ -62,7 +62,7 @@ function Result({project,job,ui,post,live}){
       <a className="button primary" href={`/api/packages/${project.id}/${job.id}/download`} download="harness-package.zip">Download package</a>
       {!result.task&&<button className="button" disabled={ui.busy} onClick={()=>post('fresh')}>Try a new scene</button>}
     </div>
-    <p className="muted">The package holds the approved spec, the harness and the check results.</p>
+    <p className="muted">The package holds the approved spec, the harness and the check results; a task package adds its check file and limitations.</p>
     {job.fresh_result&&<div className={'callout '+(job.fresh_result.accepted?'':'warn')}><strong>{job.fresh_result.accepted?'New scene passed':'New scene failed'}</strong><p>{job.fresh_result.note}</p>{job.fresh_result.errors?.map(e=><p key={e}>{e}</p>)}</div>}
   </div>;
 }
