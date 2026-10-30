@@ -2,7 +2,8 @@
 from pathlib import Path, PurePosixPath
 import threading
 
-from .providers import SPARK, time_limits
+from .limits import preset
+from .providers import SPARK
 from .spark import MODEL
 
 _SECRET_NAMES = {"credentials", "credentials.json", "service-account.json", "secrets.json",
@@ -80,13 +81,14 @@ class FileTools:
 
 
 class SparkProposer:
-    def __init__(self, client, audit_dir, *, role="improver"):
+    def __init__(self, client, audit_dir, *, role="improver", limits=None):
         from harness2.core.proposer import Proposer
         from harness2.core.spec import ChannelSpec
         self.client, self.role = client, role
+        self.limits = limits or preset(getattr(client, "profile", SPARK) is SPARK)
         self._local = threading.local()
-        wall = time_limits(getattr(client, "profile", SPARK))["improver_session"]
-        self._delegate = Proposer(ChannelSpec("opencode", MODEL, timeout=wall), audit_dir=Path(audit_dir), attempts=1)
+        self._delegate = Proposer(ChannelSpec("opencode", MODEL, timeout=self.limits["improver_seconds"]),
+                                  audit_dir=Path(audit_dir), attempts=1)
         self._delegate._opencode = self._session
         self.spec, self._calls = self._delegate.spec, self._delegate._calls
         self.audit_dir, self.attempts = self._delegate.audit_dir, 1
@@ -118,5 +120,5 @@ class SparkProposer:
             "selection" if (cwd/"context"/"candidates").is_dir() else "improvement")
         text, cost = self.client.session(messages, files, TOOLS, role=self.role, phase=phase,
                                          candidate=self._local.label, timeout=wall,
-                                         max_turns=time_limits(getattr(self.client, "profile", SPARK))["improver_turns"])
+                                         max_turns=self.limits["improver_turns"])
         return text, float(cost), ""

@@ -171,15 +171,41 @@ class LiveWiringTests(unittest.TestCase):
             other.edit_spec(project["id"], {"goal": "g", "budget_usd": 1, "mode": "bogus"})
 
 class TimeLimitTests(unittest.TestCase):
-    def test_spark_keeps_its_limits_and_other_providers_get_longer_ones(self):
+    def test_a_stated_call_bound_replaces_the_default_one(self):
         from dataclasses import replace
-        from lx.providers import SPARK, time_limits
-        self.assertEqual(time_limits(SPARK), {"worker_call": 90, "improver_session": 180, "run": 900, "improver_turns": 12})
-        other = time_limits(replace(SPARK, model="meta/muse-glimmer-30b"))
-        self.assertGreater(other["worker_call"], 90)
-        self.assertGreater(other["improver_session"], 180)
-        self.assertGreater(other["run"], 900)
-        self.assertGreater(other["improver_turns"], 12)
+        from lx.providers import SPARK
+        seen = []
+        class Opener:
+            def open(self, request, timeout):
+                seen.append(timeout)
+                return _Response(b"{}")
+        body = {"model": "m", "messages": [{"role": "user", "content": "x"}]}
+        LiveMetaTransport(lambda: "dummy", opener=Opener(), profile=replace(SPARK, model="m"), max_call_seconds=45)(body, 300)
+        LiveMetaTransport(lambda: "dummy", opener=Opener(), profile=replace(SPARK, model="m"))(body, 900)
+        self.assertEqual(seen, [45, 600])
+
+    def test_a_rate_spaces_calls_evenly(self):
+        from dataclasses import replace
+        from lx.providers import SPARK
+        now, waits = [100.0], []
+        def sleep(seconds):
+            waits.append(seconds)
+            now[0] += seconds
+        opener = Mock()
+        opener.open.side_effect = lambda *_a, **_k: _Response(b"{}")
+        transport = LiveMetaTransport(lambda: "dummy", opener=opener, profile=replace(SPARK, model="m"), requests_per_minute=40,
+                                      sleep=sleep, clock=lambda: now[0])
+        body = {"model": "m", "messages": [{"role": "user", "content": "x"}]}
+        for _ in range(3):
+            transport(body, 5)
+        self.assertEqual(waits, [1.5, 1.5])
+        now[0] += 10
+        transport(body, 5)
+        self.assertEqual(len(waits), 2)  # idle time needs no wait
+
+    def test_a_bad_rate_is_refused(self):
+        with self.assertRaises(ModelError):
+            LiveMetaTransport(lambda: "dummy", requests_per_minute=0)
 
     def test_a_timeout_is_named_as_one(self):
         from dataclasses import replace

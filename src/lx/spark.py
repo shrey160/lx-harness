@@ -112,13 +112,16 @@ def normalize(raw: dict, *, max_tokens: int, profile=SPARK) -> tuple[dict, dict]
 
 
 class SparkClient:
-    def __init__(self, transport, ledger, *, max_tokens=4096, retries=2, cancel=None, profile=SPARK):
-        if type(max_tokens) is not int or not 1 <= max_tokens <= 8192:
+    def __init__(self, transport, ledger, *, max_tokens=4096, retries=2, cancel=None, profile=SPARK, call_seconds=None):
+        if type(max_tokens) is not int or not 1 <= max_tokens <= 32768:
             raise ValueError("max_tokens outside supported bounds")
         if profile.kind != "chat":
             raise ValueError("a chat client needs a chat provider profile")
         self.transport, self.ledger, self.profile = transport, ledger, profile
         self.max_tokens, self.retries = max_tokens, retries
+        # Without a stated limit Spark keeps its 60-second bound; other providers (slow local
+        # models) get the session deadline and their transport applies its own bound.
+        self.call_seconds = call_seconds or (60 if profile is SPARK else None)
         self.cancel = cancel or threading.Event()
 
     def chat(self, messages, *, tools=None, role="improver", phase="session", candidate="", timeout=120):
@@ -138,10 +141,8 @@ class SparkClient:
                 raise ModelError("model session stopped or timed out")
             reservation = self.ledger.reserve(maximum, role, phase, candidate)
             try:
-                # Spark keeps its 60-second per-call bound; other providers (slow local models)
-                # get the session deadline and their transport applies its own bound.
                 remaining = max(0.1, deadline-time.monotonic())
-                raw = self.transport(body, min(60, remaining) if profile is SPARK else remaining)
+                raw = self.transport(body, min(self.call_seconds, remaining) if self.call_seconds else remaining)
             except RateLimited as exc:
                 self.ledger.unknown(reservation)
                 if attempt >= self.retries:

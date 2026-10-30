@@ -13,8 +13,9 @@ import json
 from pathlib import Path, PurePosixPath
 
 from .domain import build_demo_dataset, verify_output
+from .limits import preset
 from .proposer import SparkProposer
-from .providers import SPARK, time_limits
+from .providers import SPARK
 from .spike import wire_reply
 
 BASE_PROMPT = "LX_BASE\nDescribe the colored objects and their boxes. Return JSON with objects and text."
@@ -95,8 +96,8 @@ class PreviewTransport:
 
 
 class ImagesAdapter:
-    def __init__(self, snapshot, output, client, *, mode="controlled_preview", domain=None, truth=None):
-        self.mode = mode
+    def __init__(self, snapshot, output, client, *, mode="controlled_preview", domain=None, truth=None, limits=None):
+        self.mode, self.limits = mode, limits
         self.domain, self.truth = domain, truth
         verifier = domain.verify if domain else verify_output
         self.verifier_identity = hashlib.sha256(inspect.getsource(inspect.getmodule(verifier)).encode()).hexdigest()
@@ -183,7 +184,7 @@ class ImagesAdapter:
                     {"type": "image_url", "image_url": {"url": "data:image/png;base64,"+encoded}}]}]
         message, usage = self.client.chat(messages,
             role="worker", phase="execute", candidate=run_id,
-            timeout=timeout or time_limits(getattr(self.client, "profile", SPARK))["worker_call"])
+            timeout=timeout or (self.limits or preset(getattr(self.client, "profile", SPARK) is SPARK))["call_seconds"])
         content = message["content"].strip()
         if content.startswith("```"):
             content = "\n".join(content.splitlines()[1:-1])
@@ -225,18 +226,18 @@ class ImagesAdapter:
                 "n_criteria": getattr(result, "n_criteria", 1), "all_pass": result.accepted}
 
 
-def optimize_preview(snapshot, output, client, truth, spec, *, live=False, worker_client=None):
+def optimize_preview(snapshot, output, client, truth, spec, *, live=False, worker_client=None, limits=None):
     """client is the improver; worker_client, when given, is a different provider for the worker role."""
-    adapter = ImagesAdapter(snapshot, output, worker_client or client, mode="live" if live else "controlled_preview", truth=truth)
-    return optimize_adapter(adapter, output, client, spec, live=live)
+    adapter = ImagesAdapter(snapshot, output, worker_client or client, mode="live" if live else "controlled_preview", truth=truth, limits=limits)
+    return optimize_adapter(adapter, output, client, spec, live=live, limits=limits)
 
 
-def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_count=None):
+def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_count=None, limits=None):
     """Blind core adaptation, then controller-side mean-dev retention and evaluation."""
     from harness2.core.schedule import Namespace, run_domain
     from harness2.core import tree
-    proposer = SparkProposer(client, Path(output)/"proposer_audit")
-    reflector = SparkProposer(client, Path(output)/"reflector_audit")
+    proposer = SparkProposer(client, Path(output)/"proposer_audit", limits=limits)
+    reflector = SparkProposer(client, Path(output)/"reflector_audit", limits=limits)
     dev = adapter.tasks("dev")
     if not dev or not adapter.tasks("heldout"):
         raise ValueError("Separate development and held-out samples are required")

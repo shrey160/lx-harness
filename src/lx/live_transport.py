@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import base64
 import json
+import threading
+import time
 import urllib.error
 import urllib.request
 
@@ -106,13 +108,15 @@ class LiveMetaTransport:
 
     def __init__(self, credential_loader, *, call_limit=RUN_CALL_LIMIT, opener=None, profile=SPARK,
                  agent_tools=None, image_types=("png",), max_image_bytes=MAX_IMAGE_BYTES, call_ceiling=RUN_CALL_LIMIT,
-                 max_images=1):
+                 max_images=1, max_call_seconds=None, requests_per_minute=None, sleep=time.sleep, clock=time.monotonic):
         """Defaults are the approved O-11 contract. PROD-003 (D-008) may pass a
         provider profile, the exact agent tool set, JPEG images up to a stated
         bound and a call ceiling set from measured counts; a keyless local
         provider passes no credential loader. PROD-004 may allow up to
         MAX_IMAGES_PER_REQUEST images per request (view results kept in the
-        agent history); the body size bound still applies."""
+        agent history); the body size bound still applies. D-017: the spec may
+        set the call bound, and a provider entry's rate spaces calls evenly,
+        within one run only."""
         if credential_loader is None and profile is SPARK:
             raise ModelError("a runtime credential loader is required")
         if credential_loader is not None and not callable(credential_loader):
@@ -132,17 +136,34 @@ class LiveMetaTransport:
         self._contract = {"model": profile.model, "tool_sets": (TOOLS,) + ((agent_tools,) if agent_tools else ()),
                           "image_types": tuple(image_types), "max_image_bytes": max_image_bytes,
                           "max_images": max_images}
+        if requests_per_minute is not None and (type(requests_per_minute) is not int or requests_per_minute < 1):
+            raise ModelError("request rate outside approved bounds")
         # Local models answer slowly; Spark keeps its original 60-second bound.
-        self._max_timeout = 60 if profile is SPARK else 600
+        self._max_timeout = max_call_seconds or (60 if profile is SPARK else 600)
+        self._spacing = 60/requests_per_minute if requests_per_minute else 0
+        self._next_call, self._pace = 0, threading.Lock()
+        self._sleep, self._clock = sleep, clock
         self.call_limit = call_limit
         self.calls = 0
         self._opener = opener or urllib.request.build_opener(_NoRedirect())
+
+    def _wait_turn(self):
+        """Hold this call until its slot; a rate limit is better avoided than backed off from."""
+        if not self._spacing:
+            return
+        with self._pace:
+            now = self._clock()
+            slot = max(now, self._next_call)
+            self._next_call = slot+self._spacing
+        if slot > now:
+            self._sleep(slot-now)
 
     def __call__(self, body, timeout):
         validate_body(body, **self._contract)
         if self.calls >= self.call_limit:
             raise ModelError("live call limit for this run reached")
         self.calls += 1
+        self._wait_turn()
         headers = {"Content-Type": "application/json"}
         if self._key:
             headers["Authorization"] = "Bearer " + self._key

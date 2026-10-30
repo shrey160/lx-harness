@@ -121,11 +121,11 @@ class InventoryAdapter(ImagesAdapter):
     """Agent executions over photo sets; identity covers agent, tools, caps, harness and media."""
 
     def __init__(self, snapshot, output, client, truth, *, perception, catalog, mode="offline_preview",
-                 script_runner=None, domain=None):
+                 script_runner=None, domain=None, limits=None):
         from . import sandbox
         self.scripts_enabled = script_runner is not None or sandbox.available()
         super().__init__(snapshot, output, client, mode=mode, domain=domain or InventoryDomain(self.scripts_enabled),
-                         truth=truth)
+                         truth=truth, limits=limits)
         if domain is not None:
             self.verifier_identity = hashlib.sha256(domain.check.encode()).hexdigest()
         self.perception = perception
@@ -139,6 +139,11 @@ class InventoryAdapter(ImagesAdapter):
             raise ValueError(SCRIPTS_OFF)
         validate_components(self.substrate.surface(), value)
 
+    def _caps(self, task):
+        limits = self.limits or {}
+        return caps(len(self.by_id[task]["photos"]), turns_per_photo=limits.get("agent_turns_per_photo", 3),
+                    tools_per_photo=limits.get("agent_tools_per_photo", 6))
+
     def _photos(self, task):
         return [media_path(self.input_root, p, ".jpg").read_bytes() for p in self.by_id[task]["photos"]]
 
@@ -150,7 +155,7 @@ class InventoryAdapter(ImagesAdapter):
         extra = {"base": super()._identity(task, harness), "worker_protocol": "lx-inventory-agent-v1",
                  "agent": {"model": profile.model, "endpoint": profile.endpoint, "images": profile.accepts_images,
                            "tools": profile.supports_tools},
-                 "tool_sha256": tool_identity(self.tools), "caps": caps(len(self.by_id[task]["photos"])),
+                 "tool_sha256": tool_identity(self.tools), "caps": self._caps(task),
                  "photos_sha256": [media_hash(p) for p in self._photos(task)],
                  "audio_sha256": media_hash(self._audio(task))}
         return hashlib.sha256(json.dumps(extra, sort_keys=True).encode()).hexdigest()
@@ -170,7 +175,7 @@ class InventoryAdapter(ImagesAdapter):
         handler = ComponentTools(PhotoSetTools(self.perception, photos=photos, audio=self._audio(task), candidate=run_id),
                                  harness, runner=self.script_runner)
         text, trace = run_agent(self.client, messages, self.tools, handler, candidate=run_id,
-                                timeout=timeout or 600, **caps(len(photos)))
+                                timeout=timeout or (self.limits or {}).get("call_seconds", 600), **self._caps(task))
         content = text
         if content.startswith("```"):
             content = "\n".join(content.splitlines()[1:-1])
@@ -194,7 +199,7 @@ class InventoryAdapter(ImagesAdapter):
         return render_trace(record["trace"], record["final_text"], obs_trunc=obs_trunc)
 
 
-def run_stream(adapter, output, client, *, tasks=None):
+def run_stream(adapter, output, client, *, tasks=None, limits=None):
     """E-A: Harness² k=1 (sequential mode) over the stream, then controller-side grading per sample."""
     from harness2.core import tree
     from harness2.core.schedule import Namespace, run_domain
@@ -205,8 +210,8 @@ def run_stream(adapter, output, client, *, tasks=None):
     stream = list(tasks) if tasks is not None else adapter.tasks("dev")
     if not stream:
         raise ValueError("The stream needs at least one sample")
-    proposer = SparkProposer(client, output/"proposer_audit")
-    reflector = SparkProposer(client, output/"reflector_audit")
+    proposer = SparkProposer(client, output/"proposer_audit", limits=limits)
+    reflector = SparkProposer(client, output/"reflector_audit", limits=limits)
     result = run_domain(adapter.domain_of(stream[0]), stream, 1, adapter=adapter, prop=proposer,
                         runs_root=adapter.spec.runs_root, library_root=output/"library", modes=("seq",),
                         reflector_prop=reflector)
