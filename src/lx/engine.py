@@ -688,7 +688,7 @@ class Engine:
         stream = io.BytesIO()
         with zipfile.ZipFile(stream,"w",zipfile.ZIP_DEFLATED) as archive:
             for path in folder.rglob("*"):
-                if path.is_file() and not path.is_symlink() and path.suffix in {".md",".json"}:
+                if path.is_file() and not path.is_symlink() and path.suffix in {".md",".json",".py"}:
                     archive.write(path,path.relative_to(folder).as_posix())
         return stream.getvalue()
 

@@ -348,8 +348,8 @@ Each folder has its own README:
 - The discussion step is not yet a real orchestrator: it does not remember the
   conversation or edit the spec. That is P5.
 - There is no CLI or MCP server yet (P6), and the GUI redesign is P7.
-- A task package has no limitations file, and reuse on a fresh sample works only for
-  the demo.
+- Reuse on a fresh sample works only for the demo. A task package holds the harness, its
+  check, results and limitations; running it on new samples comes with `lx use` (P6).
 - The Test button has not yet made a real provider call, and request pacing has been
   tested only with a mocked clock.
 

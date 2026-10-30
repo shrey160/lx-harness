@@ -1,4 +1,5 @@
 """Spec-driven tasks: a run defined by its spec and check file, on the real engine and sandbox."""
+import io
 import json
 import os
 from pathlib import Path
@@ -6,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 
 from lx import sandbox, tasks
 from lx.engine import Engine
@@ -127,6 +129,15 @@ class TaskRunTests(Base):
                              verify_inventory(truth[sample], answer))
         self.assertTrue((workspace.package_dir(job["id"])/"harness"/"systemprompt.md").is_file())
         self.assertTrue((workspace.package_dir(job["id"])/"spec.json").is_file())
+        with zipfile.ZipFile(io.BytesIO(self.app.package_bytes(p["id"], job["id"]))) as archive:
+            names = archive.namelist()
+            self.assertEqual(archive.read("check.py").decode("utf-8"), tasks.inventory_check_source())
+            notes = archive.read("limitations.md").decode("utf-8")
+        self.assertIn("doubles", notes)
+        self.assertIn("No held-out samples", notes)
+        if result["improved"]:
+            self.assertIn("harness/scripts/sum_counts.py", names)
+        self.assertIn("result.json", names)
         for path in (run_dir/"dataset"/"worker_inputs").rglob("*"):
             self.assertNotEqual(path.name, "truth.json")
         for path in (run_dir/"outputs"/"sources").rglob("*"):

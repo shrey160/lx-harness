@@ -14,8 +14,26 @@ from .inventory_workflow import InventoryAdapter, grade_stream, preview_transcri
 from .tasks import TaskDomain, build_dataset, preview_scenes
 
 
-def _package(adapter, report, output, spec):
-    """Copy the best harness (or the base when nothing gained) into package/harness."""
+def limitations(spec, report, chosen, live):
+    """What a reader of this package must not assume; written from the run itself."""
+    rows, skipped = report["per_sample"], report["skipped"]
+    worker = spec["providers"]["worker"].get("model_id") or spec["roles"]["worker"]
+    lines = ["# Limitations", "",
+             f"- Measured on {len(rows)} sample(s), one run per harness, so a single unlucky reply can move a score.",
+             "- No held-out samples: every score here comes from samples the loop adapted on, so it reads high.",
+             (f"- This harness came from one sample ({chosen}), picked for the largest gain after grading, "
+              "which adds to that optimism." if chosen else "- No sample gained, so this is the base harness."),
+             f"- Learned with {worker} as the agent. A harness can fail on another model; retest it after a swap.",
+             "- Reuse on a new sample is not built yet. The harness is plain files you can read and copy."]
+    if skipped:
+        lines.append(f"- Not graded, because they produced no reference run: {', '.join(sorted(skipped))}.")
+    if not live:
+        lines.append("- Preview run: replies came from doubles, so this shows the plumbing works, not what a model can do.")
+    return "\n".join(lines)+"\n"
+
+
+def _package(adapter, report, output, spec, *, live, check):
+    """Copy the best harness (or the base when nothing gained) into package/harness, with what graded it."""
     from harness2.core import tree
     surface = adapter.substrate.surface()
     gains = {task: row["harness2"]["score"]-row["base"]["score"] for task, row in report["per_sample"].items()}
@@ -25,8 +43,11 @@ def _package(adapter, report, output, spec):
     package = Path(output)/"package"
     package.mkdir(exist_ok=True)
     tree.write_tree(surface, tree.read_tree(surface, source), package/"harness", stubs=False)
+    chosen = best if gains[best] > 0 else None
     (package/"spec.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
-    return gains, best if gains[best] > 0 else None
+    (package/"check.py").write_text(check, encoding="utf-8", newline="")
+    (package/"limitations.md").write_text(limitations(spec, report, chosen, live), encoding="utf-8")
+    return gains, chosen
 
 
 def summarize_report(task, report, gains, chosen, live):
@@ -63,7 +84,7 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
                                catalog=CATALOG, mode="live" if live else "offline_preview", domain=TaskDomain(task, check),
                                limits=limits, health=health)
     report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health)
-    gains, chosen = _package(adapter, report, output, spec)
+    gains, chosen = _package(adapter, report, output, spec, live=live, check=check)
     return summarize_report(task, report, gains, chosen, live)
 
 
@@ -75,9 +96,10 @@ def regrade(engine, workspace, job, *, live):
     output = run_dir/"outputs"
     stream, truth, _ = build_dataset(run_dir/"snapshot", run_dir/"dataset", task, preview=not live)
     client = SimpleNamespace(profile=engine.registry.profile(spec["roles"]["worker"]))
+    check = workspace.check_source(spec["check"])
     adapter = InventoryAdapter(run_dir/"dataset"/"worker_inputs", output, client, truth, perception=None, catalog=CATALOG,
-                               mode="live" if live else "offline_preview",
-                               domain=TaskDomain(task, workspace.check_source(spec["check"])), limits=engine.limits_of(spec))
+                               mode="live" if live else "offline_preview", domain=TaskDomain(task, check),
+                               limits=engine.limits_of(spec))
     report = grade_stream(adapter, output, stream, {"regraded": True})
-    gains, chosen = _package(adapter, report, output, spec)
+    gains, chosen = _package(adapter, report, output, spec, live=live, check=check)
     return summarize_report(task, report, gains, chosen, live)
