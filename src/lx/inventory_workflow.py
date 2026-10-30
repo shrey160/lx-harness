@@ -210,12 +210,25 @@ def run_stream(adapter, output, client, *, tasks=None):
     result = run_domain(adapter.domain_of(stream[0]), stream, 1, adapter=adapter, prop=proposer,
                         runs_root=adapter.spec.runs_root, library_root=output/"library", modes=("seq",),
                         reflector_prop=reflector)
+    return grade_stream(adapter, output, stream, result)
+
+
+def grade_stream(adapter, output, stream, result):
+    """Score a finished stream from its saved runs; makes no model calls."""
+    from harness2.core import tree
+    from harness2.core.schedule import Namespace
+
+    output = Path(output)
     surface = adapter.substrate.surface()
     base_tree = tree.read_tree(surface, adapter.base_harness())
-    rows = {}
+    rows, skipped = {}, {}
     for task in stream:
         summary = json.loads((Namespace(adapter.spec.name, adapter.substrate.name, "agg", 1)
                               .task_dir(adapter.spec.runs_root, task)/"summary.json").read_text(encoding="utf-8"))
+        reference = summary.get("base") or [{"run_dir": "missing"}]
+        if not (adapter.spec.runs_root/reference[0]["run_dir"]/"answer.json").is_file():
+            skipped[task] = summary.get("status")  # no reference run, so nothing to compare
+            continue
         selection = summary["selections"].get("seq", {})
         base_run = adapter.spec.runs_root/summary["base"][0]["run_dir"]
         chosen_dir = Namespace(adapter.spec.name, adapter.substrate.name, "seq", 1).task_dir(
@@ -233,7 +246,9 @@ def run_stream(adapter, output, client, *, tasks=None):
                                       if selection.get("chosen_label") and chosen_dir.is_dir() else None),
                       "status": summary.get("status")}
     mean = lambda key: sum(r[key]["score"] for r in rows.values())/len(rows)
-    report = {"experiment": "E-A", "k": 1, "mode": "seq", "stream": stream, "run": result,
+    if not rows:
+        raise ValueError("No sample produced a reference run to compare")
+    report = {"experiment": "E-A", "k": 1, "mode": "seq", "stream": stream, "run": result, "skipped": skipped,
               "per_sample": rows, "means": {"base": mean("base"), "harness2": mean("harness2")},
               "grading": "controller-side checklist after the run; never shown to the improver",
               "executions_this_invocation": adapter.executions}

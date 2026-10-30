@@ -2,6 +2,7 @@
 import argparse
 from pathlib import Path
 import sys
+import traceback
 
 from .engine import ROLES, Engine
 from .providers import time_limits
@@ -77,7 +78,10 @@ def main():
                                      error=reason,launch_pending=False)
         return 0
     except Exception as exc:
-        workspace.update_run(args.job,status="failed",phase="failed",error=str(exc) if isinstance(exc,(ValueError,ModelError)) else "Controller failed; no private exception details exposed")
+        reportable = isinstance(exc,(ValueError,ModelError))
+        if not reportable:
+            traceback.print_exc()  # the attempt's local log; the run record stays free of private detail
+        workspace.update_run(args.job,status="failed",phase="failed",error=str(exc) if reportable else "Controller failed; no private exception details exposed")
         return 1
 
 

@@ -133,6 +133,23 @@ class TaskRunTests(Base):
             if path.is_file():
                 self.assertNotIn('"request_type"', path.read_text(encoding="utf-8", errors="replace"))
 
+    def test_a_sample_with_no_reference_run_is_skipped_not_fatal(self):
+        p = self.approve(self.inventory())
+        job = self.app.start(p["id"], launch=False)
+        workspace = self.app.workspace(p["id"])
+        from lx.worker import execute
+        snapshot = workspace.run_dir(job["id"])/"snapshot"
+        execute(self.app, workspace, job["id"], snapshot)
+        run_dir = workspace.run_dir(job["id"])
+        summary = next(run_dir.glob("outputs/runs/*agg1/sample-03/summary.json"))
+        data = json.loads(summary.read_text(encoding="utf-8"))
+        summary.write_text(json.dumps({**data, "base": [{"label": "base1", "run_dir": "gone/missing"}], "selections": {},
+                                       "status": "base-failed"}), encoding="utf-8")
+        from lx.taskrun import regrade
+        result = regrade(self.app, workspace, workspace.run(job["id"]), live=False)
+        self.assertEqual(result["skipped"], {"sample-03": "base-failed"})
+        self.assertEqual(len(result["scores"]["base"]), 5)
+
     def test_a_changed_check_file_voids_the_spec(self):
         p = self.approve(self.inventory())
         check = Path(p["path"])/".lx"/"checks"/"v1"/"check.py"

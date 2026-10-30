@@ -1,0 +1,151 @@
+{
+  "approved_by": "user in chat: Yes, run it live",
+  "model": "meta/muse-glimmer-30b",
+  "samples": "inventory-mix-v1 stream",
+  "elapsed_seconds": 2315,
+  "status": "failed",
+  "phase": "failed",
+  "error": "Controller failed; no private exception details exposed",
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 37,
+        "output_tokens": 82,
+        "spent_usd": 0.0001095
+      },
+      "improver": {
+        "input_tokens": 1831799,
+        "output_tokens": 251996,
+        "spent_usd": 0.8519349
+      },
+      "worker": {
+        "input_tokens": 844319,
+        "output_tokens": 60883,
+        "spent_usd": 0.3263553
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.09086
+      }
+    },
+    "per_phase": {
+      "orchestrator/preflight": {
+        "settled_calls": 1,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0001095
+      },
+      "worker/execute": {
+        "settled_calls": 219,
+        "unknown_calls": 1,
+        "reserved_calls": 0,
+        "spent_usd": 0.3263553
+      },
+      "tool/transcribe": {
+        "settled_calls": 8,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.00086
+      },
+      "improver/improvement": {
+        "settled_calls": 234,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.7480269
+      },
+      "tool/segment": {
+        "settled_calls": 36,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.09
+      },
+      "improver/reflection": {
+        "settled_calls": 60,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.103908
+      }
+    },
+    "settled_calls": 558,
+    "reserved_calls": 0,
+    "unknown_calls": 1,
+    "spent_usd": 1.2692597
+  },
+  "budget": {
+    "cap_usd": 5.0,
+    "spent_usd": 1.2692597,
+    "reserved_usd": 0.049152,
+    "remaining_usd": 3.6815883
+  },
+  "means": null,
+  "gains": null,
+  "scores": null,
+  "improved": null,
+  "retained": null,
+  "chosen_sample": null,
+  "files_added": null,
+  "regraded_offline": {
+    "task": "lx_inventory",
+    "live": true,
+    "simulated_usage": false,
+    "improved": false,
+    "retained": "base",
+    "chosen_sample": null,
+    "means": {
+      "base": 0.0,
+      "harness2": 0.0
+    },
+    "gains": {
+      "sample-01": 0.0,
+      "sample-02": 0.0,
+      "sample-04": 0.0,
+      "sample-05": 0.0,
+      "sample-06": 0.0
+    },
+    "skipped": {
+      "sample-03": "base-failed"
+    },
+    "checks": {
+      "base": {
+        "sample-01": false,
+        "sample-02": false,
+        "sample-04": false,
+        "sample-05": false,
+        "sample-06": false
+      },
+      "harness2": {
+        "sample-01": false,
+        "sample-02": false,
+        "sample-04": false,
+        "sample-05": false,
+        "sample-06": false
+      }
+    },
+    "scores": {
+      "base": {
+        "sample-01": 0.0,
+        "sample-02": 0.0,
+        "sample-04": 0.0,
+        "sample-05": 0.0,
+        "sample-06": 0.0
+      },
+      "harness2": {
+        "sample-01": 0.0,
+        "sample-02": 0.0,
+        "sample-04": 0.0,
+        "sample-05": 0.0,
+        "sample-06": 0.0
+      }
+    },
+    "files_added": {
+      "sample-01": [],
+      "sample-02": [],
+      "sample-04": [],
+      "sample-05": [],
+      "sample-06": []
+    },
+    "grading": "controller-side check file after the run; never shown to the improver"
+  },
+  "note": "The run failed in grading after the loop finished; these scores were computed afterwards from its saved answers, with no calls."
+}
