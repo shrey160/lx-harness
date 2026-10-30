@@ -1,0 +1,123 @@
+{
+  "endpoint": "https://integrate.api.nvidia.com/v1/chat/completions",
+  "model": "meta/muse-glimmer-30b",
+  "max_tokens": 8192,
+  "calls_made": 3,
+  "passed": true,
+  "results": [
+    {
+      "call": "text",
+      "ok": true,
+      "answer": "9.8 is larger.\n\n9.8 = 9 + 0.80 > 9 + 0.11 = 9.11.",
+      "reply": {
+        "top_keys": [
+          "choices",
+          "created",
+          "id",
+          "model",
+          "object",
+          "service_tier",
+          "system_fingerprint",
+          "usage"
+        ],
+        "finish_reason": "stop",
+        "message_keys": [
+          "content",
+          "reasoning_content",
+          "role"
+        ],
+        "content_chars": 49,
+        "reasoning_chars": {
+          "reasoning_content": 797
+        },
+        "tool_calls": [],
+        "usage": {
+          "prompt_tokens": 45,
+          "completion_tokens": 348,
+          "total_tokens": 393,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0
+          }
+        }
+      }
+    },
+    {
+      "call": "tool",
+      "ok": true,
+      "answer": "",
+      "reply": {
+        "top_keys": [
+          "choices",
+          "created",
+          "id",
+          "model",
+          "object",
+          "service_tier",
+          "system_fingerprint",
+          "usage"
+        ],
+        "finish_reason": "tool_calls",
+        "message_keys": [
+          "content",
+          "reasoning_content",
+          "role",
+          "tool_calls"
+        ],
+        "content_chars": null,
+        "reasoning_chars": {
+          "reasoning_content": 48
+        },
+        "tool_calls": [
+          "list_files"
+        ],
+        "usage": {
+          "prompt_tokens": 529,
+          "completion_tokens": 46,
+          "total_tokens": 575,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0
+          }
+        }
+      }
+    },
+    {
+      "call": "image",
+      "ok": true,
+      "answer": "There is a small red square on the left and blue rectangular blocks to its right. In the rendering you can see one red square and two blue rectangles \u2013 one a little shorter/wider than the other \u2013 i.e. red and blue rectilinear shapes.",
+      "reply": {
+        "top_keys": [
+          "choices",
+          "created",
+          "id",
+          "model",
+          "object",
+          "service_tier",
+          "system_fingerprint",
+          "usage"
+        ],
+        "finish_reason": "stop",
+        "message_keys": [
+          "content",
+          "reasoning_content",
+          "role"
+        ],
+        "content_chars": 233,
+        "reasoning_chars": {
+          "reasoning_content": 1347
+        },
+        "tool_calls": [],
+        "usage": {
+          "prompt_tokens": 46,
+          "completion_tokens": 341,
+          "total_tokens": 387,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}
