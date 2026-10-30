@@ -32,11 +32,12 @@ Most `test_<name>.py` files cover `lx/<name>.py`. These go wider:
 | `test_inventory_workflow.py` | The inventory loop end to end, with doubles |
 | `test_spike.py` | The actual engine with the controller-backed fixture |
 | `test_components.py`, `test_checks.py` | Skills, scripts and checks, on the real sandbox |
+| `test_environment.py` | The running environment against `uv.lock`; a stale `.venv` fails here |
 
 ## Rules for tests
 
-- Use dummy keys and a fake keychain. `Engine()` defaults to the real system keychain,
-  so pass a fake one (fix list item 26 makes this refuse).
+- Use dummy keys and a fake keychain. In a test run `SystemKeychain` reports none and
+  refuses every read and write, and workers the run starts inherit that (`test_keychain.py`).
 - Never open the network. Mock the transport.
 - Keep a scratch state root for anything that writes state.
 
