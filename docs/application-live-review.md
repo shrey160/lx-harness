@@ -1,5 +1,10 @@
 # Application live data flow — O-11 approved and executed 28 Oct 2026
 
+**Superseded by D-015 and D-016 (30 Oct 2026).** This is the record of one approved
+run. Its limits (Spark only, fixed endpoint, demo data, shared $20 ledger) no longer
+describe the product: any provider can fill any role, under a per-workspace budget.
+See the [README](../README.md).
+
 Status: APPROVED by the user's go-ahead to the reviewed continuation plan and
 EXECUTED. The constrained transport (`lx.live_transport`) implements exactly
 the flow below: fixed endpoint and model, approved payload shapes only, live
