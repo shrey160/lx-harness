@@ -1,0 +1,10 @@
+{
+  "answers_rescored": 27,
+  "differences": 0,
+  "per_run": {
+    "inventory-ea-local-v1": 3,
+    "inventory-ea-v1": 24
+  },
+  "dataset": "inventory-mix-v1",
+  "compared": "check file in the sandbox vs built-in verify_inventory"
+}

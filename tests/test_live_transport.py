@@ -133,7 +133,7 @@ class LiveWiringTests(unittest.TestCase):
         project = self.app.create_project({"source": "demo", "synthetic_public": True, "name": "Live wiring", "path": self.folder()})
         project = self.app.edit_spec(project["id"], {"goal": project["goal"], "budget_usd": 5, "mode": "live"})
         return self.app.approve(project["id"], {"version": project["draft"]["version"],
-                                                "data_approved": True, "contributor_accepted": True})
+                                                "data_approved": True, "contributor_accepted": True, "notice_accepted": True})
 
     def test_live_discussion_uses_the_workspace_ledger_only(self):
         project = self._live_project()

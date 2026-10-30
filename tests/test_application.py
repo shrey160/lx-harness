@@ -124,7 +124,6 @@ class ApplicationFlowTests(unittest.TestCase):
         self.assertIn("LX_BASE",(self.app.root/"negative"/"package"/"harness"/"systemprompt.md").read_text(encoding="utf-8"))
 
     def test_unapproved_or_nonpublic_data_cannot_start(self):
-        with self.assertRaises(ValueError): self.app.create_project({"source":"demo","path":self.folder()})
         p = self.project()
         with self.assertRaises(ValueError): self.app.start(p["id"],launch=False)
         with self.assertRaises(ValueError): self.app.approve(p["id"],{"version":p["draft"]["version"]})

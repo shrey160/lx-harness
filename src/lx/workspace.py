@@ -1,6 +1,6 @@
 """A workspace is a user folder; everything LX keeps lives in its .lx/ directory.
 
-Layout: project.json, spec/vN.json (never rewritten), snapshots/, runs/<id>/
+Layout: project.json, spec/vN.json and checks/vN/check.py (never rewritten), snapshots/, runs/<id>/
 (run.json, events.jsonl, snapshot/, outputs/), packages/<id>/, core-jobs/ and
 preview-usage.sqlite3. Samples stay where the user keeps them. Approval records
 are deliberately not here: an agent working in the folder can write to .lx/.
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from functools import cached_property
+import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -90,7 +91,7 @@ class Workspace:
             workspace.home.mkdir()
         except FileExistsError:
             raise ValueError("This folder is already a workspace; open it instead") from None
-        for name_ in ("spec", "runs", "packages", "snapshots"):
+        for name_ in ("spec", "checks", "runs", "packages", "snapshots"):
             (workspace.home/name_).mkdir()
         (workspace.home/".gitignore").write_text("*\n", encoding="utf-8")
         workspace.write_project({"schema": SCHEMA, "id": uuid.uuid4().hex, "name": name, "goal": goal,
@@ -132,8 +133,8 @@ class Workspace:
     def samples_path(self):
         return self.folder.joinpath(*PurePosixPath(self.project()["samples_dir"]).parts)
 
-    def inspect_samples(self):
-        return inspect_folder(self.samples_path, skip_root=(DIRECTORY,))
+    def inspect_samples(self, max_bytes=None):
+        return inspect_folder(self.samples_path, skip_root=(DIRECTORY,), max_bytes=max_bytes)
 
     def spec_versions(self):
         names = (_SPEC_FILE.fullmatch(p.name) for p in (self.home/"spec").iterdir())
@@ -148,6 +149,20 @@ class Workspace:
         with target.open("x", encoding="utf-8") as output:
             json.dump(spec, output, indent=2, allow_nan=False)
         return spec
+
+    def add_check(self, version, source):
+        target = self.home/"checks"/f"v{int(version)}"/"check.py"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("x", encoding="utf-8", newline="\n") as output:
+            output.write(source)
+
+    def check_source(self, check):
+        """The check file a spec names, refused if it no longer matches the spec's hash."""
+        path = self.home/"checks"/f"v{int(check['version'])}"/"check.py"
+        data = path.read_bytes() if path.is_file() else b""
+        if hashlib.sha256(data).hexdigest() != check["sha256"]:
+            raise ValueError("The scoring check changed; draft a new spec version")
+        return data.decode("utf-8")
 
     def snapshot_dir(self, name):
         if not re.fullmatch(r"[a-f0-9]{32}", name):

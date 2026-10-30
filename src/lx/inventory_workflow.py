@@ -121,11 +121,13 @@ class InventoryAdapter(ImagesAdapter):
     """Agent executions over photo sets; identity covers agent, tools, caps, harness and media."""
 
     def __init__(self, snapshot, output, client, truth, *, perception, catalog, mode="offline_preview",
-                 script_runner=None):
+                 script_runner=None, domain=None):
         from . import sandbox
         self.scripts_enabled = script_runner is not None or sandbox.available()
-        super().__init__(snapshot, output, client, mode=mode, domain=InventoryDomain(self.scripts_enabled),
+        super().__init__(snapshot, output, client, mode=mode, domain=domain or InventoryDomain(self.scripts_enabled),
                          truth=truth)
+        if domain is not None:
+            self.verifier_identity = hashlib.sha256(domain.check.encode()).hexdigest()
         self.perception = perception
         self.tools = photo_tools(catalog) + (COMPONENT_TOOLS if self.scripts_enabled else [LOAD_SKILL])
         self.script_runner = script_runner
@@ -227,6 +229,8 @@ def run_stream(adapter, output, client, *, tasks=None):
         rows[task] = {"base": graded(base_run), "harness2": graded(chosen_run),
                       "chosen_label": selection.get("chosen_label"), "chosen_is_base": selection.get("chosen_tree_is_base"),
                       "files_added": sorted(set(chosen_tree) - {k for k, v in base_tree.items()}),
+                      "harness_dir": (chosen_dir.relative_to(adapter.spec.runs_root).as_posix()
+                                      if selection.get("chosen_label") and chosen_dir.is_dir() else None),
                       "status": summary.get("status")}
     mean = lambda key: sum(r[key]["score"] for r in rows.values())/len(rows)
     report = {"experiment": "E-A", "k": 1, "mode": "seq", "stream": stream, "run": result,
@@ -303,6 +307,10 @@ class InventoryPreviewTransport:
 
     def __call__(self, body, timeout):
         messages = body["messages"]
+        if messages[0]["content"].startswith("LX_PREFLIGHT"):
+            return wire_reply("PREFLIGHT_OK")
+        if messages[0]["content"].startswith("LX_DISCUSSION"):
+            return wire_reply("Controlled preview: this task runs from its spec and check file; nothing was sent to a model.")
         if messages[0]["content"].startswith(WORKER_MARKER):
             self.calls["worker"] += 1
             return self._agent(messages)

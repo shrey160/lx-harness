@@ -25,19 +25,24 @@ import shutil
 import subprocess
 import sys
 import time
+from urllib.parse import urlsplit
 import uuid
 import zipfile
 
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
-from .intake import IntakeError, inspect_folder, snapshot_folder, snapshot_zip
+from . import checks, tasks
+from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveMetaTransport
-from .providers import SPARK
+from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
+from .providers import META_API, SAM, SPARK, TRANSCRIBE
 from .registry import Registry
 from .spark import SparkClient
 from .store import Store
 from .usage import BudgetScope, usage_rows, summarize
+from .inventory import write_synthetic
+from .inventory_workflow import InventoryPreviewTransport
 from .workflow import ImagesAdapter, PreviewTransport, samples_from, sample_path
 from .workspace import Workspace, native_path
 
@@ -47,6 +52,8 @@ SAMPLES = "samples"
 ROLES = ("orchestrator","improver","worker")
 DEFAULT_ROLE_ENTRY = "spark-contributor"
 DEFAULT_WORKSPACE_BUDGET = 5
+# A task run: about 4 agent runs and 3-4 improver sessions per sample, as measured on the inventory stream.
+TASK_LIMITS = {"chat": 1400, "segment": 600, "transcribe": 60}
 
 
 def fingerprint(value):
@@ -66,22 +73,36 @@ class Engine:
         self.live_ledger = BudgetLedger(ROOT/".lx"/"live-spike"/"pilot-budget.sqlite3") if self.root == DEFAULT_ROOT.resolve() else None
         self.live_enabled = self.root == DEFAULT_ROOT.resolve()  # a scratch root never makes real calls
         self._live_transport_factory = None
+        self._live_perception_factory = None
 
     def make_live_transport(self, call_limit=RUN_CALL_LIMIT, truth_hint=None):
         if self._live_transport_factory is not None:
             return self._live_transport_factory(truth_hint)
         return LiveMetaTransport(lambda: self.registry.credential("spark-contributor"), call_limit=call_limit)
 
-    def _transport(self, entry, profile, call_limit, truth):
+    def _transport(self, entry, profile, call_limit, truth, contract=None):
         if self._live_transport_factory is not None:
             return self._live_transport_factory(truth)
         if not self.live_enabled:
             raise ValueError("Live runs are unavailable here; use the local app workspace")
-        if entry == DEFAULT_ROLE_ENTRY:
+        if entry == DEFAULT_ROLE_ENTRY and contract is None:
             return self.make_live_transport(call_limit, truth)
-        keyed = any(m["id"] == entry and m["has_key"] for m in self.registry.list_models())
+        keyed = entry == DEFAULT_ROLE_ENTRY or any(m["id"] == entry and m["has_key"] for m in self.registry.list_models())
         return LiveMetaTransport((lambda: self.registry.credential(entry)) if keyed else None,
-                                 call_limit=call_limit, profile=profile)
+                                 call_limit=call_limit, profile=profile, **(contract or {}))
+
+    def build_perception(self, workspace, scope_id, cap_usd, cache):
+        """Live SAM and Transcribe for a task's agent; their cost is on the workspace ledger."""
+        scope = BudgetScope(self._ledger(workspace), scope_id, cap_usd)
+        if self._live_perception_factory is not None:
+            segment, transcribe = self._live_perception_factory()
+        elif not self.live_enabled:
+            raise ValueError("Live runs are unavailable here; use the local app workspace")
+        else:
+            key = lambda: self.registry.credential("sam-catalog")
+            segment = MetaToolTransport(SAM, key, call_limit=TASK_LIMITS["segment"])
+            transcribe = MetaToolTransport(TRANSCRIBE, key, call_limit=TASK_LIMITS["transcribe"])
+        return PerceptionClient(segment, transcribe, scope, PerceptionCache(cache))
 
     def build_clients(self, workspace, spec, scope_id, cap_usd, *, call_limit=RUN_CALL_LIMIT, truth=None):
         """One client per role. Live spends from the workspace ledger; preview never does.
@@ -92,12 +113,19 @@ class Engine:
             raise ValueError("Unknown run mode")
         truth = truth if truth is not None else self.demo.controller_truth
         ledger = self._ledger(workspace) if mode == "live" else workspace.preview_ledger
+        contract = None
+        if spec.get("task"):
+            from .inventory_probe import KEEP_IMAGES, MAX_VIEW_BYTES, TOOLS
+            call_limit = TASK_LIMITS["chat"]
+            contract = {"agent_tools":TOOLS,"image_types":("jpeg",),"max_image_bytes":MAX_VIEW_BYTES,
+                        "max_images":KEEP_IMAGES,"call_ceiling":call_limit}
         transports, clients = {}, {}
         for role in ROLES:
             entry = spec["roles"][role]
             profile = self.registry.profile(entry)
             if entry not in transports:
-                transports[entry] = self._transport(entry, profile, call_limit, truth) if mode == "live" else PreviewTransport(truth)
+                transports[entry] = (self._transport(entry, profile, call_limit, truth, contract) if mode == "live"
+                                     else InventoryPreviewTransport() if spec.get("task") else PreviewTransport(truth))
             # Reasoning models spend the reply cap before answering; Spark keeps its original cap.
             clients[role] = SparkClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile,
                                         max_tokens=4096 if profile is SPARK else 8192)
@@ -128,7 +156,20 @@ class Engine:
             raise ValueError("Each role needs a chat provider entry with an endpoint")
         return {key:model[key] for key in ("id","name","model_id","base_url","pricing","context_limit","accepts_images","supports_tools","priced")}
 
-    def _assign(self, roles, mode):
+    def data_notice(self, draft):
+        """Who receives what in a live run, for the owner to accept (D-015(8))."""
+        host = lambda url: urlsplit(url).netloc
+        task = draft.get("task")
+        gets = {"orchestrator":"your goal, messages, file names, sizes and hashes",
+                "improver":"run traces and answers, including text from the samples",
+                "worker":"the sample photos and transcribed requests" if task else "the sample images and transcripts"}
+        notice = [{"who":role,"host":host(draft["providers"][role]["base_url"]),"gets":gets[role]} for role in ROLES]
+        if task:
+            notice += [{"who":"SAM 3.1","host":host(META_API),"gets":"the sample photos"},
+                       {"who":"Muse Voice Transcribe","host":host(META_API),"gets":"the sample audio"}]
+        return notice
+
+    def _assign(self, roles, mode, task=None):
         unknown = set(roles) - set(ROLES)
         if unknown or set(roles) != set(ROLES):
             raise ValueError("Assign a provider to the orchestrator, improver and worker")
@@ -137,6 +178,8 @@ class Engine:
             raise ValueError("The improver's provider must support tool calls")
         if not providers["worker"]["accepts_images"]:
             raise ValueError("The worker's provider must accept images for this workflow")
+        if task and not providers["worker"]["supports_tools"]:
+            raise ValueError("The worker's provider must support tool calls for this task")
         if mode == "live" and not all(p["priced"] for p in providers.values()):
             raise ValueError("A live run needs input and output prices on every provider, so its budget can be enforced; use 0 for a free one")
         return providers
@@ -164,6 +207,8 @@ class Engine:
         record = workspace.project()
         return {**record, "path": str(workspace.folder), "draft": workspace.spec(record["spec_version"]),
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
+                "notice": self.data_notice(workspace.spec(record["spec_version"])),
+                "notice_accepted": self._notice_hosts(record["id"]),
                 "budget": {key:value for key,value in self._ledger(workspace).summary().items()
                            if key in {"cap_usd","spent_usd","reserved_usd","remaining_usd"}}}
 
@@ -174,15 +219,23 @@ class Engine:
         return self._remember(Workspace.open(native_path(path)))
 
     def create_project(self, data, zip_data=None):
-        if data.get("synthetic_public") is not True:
-            raise ValueError("Confirm that samples are synthetic or public")
         folder = native_path(data.get("path"))
         if not folder.is_dir():
             raise ValueError("The workspace folder does not exist")
         if (folder/".lx").exists():
             raise ValueError("This folder is already a workspace; open it instead")
         source = data.get("source", "folder")
-        if source == "demo":
+        task = check = None
+        if data.get("task") == "inventory":
+            task, check = tasks.inventory_task(), tasks.inventory_check_source()
+        elif data.get("task") is not None:
+            raise ValueError("Unknown task")
+        if source == "demo" and task is not None:
+            if (folder/SAMPLES).exists():
+                raise IntakeError("destination already exists")
+            write_synthetic(folder/SAMPLES, task["stream_samples"], seed=tasks.PREVIEW_SEED)
+            samples = SAMPLES
+        elif source == "demo":
             snapshot_folder(self.demo.root/"worker_inputs", folder/SAMPLES)
             samples = SAMPLES
         elif source == "zip" and zip_data is not None:
@@ -194,14 +247,15 @@ class Engine:
             raise ValueError("Choose demo data, this folder, or data.zip")
         location = folder if samples == "." else folder.joinpath(*PurePosixPath(samples).parts)
         try:
-            inventory = inspect_folder(location, skip_root=(".lx",))
+            inventory = inspect_folder(location, skip_root=(".lx",), max_bytes=tasks.MAX_SAMPLE_BYTES if task else MAX_BYTES)
         except IntakeError as exc:
             raise ValueError(f"{exc}. Put your samples in a '{SAMPLES}' folder inside the workspace") from exc
         workspace = Workspace.create(folder, name=str(data.get("name") or folder.name or "Workspace")[:120],
-            goal=data.get("goal") or "Find colored shapes, give pixel boxes, and preserve each transcript.",
-            samples_dir=samples, inventory=inventory, compatible_demo=self._matches_demo(location))
+            goal=data.get("goal") or ("Answer spoken inventory requests about photos." if task else
+                                      "Find colored shapes, give pixel boxes, and preserve each transcript."),
+            samples_dir=samples, inventory=inventory, compatible_demo=task is None and self._matches_demo(location))
         with workspace.lock():
-            self._draft(workspace, workspace.project())
+            self._draft(workspace, workspace.project(), task=task, check=check)
         return self._remember(workspace)
 
     def _matches_demo(self, location):
@@ -214,13 +268,29 @@ class Engine:
         except (ValueError, KeyError, OSError):
             return False
 
+    def _notice_hosts(self, identifier):
+        try:
+            return self.store.get("notice", identifier)["hosts"]
+        except ValueError:
+            return []
+
+    def _accept_notice(self, identifier, draft, accepted):
+        """Once per workspace, and again only when a new host would receive data."""
+        hosts = sorted({entry["host"] for entry in self.data_notice(draft)})
+        known = self._notice_hosts(identifier)
+        if set(hosts) <= set(known):
+            return
+        if accepted is not True:
+            raise ValueError("Accept the notice of which provider receives what before a live run")
+        self.store.save("notice", {"id":identifier,"hosts":sorted(set(known)|set(hosts))})
+
     def _approval(self, identifier):
         try:
             return self.store.get("approval", identifier)
         except ValueError:
             return None
 
-    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None):
+    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None):
         """Write the next spec version; any new version clears approval."""
         if isinstance(budget, bool) or not isinstance(budget, (int,float)) or not math.isfinite(budget) or not 0.11 <= budget <= 20:
             raise ValueError("Budget must be between $0.11 and $20")
@@ -232,21 +302,52 @@ class Engine:
         roles = roles if roles is not None else previous.get("roles", {r:DEFAULT_ROLE_ENTRY for r in ROLES})
         if not isinstance(roles, dict):
             raise ValueError("Assign a provider to the orchestrator, improver and worker")
-        providers = self._assign(roles, mode)
+        task = task if task is not None else previous.get("task")
+        providers = self._assign(roles, mode, task)
         goal = goal if goal is not None else record["goal"]
         if not isinstance(goal, str) or not goal.strip() or len(goal) > 4000:
             raise ValueError("Enter a goal of at most 4000 characters")
         versions = workspace.spec_versions()
-        spec = {"version": (versions[-1] if versions else 0)+1, "goal": goal.strip(), "budget_usd": budget,
+        version = (versions[-1] if versions else 0)+1
+        reference = previous.get("check")
+        if task is not None and check is not None:
+            tasks.validate_task(task)
+            workspace.add_check(version, tasks.validate_check_source(check))
+            reference = {"version":version,"sha256":tasks.source_hash(check)}
+        spec = {"version": version, "goal": goal.strip(), "budget_usd": budget,
                 "roles": {r:roles[r] for r in ROLES}, "providers": providers,
+                "mode": mode}
+        spec.update({"task":task,"check":reference} if task is not None else {
                 "domain": "images-and-supplied-transcripts", "output": {"objects": [{"label":"color_shape", "box":["x1","y1","x2","y2"]}], "text":"exact supplied transcript"},
-                "box_edge_tolerance_px": 1, "test_data": "synthetic/public only", "mode": mode}
+                "box_edge_tolerance_px": 1})
         spec["estimated_cost_usd"] = ({"basis":"Live cost reserved before each call under the workspace budget; actual cost from reported usage at the entry's prices, unknown until reported"}
             if mode == "live" else {"orchestrator":0.00002,"improver":0.0003,"worker":0.0003,"basis":"Approximate controlled preview only; live cost unknown"})
         workspace.add_spec(spec)
         record.update(goal=goal.strip(), spec_version=spec["version"])
         workspace.write_project(record)
         self._drop_approval(workspace, record["id"])
+
+    def set_task(self, identifier, task, check):
+        """An orchestrator's task and check, as a new spec version; a human still approves it."""
+        tasks.validate_task(task)
+        tasks.validate_check_source(check)
+        workspace = self.workspace(identifier)
+        self._jobs(workspace)
+        with workspace.lock():
+            if any(j["status"] in {"queued","running"} for j in workspace.runs()):
+                raise ValueError("Stop the active run before editing its spec")
+            record = workspace.project()
+            draft = workspace.spec(record["spec_version"])
+            self._draft(workspace, record, budget=draft["budget_usd"], task=task, check=check)
+        return self._view(workspace)
+
+    def test_check(self, identifier):
+        """Self-test the current check on the samples as they are now; changes nothing."""
+        workspace = self.workspace(identifier)
+        draft = workspace.spec(workspace.project()["spec_version"])
+        if not draft.get("task"):
+            raise ValueError("This workflow has a built-in check")
+        return checks.self_test(workspace.check_source(draft["check"]), tasks.sample_truths(workspace.samples_path, draft["task"]))
 
     def _drop_approval(self, workspace, identifier):
         approval = self._approval(identifier)
@@ -291,22 +392,42 @@ class Engine:
             record = workspace.project()
             draft = workspace.spec(record["spec_version"])
             if data.get("version") != draft["version"] or data.get("data_approved") is not True:
-                raise ValueError("Approve the current spec and synthetic data")
+                raise ValueError("Approve the current spec and its data snapshot")
             if DEFAULT_ROLE_ENTRY in draft["roles"].values() and data.get("contributor_accepted") is not True:
                 raise ValueError("Accept the Contributor disclosure for Spark")
             self._check_providers(draft)
-            if draft["mode"] == "live" and draft["budget_usd"] > self._workspace_budget(identifier):
-                raise ValueError("This run's budget is more than the workspace budget")
-            record.update(inventory=workspace.inspect_samples(), compatible_demo=self._matches_demo(workspace.samples_path))
+            if draft["mode"] == "live":
+                if draft["budget_usd"] > self._workspace_budget(identifier):
+                    raise ValueError("This run's budget is more than the workspace budget")
+                self._accept_notice(identifier, draft, data.get("notice_accepted"))
+            task = draft.get("task")
+            limit = tasks.MAX_SAMPLE_BYTES if task else MAX_BYTES
+            record.update(inventory=workspace.inspect_samples(limit),
+                          compatible_demo=task is None and self._matches_demo(workspace.samples_path))
             workspace.write_project(record)
-            if not record["compatible_demo"]:
+            if task is None and not record["compatible_demo"]:
                 raise ValueError("This first workflow requires the constructed demo manifest and images; other inputs can be inventoried and discussed")
             self._drop_approval(workspace, identifier)
             name = uuid.uuid4().hex
-            captured = snapshot_folder(workspace.samples_path, workspace.snapshot_dir(name), skip_root=(".lx",))
+            captured = snapshot_folder(workspace.samples_path, workspace.snapshot_dir(name), skip_root=(".lx",), max_bytes=limit)
+            try:
+                tested = self._prove_task(workspace, draft, workspace.snapshot_dir(name)) if task else None
+            except ValueError:
+                shutil.rmtree(workspace.snapshot_dir(name), ignore_errors=True)
+                raise
             self.store.save("approval", {"id":identifier,"version":draft["version"],"spec_hash":fingerprint(draft),
-                "data_hash":fingerprint(captured["inventory"]),"inventory":captured["inventory"],"snapshot":name})
+                "data_hash":fingerprint(captured["inventory"]),"inventory":captured["inventory"],"snapshot":name,"self_test":tested})
         return self._view(workspace)
+
+    def _prove_task(self, workspace, draft, snapshot):
+        """At approval: the frozen samples fit the task and the check proves itself on them."""
+        task = draft["task"]
+        truths = tasks.sample_truths(snapshot, task)
+        if draft["mode"] == "live":
+            tasks.require_audio(snapshot)
+        else:
+            tasks.require_preview_samples(snapshot, len(truths))
+        return checks.self_test(workspace.check_source(draft["check"]), truths)
 
     # Runs
 
@@ -324,7 +445,7 @@ class Engine:
                 raise ValueError("One run is already active")
             job_id = uuid.uuid4().hex[:12]
             inputs = workspace.run_dir(job_id)/"snapshot"
-            captured = snapshot_folder(workspace.snapshot_dir(approved["snapshot"]),inputs)
+            captured = snapshot_folder(workspace.snapshot_dir(approved["snapshot"]),inputs,max_bytes=tasks.MAX_SAMPLE_BYTES)
             if captured["inventory"] != approved["inventory"]:
                 shutil.rmtree(workspace.run_dir(job_id))
                 raise ValueError("Snapshot changed since approval; approve again")
@@ -448,6 +569,8 @@ class Engine:
         job = workspace.run(job_id)
         if job["status"] != "completed":
             raise ValueError("Complete the run before reusing its harness")
+        if job["spec"].get("task"):
+            raise ValueError("Reuse on a new sample is not available for this task yet")
         root = workspace.run_dir(job_id)/"fresh"/uuid.uuid4().hex[:12]
         root.mkdir(parents=True)
         offset = int(root.name[:2],16)%10

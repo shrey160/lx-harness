@@ -65,6 +65,28 @@ cannot approve a run, and any change to a spec file voids its approval. An agent
 with full access to this machine is not stopped by this; the human confirmation
 step comes with the CLI and MCP server.
 
+A task is data plus a check file, not code. The spec's `task` holds the contract,
+base prompt and loop wording; `.lx/checks/vN/check.py` scores answers, and the
+spec records its hash, so editing the file stops the run. The first template is
+`photo-request`: each sample is a folder `sample-*/` with `photos/1.jpg` ...
+(3-7 photos), `request.wav` (or `request.txt` in a preview) and `truth.json`.
+Inventory is the first task in it; a coding agent can supply another with its
+own check. Truth reaches only the check, never the worker or the improver.
+
+A check is untrusted code, so it runs only in the script sandbox; without Docker
+or the Linux sandbox it does not run at all. Its protocol is in `lx/checks.py`:
+JSON in, a list of named pass/fail checks out, and the score is the fraction
+passed. Approval re-runs a self-test on the frozen samples: a correct answer
+must score 1.0, malformed answers must be graded without crashing and without
+full marks, grading must repeat exactly, another sample's answer must not pass,
+and errors must not reveal expected values. A live task also needs `request.wav`
+in every sample, and SAM and Transcribe spend from the workspace budget.
+
+A live run first shows who receives what, per role and tool. Accepting covers
+that workspace until a new host would receive data. This replaces the old
+"synthetic or public" confirmation. Previews send nothing out and need no
+notice, and a task preview runs only on the synthetic demo samples.
+
 Any chat provider with an OpenAI-compatible endpoint can fill any role
 (orchestrator, improver, worker). Add it under Providers with its base URL,
 model id, key, prices and context limit, then assign it in the spec. The spec
@@ -75,8 +97,7 @@ price, so set that limit for paid models or a small budget has no room.
 
 Each workspace has its own budget and real-spend ledger, kept in user-level
 state so they do not depend on files in the folder. The default is $5 and the
-most is $20. Preview usage is simulated and stays in `.lx/`. Live runs are still
-limited to the demo samples until the general task spec lands.
+most is $20. Preview usage is simulated and stays in `.lx/`.
 
 Keys go to the operating system's keychain (Windows Credential Manager on
 Windows) and never enter a workspace. Keys saved earlier as files move there on
