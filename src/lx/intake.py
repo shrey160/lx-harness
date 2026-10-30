@@ -15,7 +15,7 @@ import zlib
 from pathlib import Path, PurePosixPath
 
 
-SUPPORTED_SUFFIXES = {".png", ".jpg", ".jpeg", ".txt", ".json", ".csv"}
+SUPPORTED_SUFFIXES = {".png", ".jpg", ".jpeg", ".txt", ".json", ".csv", ".wav"}
 MAX_FILES = 100
 MAX_BYTES = 20 * 1024 * 1024
 MAX_ZIP_BYTES = 20 * 1024 * 1024
@@ -36,6 +36,8 @@ def _kind(path: str) -> str:
     suffix = Path(path).suffix.lower()
     if suffix in {".png", ".jpg", ".jpeg"}:
         return "image"
+    if suffix == ".wav":
+        return "audio"
     if suffix in {".txt", ".json"}:
         return "text"
     return "table"
@@ -91,7 +93,8 @@ def _check_destination(dst: Path) -> None:
         raise IntakeError("destination parent cannot be created") from exc
 
 
-def _walk_folder(source: Path, skip_root: tuple[str, ...] = ()) -> list[tuple[Path, str, int]]:
+def _walk_folder(source: Path, skip_root: tuple[str, ...] = (), max_bytes: int | None = None) -> list[tuple[Path, str, int]]:
+    max_bytes = MAX_BYTES if max_bytes is None else max_bytes
     entries: list[tuple[Path, str, int]] = []
     skipped = {name.casefold() for name in skip_root}
     input_bytes = 0
@@ -122,8 +125,8 @@ def _walk_folder(source: Path, skip_root: tuple[str, ...] = ()) -> list[tuple[Pa
                 input_bytes += info.st_size
                 if input_count > MAX_FILES:
                     raise IntakeError(f"sample exceeds {MAX_FILES} files")
-                if input_bytes > MAX_BYTES:
-                    raise IntakeError(f"sample exceeds {MAX_BYTES} bytes")
+                if input_bytes > max_bytes:
+                    raise IntakeError(f"sample exceeds {max_bytes} bytes")
                 if child.suffix.lower() not in SUPPORTED_SUFFIXES:
                     continue
                 entries.append((child, relative, info.st_size))
@@ -156,7 +159,7 @@ def _copy_and_hash(source: Path, destination: Path | None, expected_size: int) -
                     if not block:
                         break
                     copied += len(block)
-                    if copied > expected_size or copied > MAX_BYTES:
+                    if copied > expected_size:
                         raise IntakeError(f"source entry changed during snapshot: {source.name}")
                     digest.update(block)
                     if dst is not None:
@@ -195,7 +198,7 @@ def _cleanup_stage(stage: Path) -> None:
         shutil.rmtree(stage)
 
 
-def inspect_folder(source: Path, *, skip_root: tuple[str, ...] = ()) -> dict[str, object]:
+def inspect_folder(source: Path, *, skip_root: tuple[str, ...] = (), max_bytes: int | None = None) -> dict[str, object]:
     """Inventory and hash supported files in place, under the same rules as a snapshot."""
     source = Path(source)
     if source.is_symlink() or (hasattr(source, "is_junction") and source.is_junction()):
@@ -206,12 +209,12 @@ def inspect_folder(source: Path, *, skip_root: tuple[str, ...] = ()) -> dict[str
         raise IntakeError("source does not exist or cannot be resolved") from exc
     if not src.is_dir():
         raise IntakeError("source must be a directory")
-    entries = _walk_folder(src, skip_root)
+    entries = _walk_folder(src, skip_root, max_bytes)
     inventory = [_inventory_record(relative, size, _copy_and_hash(path, None, size)) for path, relative, size in entries]
     return {"source_name": src.name, "inventory": inventory, "total_bytes": sum(size for _, _, size in entries)}
 
 
-def snapshot_folder(source: Path, destination: Path, *, skip_root: tuple[str, ...] = ()) -> dict[str, object]:
+def snapshot_folder(source: Path, destination: Path, *, skip_root: tuple[str, ...] = (), max_bytes: int | None = None) -> dict[str, object]:
     """Copy supported regular files into a new atomic snapshot directory."""
     source = Path(source)
     destination = Path(destination)
@@ -223,7 +226,7 @@ def snapshot_folder(source: Path, destination: Path, *, skip_root: tuple[str, ..
     if not src.is_dir():
         raise IntakeError("source must be a directory")
     _check_destination(dst)
-    entries = _walk_folder(src, skip_root)  # validate every name and type before opening content
+    entries = _walk_folder(src, skip_root, max_bytes)  # validate every name and type before opening content
     stage = _new_stage(dst)
     inventory: list[dict[str, object]] = []
     try:

@@ -55,8 +55,10 @@ def normalize_photo(data, *, max_side=MAX_SIDE):
     return out.getvalue()
 
 
-def check_sample_folder(folder):
-    """Validate a user sample folder; returns (photo paths in order, truth, wav path or None, text or None)."""
+def check_sample_folder(folder, *, inventory=True):
+    """Validate a user sample folder; returns (photo paths in order, truth, wav path or None, text or None).
+
+    `inventory` applies the inventory truth schema; other tasks' truth is the check file's business."""
     folder = Path(folder)
     photos_dir = folder / "photos"
     if not photos_dir.is_dir():
@@ -78,12 +80,13 @@ def check_sample_folder(folder):
         raise ValueError(f"{folder.name}: missing truth.json") from None
     except ValueError as exc:
         raise ValueError(f"{folder.name}: truth.json is not valid JSON ({exc})") from None
-    try:
-        validate_truth(truth)
-    except ValueError as exc:
-        raise ValueError(f"{folder.name}: {exc}") from None
-    if len(truth["photos"]) != len(numbers):
-        raise ValueError(f"{folder.name}: truth.json lists {len(truth['photos'])} photos, folder has {len(numbers)}")
+    if inventory:
+        try:
+            validate_truth(truth)
+        except ValueError as exc:
+            raise ValueError(f"{folder.name}: {exc}") from None
+        if len(truth["photos"]) != len(numbers):
+            raise ValueError(f"{folder.name}: truth.json lists {len(truth['photos'])} photos, folder has {len(numbers)}")
     wav = folder / "request.wav"
     txt = folder / "request.txt"
     text = txt.read_text(encoding="utf-8").strip() if txt.is_file() else None
@@ -151,7 +154,8 @@ class _Dataset:
             path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def add_user_samples(dataset_root, source_root, *, stream_count=6, calibration_count=0, seed=20261029, prefix="user"):
+def add_user_samples(dataset_root, source_root, *, stream_count=6, calibration_count=0, seed=20261029, prefix="user",
+                     inventory=True):
     """Copy user sample folders into the dataset with a seeded split.
 
     Folders are shuffled with `seed` (so the order they were made in cannot
@@ -164,7 +168,7 @@ def add_user_samples(dataset_root, source_root, *, stream_count=6, calibration_c
     if stream_count + calibration_count > len(folders):
         raise ValueError(f"only {len(folders)} sample folders for {stream_count} stream + {calibration_count} calibration")
     random.Random(f"{seed}:user-split").shuffle(folders)
-    checked = [(folder, *check_sample_folder(folder)) for folder in folders]
+    checked = [(folder, *check_sample_folder(folder, inventory=inventory)) for folder in folders]
     # Normalise everything before writing, so a bad photo leaves the dataset untouched.
     normalized = [[normalize_photo(path.read_bytes()) for path in paths] for _, paths, _, _, _ in checked]
     dataset = _Dataset(dataset_root)
@@ -397,15 +401,16 @@ def _media_hashes(root, manifest):
     return hashes
 
 
-def finalize_inventory(root):
+def finalize_inventory(root, *, inventory=True):
     """Check every photo and audio file and record hashes; the dataset is then frozen."""
     root = Path(root)
     manifest = json.loads((root / "worker_inputs" / "manifest.json").read_text(encoding="utf-8"))
     truth = json.loads((root / "controller_truth" / "ground_truth.json").read_text(encoding="utf-8"))
     for sample in manifest["samples"]:
-        validate_truth(truth[sample["sample_id"]])
-        if len(sample["photos"]) != len(truth[sample["sample_id"]]["photos"]):
-            raise ValueError(f"{sample['sample_id']}: photo count does not match truth")
+        if inventory:
+            validate_truth(truth[sample["sample_id"]])
+            if len(sample["photos"]) != len(truth[sample["sample_id"]]["photos"]):
+                raise ValueError(f"{sample['sample_id']}: photo count does not match truth")
         audio = root / "worker_inputs" / sample["audio"]
         if not audio.is_file():
             raise ValueError(f"{sample['sample_id']}: audio missing; run the speech synthesis first")
