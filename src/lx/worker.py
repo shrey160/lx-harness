@@ -55,8 +55,12 @@ def main():
         else:
             if job["status"] == "cancelled":
                 return 0
-            from h2portable.jobs import run_job
-            limit = max(time_limits(engine.registry.profile(entry))["run"] for entry in job["spec"]["roles"].values())
+            from h2portable.jobs import read_job, run_job
+            try:
+                # A resumed job must keep its command identity, including this limit.
+                limit = read_job(args.job,workspace.home/"core-jobs")["spec"]["timeout"]
+            except ValueError:
+                limit = max(time_limits(engine.registry.profile(entry))["run"] for entry in job["spec"]["roles"].values())
             state = run_job(args.job,workspace.home/"core-jobs","local",workspace.run_dir(args.job)/"snapshot",limit,
                 [sys.executable,"-m","lx.worker","--root",str(engine.root),"--workspace",str(workspace.folder),"--job",args.job,"--execute"])
             if state["status"] != "completed":

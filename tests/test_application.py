@@ -274,6 +274,19 @@ class ApplicationFlowTests(unittest.TestCase):
         saved = workspace.run(job["id"])
         self.assertEqual((saved["status"],saved["error"]),("failed","provider did not reply in time"))
 
+    def test_a_resumed_run_keeps_the_time_limit_it_started_with(self):
+        from unittest.mock import patch
+        from lx import worker
+        roles = {r:self.entry("older-"+r)["id"] for r in ("orchestrator","improver","worker")}
+        p = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})
+        p = self.app.approve(p["id"],{"version":p["draft"]["version"],"data_approved":True})
+        job = self.app.start(p["id"],launch=False)
+        argv = ["worker","--root",str(self.app.root),"--workspace",p["path"],"--job",job["id"]]
+        with patch("sys.argv",argv),patch("h2portable.jobs.read_job",return_value={"spec":{"timeout":900.0}}), \
+             patch("h2portable.jobs.run_job",return_value={"status":"completed"}) as run_job:
+            worker.main()
+        self.assertEqual(run_job.call_args.args[4],900.0)
+
     def test_a_provider_changed_after_approval_stops_the_run(self):
         roles = self.three_roles()
         project = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})
