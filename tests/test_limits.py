@@ -18,7 +18,7 @@ class PresetTests(unittest.TestCase):
     def test_agent_defaults_leave_room_to_look_at_every_photo(self):
         for spark in (True, False):
             self.assertEqual(limits.preset(spark)["agent_turns_per_photo"], 12)
-            self.assertEqual(limits.preset(spark)["agent_tools_per_photo"], 6)
+            self.assertEqual(limits.preset(spark)["agent_tools_per_photo"], 12)
 
     def test_a_task_gets_its_longer_run_and_call_limits(self):
         task = limits.preset(False, task=True)
