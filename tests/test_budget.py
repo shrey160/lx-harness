@@ -112,6 +112,20 @@ class BudgetLedgerTests(unittest.TestCase):
             with self.subTest(tokens=tokens), self.assertRaises(BudgetError):
                 ledger.settle(reservation, cost_usd="0.1", input_tokens=tokens, output_tokens=0)
 
+    def test_adopted_cap_changes_the_limit_and_keeps_recorded_spend(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ledger.sqlite3"
+            ledger = BudgetLedger(path, 1, 0)
+            ledger.settle(ledger.reserve("0.5", "worker", "execute"), cost_usd="0.5", input_tokens=1, output_tokens=1)
+            with self.assertRaises(BudgetError):
+                BudgetLedger(path, 2, 0)
+            raised = BudgetLedger(path, 2, 0, adopt_cap=True)
+            self.assertEqual(raised.summary()["spent_usd"], 0.5)
+            raised.reserve("1.25", "worker", "execute")
+            lowered = BudgetLedger(path, 1, 0, adopt_cap=True)
+            with self.assertRaises(BudgetExceeded):
+                lowered.reserve("0.01", "worker", "execute")
+
 
 if __name__ == "__main__":
     unittest.main()

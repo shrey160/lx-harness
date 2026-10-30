@@ -46,6 +46,8 @@ class BudgetLedger:
         path: str | Path,
         cap_usd: Any = 20,
         initial_spend_usd: Any = "0.0010",
+        *,
+        adopt_cap: bool = False,
     ) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -85,6 +87,9 @@ class BudgetLedger:
                 db.execute(
                     "INSERT INTO ledger_config VALUES (1, ?, ?)", (cap, initial)
                 )
+            elif adopt_cap and existing["initial_nanos"] == initial:
+                # The workspace budget is changed by its owner; recorded spend stays.
+                db.execute("UPDATE ledger_config SET cap_nanos=? WHERE singleton=1", (cap,))
             elif tuple(existing) != (cap, initial):
                 raise BudgetError(
                     "ledger already exists with a different cap or initial spend"

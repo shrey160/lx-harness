@@ -168,3 +168,12 @@ class ProtocolTests(unittest.TestCase):
         files = FileTools(self.root)
         with self.assertRaises(ValueError): files("read_file", {"path": "harness/linked.txt"})
         with self.assertRaises(ValueError): files("write_file", {"path": "harness/linked.txt", "content": "changed"})
+
+    def test_list_prices_finer_than_the_ledger_round_up(self):
+        from decimal import Decimal
+        from lx.providers import ProviderProfile
+        from lx.spark import usage_of
+        profile = ProviderProfile(kind="chat", endpoint="https://example.com/v1/chat/completions", model="m",
+                                  input_price=Decimal("0.0375")/1_000_000)
+        usage = usage_of({"usage": {"prompt_tokens": 1, "completion_tokens": 0}}, profile)
+        self.assertEqual(usage["cost_usd"], Decimal("0.000000038"))

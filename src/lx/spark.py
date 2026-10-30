@@ -11,7 +11,7 @@ import json
 import random
 import threading
 import time
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
 
 from .providers import SPARK
 
@@ -36,6 +36,11 @@ class RateLimited(ModelError):
         self.retry_after = min(max(float(retry_after), 0), 60)
 
 
+def _nanodollars(amount):
+    """Round up to the ledger's precision; provider list prices can be finer."""
+    return amount.quantize(Decimal("0.000000001"), rounding=ROUND_CEILING)
+
+
 def _integer(value, name):
     if type(value) is not int or value < 0:
         raise ModelError(f"invalid or missing provider {name}")
@@ -56,7 +61,7 @@ def usage_of(raw, profile=SPARK):
     if cached > inputs:
         raise ModelError("cached token count exceeds input tokens")
     cost = (inputs-cached)*profile.input_price + cached*profile.cached_price + outputs*profile.output_price
-    return {"input_tokens": inputs, "output_tokens": outputs, "cost_usd": cost}
+    return {"input_tokens": inputs, "output_tokens": outputs, "cost_usd": _nanodollars(cost)}
 
 
 def normalize(raw: dict, *, max_tokens: int, profile=SPARK) -> tuple[dict, dict]:
@@ -126,7 +131,7 @@ class SparkClient:
         if tools:
             body["tools"] = tools
         # Reserve the entire context ceiling instead of relying on a guessed tokenizer.
-        maximum = profile.context_limit*profile.input_price + self.max_tokens*profile.output_price
+        maximum = _nanodollars(profile.context_limit*profile.input_price + self.max_tokens*profile.output_price)
         deadline = time.monotonic()+timeout
         for attempt in range(self.retries+1):
             if self.cancel.is_set() or time.monotonic() >= deadline:
