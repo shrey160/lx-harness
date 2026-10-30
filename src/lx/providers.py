@@ -93,3 +93,13 @@ SAM = ProviderProfile(
 TRANSCRIBE = ProviderProfile(
     kind="transcription", endpoint=META_API + "/asr/transcribe", model="muse-voice-transcribe-1.0",
     audio_hour_price=Decimal("0.18"))
+
+
+def time_limits(profile):
+    """Seconds for one worker call, one improver session and a whole run.
+
+    Spark keeps its original limits. Hosted reasoning models and local models
+    can take over a minute a call (Muse Glimmer on NVIDIA, 30 Oct 2026)."""
+    if profile is SPARK:
+        return {"worker_call": 90, "improver_session": 180, "run": 900}
+    return {"worker_call": 300, "improver_session": 900, "run": 3600}

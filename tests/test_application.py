@@ -258,6 +258,22 @@ class ApplicationFlowTests(unittest.TestCase):
         self.assertEqual({role:client.max_tokens for role,client in clients.items()},
                          {"orchestrator":4096,"improver":8192,"worker":8192})
 
+    def test_a_run_keeps_the_reason_it_failed_and_its_limit_follows_the_provider(self):
+        from unittest.mock import patch
+        from lx import worker
+        roles = {r:self.entry("slow-"+r)["id"] for r in ("orchestrator","improver","worker")}
+        p = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})
+        p = self.app.approve(p["id"],{"version":p["draft"]["version"],"data_approved":True})
+        job = self.app.start(p["id"],launch=False)
+        workspace = self.workspace(p)
+        workspace.update_run(job["id"],error="provider did not reply in time")
+        argv = ["worker","--root",str(self.app.root),"--workspace",p["path"],"--job",job["id"]]
+        with patch("sys.argv",argv),patch("h2portable.jobs.run_job",return_value={"status":"failed"}) as run_job:
+            self.assertEqual(worker.main(),0)
+        self.assertEqual(run_job.call_args.args[4],3600)
+        saved = workspace.run(job["id"])
+        self.assertEqual((saved["status"],saved["error"]),("failed","provider did not reply in time"))
+
     def test_a_provider_changed_after_approval_stops_the_run(self):
         roles = self.three_roles()
         project = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})

@@ -163,5 +163,7 @@ class LiveMetaTransport:
                     delay = 0
                 raise RateLimited(delay) from None
             raise ModelError(f"provider request failed (HTTP {exc.code}); response body withheld") from None
-        except (OSError, ValueError):
+        except (OSError, ValueError) as exc:
+            if isinstance(exc, TimeoutError) or isinstance(getattr(exc, "reason", None), TimeoutError):
+                raise ModelError("provider did not reply in time; cost remains reserved") from None
             raise ModelError("provider connection/JSON failed; cost remains reserved") from None

@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 
 from .engine import ROLES, Engine
+from .providers import time_limits
 from .usage import usage_rows, summarize
 from .workflow import optimize_preview
 from .workspace import Workspace, write_json
@@ -55,11 +56,14 @@ def main():
             if job["status"] == "cancelled":
                 return 0
             from h2portable.jobs import run_job
-            state = run_job(args.job,workspace.home/"core-jobs","local",workspace.run_dir(args.job)/"snapshot",900,
+            limit = max(time_limits(engine.registry.profile(entry))["run"] for entry in job["spec"]["roles"].values())
+            state = run_job(args.job,workspace.home/"core-jobs","local",workspace.run_dir(args.job)/"snapshot",limit,
                 [sys.executable,"-m","lx.worker","--root",str(engine.root),"--workspace",str(workspace.folder),"--job",args.job,"--execute"])
             if state["status"] != "completed":
+                # Keep the reason the run itself recorded; this is only for one that could not.
+                reason = workspace.run(args.job).get("error") or "Run ended before completion; inspect its reported state and resume where available"
                 workspace.update_run(args.job,status=state["status"],phase="stopped" if state["status"]=="cancelled" else "failed",
-                                     error="Run ended before completion; inspect its reported state and resume where available",launch_pending=False)
+                                     error=reason,launch_pending=False)
         return 0
     except Exception as exc:
         workspace.update_run(args.job,status="failed",phase="failed",error=str(exc) if isinstance(exc,ValueError) else "Controller failed; no private exception details exposed")

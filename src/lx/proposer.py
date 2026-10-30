@@ -2,6 +2,7 @@
 from pathlib import Path, PurePosixPath
 import threading
 
+from .providers import SPARK, time_limits
 from .spark import MODEL
 
 _SECRET_NAMES = {"credentials", "credentials.json", "service-account.json", "secrets.json",
@@ -84,7 +85,8 @@ class SparkProposer:
         from harness2.core.spec import ChannelSpec
         self.client, self.role = client, role
         self._local = threading.local()
-        self._delegate = Proposer(ChannelSpec("opencode", MODEL, timeout=180), audit_dir=Path(audit_dir), attempts=1)
+        wall = time_limits(getattr(client, "profile", SPARK))["improver_session"]
+        self._delegate = Proposer(ChannelSpec("opencode", MODEL, timeout=wall), audit_dir=Path(audit_dir), attempts=1)
         self._delegate._opencode = self._session
         self.spec, self._calls = self._delegate.spec, self._delegate._calls
         self.audit_dir, self.attempts = self._delegate.audit_dir, 1

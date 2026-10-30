@@ -14,6 +14,7 @@ from pathlib import Path, PurePosixPath
 
 from .domain import build_demo_dataset, verify_output
 from .proposer import SparkProposer
+from .providers import SPARK, time_limits
 from .spike import wire_reply
 
 BASE_PROMPT = "LX_BASE\nDescribe the colored objects and their boxes. Return JSON with objects and text."
@@ -181,7 +182,8 @@ class ImagesAdapter:
                 {"role": "user", "content": [{"type": "text", "text": json.dumps({"sample_id": task, "transcript": sample["transcript"], "image_size": [96,64]})},
                     {"type": "image_url", "image_url": {"url": "data:image/png;base64,"+encoded}}]}]
         message, usage = self.client.chat(messages,
-            role="worker", phase="execute", candidate=run_id, timeout=timeout or 90)
+            role="worker", phase="execute", candidate=run_id,
+            timeout=timeout or time_limits(getattr(self.client, "profile", SPARK))["worker_call"])
         content = message["content"].strip()
         if content.startswith("```"):
             content = "\n".join(content.splitlines()[1:-1])

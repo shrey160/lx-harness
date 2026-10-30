@@ -170,6 +170,26 @@ class LiveWiringTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             other.edit_spec(project["id"], {"goal": "g", "budget_usd": 1, "mode": "bogus"})
 
+class TimeLimitTests(unittest.TestCase):
+    def test_spark_keeps_its_limits_and_other_providers_get_longer_ones(self):
+        from dataclasses import replace
+        from lx.providers import SPARK, time_limits
+        self.assertEqual(time_limits(SPARK), {"worker_call": 90, "improver_session": 180, "run": 900})
+        other = time_limits(replace(SPARK, model="meta/muse-glimmer-30b"))
+        self.assertGreater(other["worker_call"], 90)
+        self.assertGreater(other["improver_session"], 180)
+        self.assertGreater(other["run"], 900)
+
+    def test_a_timeout_is_named_as_one(self):
+        from dataclasses import replace
+        from lx.providers import SPARK
+        class Slow:
+            def open(self, request, timeout):
+                raise TimeoutError()
+        transport = LiveMetaTransport(lambda: "dummy", opener=Slow(), profile=replace(SPARK, model="m"))
+        with self.assertRaisesRegex(ModelError, "did not reply in time"):
+            transport({"model": "m", "messages": [{"role": "user", "content": "x"}]}, 5)
+
 
 if __name__ == "__main__":
     unittest.main()
