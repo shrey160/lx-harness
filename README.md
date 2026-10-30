@@ -169,6 +169,11 @@ holding code needs this, because dotfiles such as `.git` are refused as samples.
 Approval freezes the samples as they are at that moment, and each run uses the
 frozen copy, so later edits need a new approval.
 
+The `text-request` template takes a folder per sample with `request.txt` and
+`truth.json`, and needs no photos, audio, SAM or Transcribe. Its first task is Order
+records; `src/lx/records_check.py` is its check. The agent has only the harness's own
+skills and scripts, and its worker provider needs tool calls but not images.
+
 The `photo-request` template expects a folder per sample:
 
 ```text
@@ -263,8 +268,8 @@ bound (`lx.limits`).
 
 | Limit | Default |
 |---|---|
-| Agent turns per photo (plus 4) | 12 |
-| Agent tool calls per photo (plus 6) | 12 |
+| Agent turns per photo or text sample (plus 4) | 12 |
+| Agent tool calls per photo or text sample (plus 6) | 12 |
 | Stop after this many agent runs in a row with no answer | 8 |
 | Improver turns per session | 12 for Spark, 30 otherwise |
 | Improver session | 180 seconds for Spark, 900 otherwise |
@@ -272,7 +277,7 @@ bound (`lx.limits`).
 | Whole run | 4 hours on a task; 15 minutes on the demo with Spark, 1 hour otherwise |
 | Reply length | 4,096 tokens for Spark, 8,192 otherwise |
 | Model calls per run | 1,400 on a task, 200 on the demo |
-| SAM calls and Transcribe calls per run | 600 and 60 |
+| SAM calls and Transcribe calls per run (photo tasks only) | 600 and 60 |
 
 A field tied to a role takes its default from that role's provider. The others take
 the longest default among the run's providers, and a provider entry can set its own
@@ -343,8 +348,8 @@ Each folder has its own README:
 
 ## Not built yet
 
-- Only the `photo-request` template exists, so tasks are 3 to 7 photos plus a spoken
-  request.
+- Two templates exist: `photo-request` and `text-request`. A task that fits neither
+  needs a new one.
 - The discussion step is not yet a real orchestrator: it does not remember the
   conversation or edit the spec. That is P5.
 - There is no CLI or MCP server yet (P6), and the GUI redesign is P7.

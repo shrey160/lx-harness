@@ -1,6 +1,6 @@
 """General task spec: what a run does is data in the spec plus a check file, not code.
 
-The first template is `photo-request`: each sample is a folder `sample-*/` with
+Two templates exist. `text-request` is in lx.text_task. `photo-request`: each sample is a folder `sample-*/` with
 photos/1.jpg ... (3-7 photos), a spoken request (request.wav, or request.txt for
 previews) and truth.json for the check. The spec's task holds the contract, the
 base prompt and the wording the loop uses; check.py scores answers (lx.checks).
@@ -14,13 +14,16 @@ import json
 from pathlib import Path
 import re
 
+from . import text_task
 from .checks import CheckError, run_check
 from .inventory import CONTRACT, GRID, CELL, synthetic_sample
 from .inventory_data import _tone, add_user_samples, check_sample_folder, finalize_inventory, normalize_photo
 from .inventory_workflow import BASE_PROMPT, InventoryDomain
 from .perception import media_hash
+from .text_task import sample_folders
 
 TEMPLATE = "photo-request"
+TEXT_TEMPLATE = text_task.TEMPLATE
 TEXT_FIELDS = ("name", "work", "domain_word", "yardstick", "deliverable_word", "selection_checks", "base_prompt", "contract")
 MAX_TEXT = 8000
 MAX_CHECK = 20_000
@@ -29,8 +32,8 @@ PREVIEW_SEED = 20261029
 
 
 def validate_task(task):
-    if type(task) is not dict or task.get("template") != TEMPLATE:
-        raise ValueError(f"A task needs the {TEMPLATE} template")
+    if type(task) is not dict or task.get("template") not in {TEMPLATE, TEXT_TEMPLATE}:
+        raise ValueError(f"A task needs the {TEMPLATE} or {TEXT_TEMPLATE} template")
     known = {"template", "truth_schema", "stream_samples", *TEXT_FIELDS}
     if set(task) - known or any(field not in task for field in TEXT_FIELDS):
         raise ValueError("A task needs exactly the template fields")
@@ -40,9 +43,15 @@ def validate_task(task):
         raise ValueError("A task name must be lower-case letters, digits and underscores")
     if task.get("truth_schema", "free") not in {"free", "inventory"}:
         raise ValueError("Unknown truth schema")
+    if is_text(task) and task.get("truth_schema") == "inventory":
+        raise ValueError("The inventory truth schema needs photos")
     if type(task.get("stream_samples")) is not int or not 1 <= task["stream_samples"] <= 20:
         raise ValueError("The loop needs 1 to 20 samples")
     return task
+
+
+def is_text(task):
+    return bool(task) and task.get("template") == TEXT_TEMPLATE
 
 
 def validate_check_source(source):
@@ -89,15 +98,13 @@ class TaskDomain(InventoryDomain):
         return run_check(self.check, truth, answer)
 
 
-def sample_folders(root):
-    return sorted(p for p in Path(root).iterdir() if p.is_dir() and re.fullmatch(r"sample-[A-Za-z0-9_-]{1,40}", p.name))
-
-
 def sample_truths(root, task):
     """{folder name: truth} after validating every sample folder under the task's rules."""
     folders = sample_folders(root)
     if len(folders) < task["stream_samples"]:
         raise ValueError(f"This task needs at least {task['stream_samples']} sample folders; found {len(folders)}")
+    if is_text(task):
+        return {folder.name: text_task.check_sample_folder(folder)[1] for folder in folders}
     inventory = task.get("truth_schema") == "inventory"
     return {folder.name: check_sample_folder(folder, inventory=inventory)[1] for folder in folders}
 
@@ -129,6 +136,8 @@ def require_preview_samples(root, count):
 
 def build_dataset(snapshot, root, task, *, preview):
     """The run's dataset: worker inputs and controller truth, frozen. Returns (stream ids, truth, requests)."""
+    if is_text(task):
+        return text_task.build_dataset(snapshot, root, task)
     root = Path(root)
     inventory = task.get("truth_schema") == "inventory"
     if not (root/"controller_truth"/"media.json").exists():
@@ -148,6 +157,6 @@ def build_dataset(snapshot, root, task, *, preview):
     return stream, truth, requests
 
 
-__all__ = ["CheckError", "TEMPLATE", "TaskDomain", "build_dataset", "inventory_check_source", "inventory_task",
+__all__ = ["CheckError", "TEMPLATE", "TEXT_TEMPLATE", "TaskDomain", "build_dataset", "inventory_check_source", "inventory_task", "is_text",
            "preview_scenes", "require_audio", "require_preview_samples", "sample_folders", "sample_truths",
            "source_hash", "validate_check_source", "validate_task"]

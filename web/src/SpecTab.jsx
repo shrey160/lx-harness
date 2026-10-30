@@ -43,7 +43,7 @@ export function SpecTab({state,project,ui,setTab}){
       <label className="field">Whole workspace (USD)<input type="number" min="0.11" max="20" step="0.01" value={workspaceBudget} onChange={e=>setWorkspaceBudget(e.target.value)}/><small className="muted">{money(project.budget.spent_usd)} spent, {money(project.budget.reserved_usd)} held</small></label>
     </div>
 
-    <Limits fields={state.limit_fields} values={limits} defaults={project.limit_defaults} onChange={(name,value)=>setLimits({...limits,[name]:value})}/>
+    <Limits fields={state.limit_fields.filter(field=>!(project.hidden_limits||[]).includes(field.name))} values={limits} defaults={project.limit_defaults} onChange={(name,value)=>setLimits({...limits,[name]:value})}/>
 
     <div className="action-bar">
       <button className="button" disabled={ui.busy||!(specDirty||budgetDirty)} onClick={save}>Save</button>

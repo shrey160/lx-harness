@@ -26,6 +26,8 @@ separate `worker.py` process, so credentials load there and never in task worker
 |---|---|
 | `tasks.py` | General task spec: a run is data in the spec plus a check file |
 | `taskrun.py` | One spec-driven run, graded by its check |
+| `text_task.py` | The `text-request` template: its samples, dataset, adapter and preview double |
+| `records_check.py` | The order-records check: a standalone file, standard library only |
 | `checks.py` | Runs a check in the sandbox and self-tests it before approval |
 | `inventory_check.py` | The inventory check: a standalone file, standard library only |
 | `sandbox.py` | Throwaway sandbox for checks and helper scripts: Docker or Linux `unshare` |

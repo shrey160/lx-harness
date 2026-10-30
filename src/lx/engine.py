@@ -34,7 +34,7 @@ import zipfile
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
 from .health import read_health
-from . import checks, limits as run_limits, sandbox, tasks
+from . import checks, limits as run_limits, sandbox, tasks, text_task
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveChatTransport
@@ -45,8 +45,10 @@ from .spark import IncompleteResponse, ModelError, ChatClient
 from .store import Store
 from .usage import BudgetScope, usage_rows, summarize
 from .inventory import write_synthetic
+from .components import COMPONENT_TOOLS
 from .inventory_workflow import InventoryPreviewTransport
 from .workflow import ImagesAdapter, PreviewTransport, samples_from, sample_path
+from .text_task import TextPreviewTransport
 from .workspace import Workspace, native_path, write_json
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -127,7 +129,9 @@ class Engine:
         limits = self.limits_of(spec)
         call_limit = call_limit or limits["chat_calls"]
         contract = None
-        if spec.get("task"):
+        if tasks.is_text(spec.get("task")):
+            contract = {"agent_tools":COMPONENT_TOOLS}
+        elif spec.get("task"):
             from .inventory_probe import KEEP_IMAGES, MAX_VIEW_BYTES, TOOLS
             contract = {"agent_tools":TOOLS,"image_types":("jpeg",),"max_image_bytes":MAX_VIEW_BYTES,"max_images":KEEP_IMAGES}
         transports, clients = {}, {}
@@ -137,6 +141,7 @@ class Engine:
             if entry not in transports:
                 transports[entry] = (self._transport(entry, profile, call_limit, truth, limits=limits, contract=contract,
                                                      rate=spec["providers"][role].get("requests_per_minute")) if mode == "live"
+                                     else TextPreviewTransport() if tasks.is_text(spec.get("task"))
                                      else InventoryPreviewTransport() if spec.get("task") else PreviewTransport(truth))
             clients[role] = ChatClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile,
                                         max_tokens=limits["reply_tokens"], call_seconds=limits["call_seconds"])
@@ -174,9 +179,9 @@ class Engine:
         task = draft.get("task")
         gets = {"orchestrator":"your goal, messages, file names, sizes and hashes",
                 "improver":"run traces and answers, including text from the samples",
-                "worker":"the sample photos and transcribed requests" if task else "the sample images and transcripts"}
+                "worker":"the sample requests" if tasks.is_text(task) else "the sample photos and transcribed requests" if task else "the sample images and transcripts"}
         notice = [{"who":role,"host":host(draft["providers"][role]["base_url"]),"gets":gets[role]} for role in ROLES]
-        if task:
+        if task and not tasks.is_text(task):
             notice += [{"who":"SAM 3.1","host":host(META_API),"gets":"the sample photos"},
                        {"who":"Muse Voice Transcribe","host":host(META_API),"gets":"the sample audio"}]
         return notice
@@ -188,7 +193,7 @@ class Engine:
         providers = {role:self._provider(roles[role]) for role in ROLES}
         if not providers["improver"]["supports_tools"]:
             raise ValueError("The improver's provider must support tool calls")
-        if not providers["worker"]["accepts_images"]:
+        if not tasks.is_text(task) and not providers["worker"]["accepts_images"]:
             raise ValueError("The worker's provider must accept images for this workflow")
         if task and not providers["worker"]["supports_tools"]:
             raise ValueError("The worker's provider must support tool calls for this task")
@@ -220,6 +225,7 @@ class Engine:
         draft = workspace.spec(record["spec_version"])
         return {**record, "path": str(workspace.folder), "draft": {**draft, "limits": self.limits_of(draft)},
                 "limit_defaults": self._limit_defaults(draft["providers"], draft.get("task")),
+                "hidden_limits": list(run_limits.PHOTO_ONLY) if tasks.is_text(draft.get("task")) else [],
                 "free_providers": sorted({p["name"] for p in draft["providers"].values()
                                           if p["pricing"] and not any(float(price) for price in p["pricing"].values())}),
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
@@ -244,12 +250,17 @@ class Engine:
         task = check = None
         if data.get("task") == "inventory":
             task, check = tasks.inventory_task(), tasks.inventory_check_source()
+        elif data.get("task") == "records":
+            task, check = text_task.records_task(), text_task.records_check_source()
         elif data.get("task") is not None:
             raise ValueError("Unknown task")
         if source == "demo" and task is not None:
             if (folder/SAMPLES).exists():
                 raise IntakeError("destination already exists")
-            write_synthetic(folder/SAMPLES, task["stream_samples"], seed=tasks.PREVIEW_SEED)
+            if tasks.is_text(task):
+                text_task.write_samples(folder/SAMPLES, task["stream_samples"])
+            else:
+                write_synthetic(folder/SAMPLES, task["stream_samples"], seed=tasks.PREVIEW_SEED)
             samples = SAMPLES
         elif source == "demo":
             snapshot_folder(self.demo.root/"worker_inputs", folder/SAMPLES)
@@ -445,7 +456,10 @@ class Engine:
         """At approval: the frozen samples fit the task and the check proves itself on them."""
         task = draft["task"]
         truths = tasks.sample_truths(snapshot, task)
-        if draft["mode"] == "live":
+        if tasks.is_text(task):
+            if draft["mode"] != "live":
+                text_task.require_preview_samples(snapshot, len(truths))
+        elif draft["mode"] == "live":
             tasks.require_audio(snapshot)
         else:
             tasks.require_preview_samples(snapshot, len(truths))

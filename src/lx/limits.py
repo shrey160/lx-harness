@@ -14,8 +14,8 @@ from __future__ import annotations
 HOUR = 3600
 # name: (label, lowest, highest, role whose provider sets the default, or None for the whole run)
 FIELDS = {
-    "agent_turns_per_photo": ("Agent turns per photo (plus 4)", 1, 20, "worker"),
-    "agent_tools_per_photo": ("Agent tool calls per photo (plus 6)", 1, 40, "worker"),
+    "agent_turns_per_photo": ("Agent turns per photo or text sample (plus 4)", 1, 20, "worker"),
+    "agent_tools_per_photo": ("Agent tool calls per photo or text sample (plus 6)", 1, 40, "worker"),
     "stop_after_empty_runs": ("Stop after this many agent runs in a row with no answer", 1, 1000, "worker"),
     "improver_turns": ("Improver turns per session", 1, 100, "improver"),
     "improver_seconds": ("Improver session, seconds", 30, HOUR, "improver"),
@@ -26,6 +26,8 @@ FIELDS = {
     "segment_calls": ("SAM calls per run", 1, 5000, None),
     "transcribe_calls": ("Transcribe calls per run", 1, 1000, None),
 }
+# A text task calls neither tool, so these limits do nothing there.
+PHOTO_ONLY = ("segment_calls", "transcribe_calls")
 
 
 def preset(spark, task=False):

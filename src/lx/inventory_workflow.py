@@ -119,6 +119,7 @@ def _size(data):
 
 class InventoryAdapter(ImagesAdapter):
     """Agent executions over photo sets; identity covers agent, tools, caps, harness and media."""
+    protocol = "lx-inventory-agent-v1"
 
     def __init__(self, snapshot, output, client, truth, *, perception, catalog, mode="offline_preview",
                  script_runner=None, domain=None, limits=None, health=None):
@@ -130,8 +131,11 @@ class InventoryAdapter(ImagesAdapter):
         if domain is not None:
             self.verifier_identity = hashlib.sha256(domain.check.encode()).hexdigest()
         self.perception = perception
-        self.tools = photo_tools(catalog) + (COMPONENT_TOOLS if self.scripts_enabled else [LOAD_SKILL])
+        self.tools = self._agent_tools(catalog) + (COMPONENT_TOOLS if self.scripts_enabled else [LOAD_SKILL])
         self.script_runner = script_runner
+
+    def _agent_tools(self, catalog):
+        return photo_tools(catalog)
 
     def validate_tree(self, value):
         if not value.get("systemprompt.md", "").strip():
@@ -151,14 +155,22 @@ class InventoryAdapter(ImagesAdapter):
     def _audio(self, task):
         return media_path(self.input_root, self.by_id[task]["audio"], ".wav").read_bytes()
 
+    def _inputs(self, task):
+        return {"photos_sha256": [media_hash(p) for p in self._photos(task)], "audio_sha256": media_hash(self._audio(task))}
+
+    def _conversation(self, task, surface, harness, run_id):
+        photos = self._photos(task)
+        messages = self.domain.messages(self.by_id[task], compose_prompt(surface, harness), [_size(p) for p in photos])
+        handler = ComponentTools(PhotoSetTools(self.perception, photos=photos, audio=self._audio(task), candidate=run_id),
+                                 harness, runner=self.script_runner)
+        return messages, handler
+
     def _identity(self, task, harness):
         profile = self.client.profile
-        extra = {"base": super()._identity(task, harness), "worker_protocol": "lx-inventory-agent-v1",
+        extra = {"base": super()._identity(task, harness), "worker_protocol": self.protocol,
                  "agent": {"model": profile.model, "endpoint": profile.endpoint, "images": profile.accepts_images,
                            "tools": profile.supports_tools},
-                 "tool_sha256": tool_identity(self.tools), "caps": self._caps(task),
-                 "photos_sha256": [media_hash(p) for p in self._photos(task)],
-                 "audio_sha256": media_hash(self._audio(task))}
+                 "tool_sha256": tool_identity(self.tools), "caps": self._caps(task), **self._inputs(task)}
         return hashlib.sha256(json.dumps(extra, sort_keys=True).encode()).hexdigest()
 
     def execute(self, task, harness_dir, run_id, *, timeout=None):
@@ -171,10 +183,7 @@ class InventoryAdapter(ImagesAdapter):
         from harness2.core import tree
         surface = self.substrate.surface()
         harness = tree.read_tree(surface, harness_dir or self.base_harness())
-        photos = self._photos(task)
-        messages = self.domain.messages(self.by_id[task], compose_prompt(surface, harness), [_size(p) for p in photos])
-        handler = ComponentTools(PhotoSetTools(self.perception, photos=photos, audio=self._audio(task), candidate=run_id),
-                                 harness, runner=self.script_runner)
+        messages, handler = self._conversation(task, surface, harness, run_id)
         text, trace = run_agent(self.client, messages, self.tools, handler, candidate=run_id,
                                 timeout=timeout or (self.limits or {}).get("call_seconds", 600), **self._caps(task))
         content = text
@@ -324,6 +333,10 @@ class InventoryPreviewTransport:
     script. This proves the plumbing, not any capability.
     """
 
+    marker = WORKER_MARKER
+    cue = "spoken photo inventory"
+    lesson = "Check every photo and drop low-confidence boxes; a script sums per-photo counts."
+
     def __init__(self, scripts=True):
         self.calls = {"worker": 0, "reflection": 0, "improver": 0}
         self.scripts = scripts
@@ -334,25 +347,29 @@ class InventoryPreviewTransport:
             return wire_reply("PREFLIGHT_OK")
         if messages[0]["content"].startswith("LX_DISCUSSION"):
             return wire_reply("Controlled preview: this task runs from its spec and check file; nothing was sent to a model.")
-        if messages[0]["content"].startswith(WORKER_MARKER):
+        if messages[0]["content"].startswith(self.marker):
             self.calls["worker"] += 1
             return self._agent(messages)
         names = messages[1]["content"].split("Available files:\n", 1)[-1].splitlines()
         if "adoption.json" in names:
             self.calls["reflection"] += 1
-            return wire_reply("<experience>\ncue: spoken photo inventory\nlesson: Check every photo and drop "
-                              "low-confidence boxes; a script sums per-photo counts.\nevidence: Offline wiring "
+            return wire_reply(f"<experience>\ncue: {self.cue}\nlesson: {self.lesson}\nevidence: Offline wiring "
                               "check only.\nconfidence: low\n</experience>")
         self.calls["improver"] += 1
         if not any(m["role"] == "tool" for m in messages):
-            files = {f"harness/skills/{SKILL_NAME}/SKILL.md": PREVIEW_SKILL, "harness/guardrails.md": PREVIEW_GUARDRAIL}
-            if self.scripts:
-                files["harness/scripts/sum_counts.py"] = PREVIEW_SCRIPT
             return wire_reply(calls=[{"id": f"preview-{i}", "type": "function", "function": {
                 "name": "write_file", "arguments": json.dumps({"path": path, "content": content})}}
-                for i, (path, content) in enumerate(files.items())])
-        return wire_reply("<notes>Added an inventory-check skill, its trigger"
-                          + (" and a sum_counts script.</notes>" if self.scripts else ".</notes>"))
+                for i, (path, content) in enumerate(self.improver_files().items())])
+        return wire_reply(self.improver_notes())
+
+    def improver_files(self):
+        files = {f"harness/skills/{SKILL_NAME}/SKILL.md": PREVIEW_SKILL, "harness/guardrails.md": PREVIEW_GUARDRAIL}
+        if self.scripts:
+            files["harness/scripts/sum_counts.py"] = PREVIEW_SCRIPT
+        return files
+
+    def improver_notes(self):
+        return "<notes>Added an inventory-check skill, its trigger" + (" and a sum_counts script.</notes>" if self.scripts else ".</notes>")
 
     @staticmethod
     def _agent(messages):

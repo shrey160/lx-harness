@@ -31,6 +31,7 @@ export function NewWorkspace({ui}){
       <label className="field">Task
         <select aria-label="Task" value={task} onChange={e=>setTask(e.target.value)}>
           <option value="inventory">Photo inventory</option>
+          <option value="records">Order records (text only)</option>
           <option value="">Image annotation demo</option>
         </select>
       </label>
