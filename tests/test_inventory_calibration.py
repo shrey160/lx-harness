@@ -51,7 +51,7 @@ class CalibrationTests(unittest.TestCase):
         self.assertAlmostEqual(summary["mean"], sum(r["score"] for r in report["results"].values()) / 4)
         self.assertEqual(report["headroom"], 0.3 <= summary["mean"] <= 0.8)
         self.assertFalse(report["live"])
-        saved = json.loads((self.root / "out" / "calibration.json").read_text())
+        saved = json.loads((self.root / "out" / "calibration.json").read_text(encoding="utf-8"))
         self.assertEqual(saved["summary"], json.loads(json.dumps(summary)))
 
     def test_repeated_model_errors_stop_the_run(self):

@@ -157,7 +157,7 @@ class InventoryAdapter(ImagesAdapter):
         run = self.spec.runs_root/"executions"/run_id
         identity = self._identity(task, harness_dir)
         if self.artifacts_intact(run):
-            if json.loads((run/"execution.json").read_text())["identity"] == identity:
+            if json.loads((run/"execution.json").read_text(encoding="utf-8"))["identity"] == identity:
                 return run
         run.mkdir(parents=True, exist_ok=True)
         from harness2.core import tree
@@ -178,17 +178,17 @@ class InventoryAdapter(ImagesAdapter):
             answer = json.loads(content, parse_constant=reject_constant)
         except ValueError:
             answer = content
-        (run/"answer.json").write_text(json.dumps(answer, allow_nan=False))
-        (run/"trace.json").write_text(json.dumps({"final_text": text, "trace": trace}, allow_nan=False))
+        (run/"answer.json").write_text(json.dumps(answer, allow_nan=False), encoding="utf-8")
+        (run/"trace.json").write_text(json.dumps({"final_text": text, "trace": trace}, allow_nan=False), encoding="utf-8")
         (run/"execution.json").write_text(json.dumps({"task": task, "identity": identity,
             "harness": str(harness_dir) if harness_dir else None,
             "answer_sha256": hashlib.sha256((run/"answer.json").read_bytes()).hexdigest(),
-            "tool_calls": sum(step["type"] == "tool" for step in trace)}))
+            "tool_calls": sum(step["type"] == "tool" for step in trace)}), encoding="utf-8")
         self.executions += 1
         return run
 
     def trajectory(self, run, *, obs_trunc):
-        record = json.loads((run/"trace.json").read_text())
+        record = json.loads((run/"trace.json").read_text(encoding="utf-8"))
         return render_trace(record["trace"], record["final_text"], obs_trunc=obs_trunc)
 
 
@@ -213,7 +213,7 @@ def run_stream(adapter, output, client, *, tasks=None):
     rows = {}
     for task in stream:
         summary = json.loads((Namespace(adapter.spec.name, adapter.substrate.name, "agg", 1)
-                              .task_dir(adapter.spec.runs_root, task)/"summary.json").read_text())
+                              .task_dir(adapter.spec.runs_root, task)/"summary.json").read_text(encoding="utf-8"))
         selection = summary["selections"].get("seq", {})
         base_run = adapter.spec.runs_root/summary["base"][0]["run_dir"]
         chosen_dir = Namespace(adapter.spec.name, adapter.substrate.name, "seq", 1).task_dir(
@@ -233,7 +233,7 @@ def run_stream(adapter, output, client, *, tasks=None):
               "per_sample": rows, "means": {"base": mean("base"), "harness2": mean("harness2")},
               "grading": "controller-side checklist after the run; never shown to the improver",
               "executions_this_invocation": adapter.executions}
-    (output/"ea_report.json").write_text(json.dumps(report, indent=2))
+    (output/"ea_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return report
 
 
@@ -368,7 +368,7 @@ class InventoryPreviewTransport:
 def preview_transcription(dataset_root, requests):
     """Transcribe double from controller request texts (offline only)."""
     root = Path(dataset_root)/"worker_inputs"
-    manifest = json.loads((root/"manifest.json").read_text())
+    manifest = json.loads((root/"manifest.json").read_text(encoding="utf-8"))
     return FakeTranscription({media_hash((root/s["audio"]).read_bytes()): requests[s["sample_id"]]["text"]
                               for s in manifest["samples"]})
 
@@ -399,7 +399,7 @@ def preview_stream(output, *, count=3, seed=20261029):
     report = run_stream(adapter, output/"run", client)
     report["preview"] = {"live": False, "chat_calls": transport.calls,
                          "note": "deterministic doubles; plumbing evidence only"}
-    (output/"run"/"ea_report.json").write_text(json.dumps(report, indent=2))
+    (output/"run"/"ea_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return report
 
 

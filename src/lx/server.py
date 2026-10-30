@@ -41,7 +41,7 @@ def server_for(app, port=8765):
                 if path == "/api/state":
                     return self.respond(app.state())
                 if path == "/api/live-proof":
-                    return self.respond(json.loads((ROOT/"evidence"/"2026-10-28-live-gate"/"live-report.json").read_text()))
+                    return self.respond(json.loads((ROOT/"evidence"/"2026-10-28-live-gate"/"live-report.json").read_text(encoding="utf-8")))
                 if path == "/api/demo.zip":
                     import io,zipfile
                     stream = io.BytesIO()

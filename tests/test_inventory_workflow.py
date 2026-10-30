@@ -28,13 +28,13 @@ class DomainTests(unittest.TestCase):
             root = Path(tmp) / "ds" / "worker_inputs"
             _, samples = InventoryDomain.samples_from(root)
             self.assertEqual([s["split"] for s in samples], ["dev", "heldout"])
-            manifest = json.loads((root / "manifest.json").read_text())
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
             bad = [dict(manifest["samples"][0], extra=1), dict(manifest["samples"][0], photos=["../x.jpg"] * 3),
                    dict(manifest["samples"][0], photos=manifest["samples"][0]["photos"][:2]),
                    dict(manifest["samples"][0], split="test")]
             for sample in bad:
                 with self.subTest(sample=sorted(sample)):
-                    (root / "manifest.json").write_text(json.dumps({"samples": [sample]}))
+                    (root / "manifest.json").write_text(json.dumps({"samples": [sample]}), encoding="utf-8")
                     with self.assertRaises(ValueError):
                         InventoryDomain.samples_from(root)
 
@@ -71,22 +71,22 @@ class PreviewTests(unittest.TestCase):
                 self.assertEqual(row["files_added"], ["scripts/sum_counts.py", "skills/inventory-check/SKILL.md"])
                 self.assertLess(row["base"]["score"], 1.0)
                 self.assertGreater(row["harness2"]["score"], row["base"]["score"])
-        traces = [json.loads(p.read_text()) for p in (self.out / "run" / "runs").rglob("trace.json")]
+        traces = [json.loads(p.read_text(encoding="utf-8")) for p in (self.out / "run" / "runs").rglob("trace.json")]
         used = [step for t in traces for step in t["trace"] if step["type"] == "tool" and step["name"] == "run_script"]
         self.assertTrue(used)
         self.assertTrue(all(step["result"]["exit_code"] == 0 for step in used))
         self.assertEqual(report["run"]["tasks"][1]["library_entries_before"], {"seq": 1})
 
     def test_improver_context_holds_no_truth_or_scores(self):
-        truth = json.loads((self.out / "dataset" / "controller_truth" / "ground_truth.json").read_text())
+        truth = json.loads((self.out / "dataset" / "controller_truth" / "ground_truth.json").read_text(encoding="utf-8"))
         staged = list((self.out / "run" / "sources").rglob("*"))
         self.assertTrue(staged)
         for path in staged:
             if path.is_file():
-                text = path.read_text()
+                text = path.read_text(encoding="utf-8")
                 self.assertNotIn("request_type", text)
                 self.assertNotIn(json.dumps(next(iter(truth.values()))["photos"]), text)
-        audits = [p.read_text() for p in (self.out / "run" / "proposer_audit").rglob("*") if p.is_file()]
+        audits = [p.read_text(encoding="utf-8") for p in (self.out / "run" / "proposer_audit").rglob("*") if p.is_file()]
         self.assertTrue(audits)
         self.assertFalse(any('"score"' in a or "ground_truth" in a for a in audits))
 

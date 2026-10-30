@@ -37,7 +37,7 @@ class SpikeIntegration(unittest.TestCase):
             root = Path(directory)
             context = root/"input"
             (context/"harness"/"scripts").mkdir(parents=True)
-            (context/"harness"/"scripts"/"normalize.py").write_text(fixture.BASE_SCRIPT)
+            (context/"harness"/"scripts"/"normalize.py").write_text(fixture.BASE_SCRIPT, encoding="utf-8")
             ledger = BudgetLedger(root/"budget.sqlite3")
             transport = FixtureTransport()
             proposer = SparkProposer(SparkClient(transport, ledger), root/"audit")

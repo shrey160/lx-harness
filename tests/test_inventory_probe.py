@@ -93,9 +93,9 @@ class ProbeTests(unittest.TestCase):
         first = inventory_dataset_hash(self.root / "ds")
         self.assertEqual(first, inventory_dataset_hash(self.root / "ds"))
         truth = self.root / "ds" / "controller_truth" / "ground_truth.json"
-        data = json.loads(truth.read_text())
+        data = json.loads(truth.read_text(encoding="utf-8"))
         data["synth-01"]["photos"]["1"].append({"kind": "circle", "count": 1})
-        truth.write_text(json.dumps(data))
+        truth.write_text(json.dumps(data), encoding="utf-8")
         self.assertNotEqual(first, inventory_dataset_hash(self.root / "ds"))
 
     def test_guard_refuses_old_ledger_and_reused_scope(self):

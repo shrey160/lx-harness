@@ -151,19 +151,19 @@ class ProtocolTests(unittest.TestCase):
 
     def test_file_tools_constrain_writes_and_paths(self):
         (self.root/"harness").mkdir()
-        (self.root/"source.txt").write_text("input")
+        (self.root/"source.txt").write_text("input", encoding="utf-8")
         files = FileTools(self.root)
         files("write_file", {"path": "harness/test.txt", "content": "ok"})
         self.assertEqual(files("read_file", {"path": "harness/test.txt"}), "ok")
         for name in ("../elsewhere", "/outside", "C:/outside", "harness/../../outside", ".env", "harness/.env.example", "key.pem", "config.env", "config.env.local", "credentials.json", "service-account.json", "id_rsa"):
             with self.assertRaises(ValueError): files("read_file", {"path": name})
         with self.assertRaises(ValueError): files("write_file", {"path": "source.txt", "content": "changed"})
-        self.assertEqual((self.root/"source.txt").read_text(), "input")
+        self.assertEqual((self.root/"source.txt").read_text(encoding="utf-8"), "input")
 
     @unittest.skipUnless(__import__("os").name == "posix", "requires symlink support")
     def test_linked_file_access_rejected(self):
         (self.root/"harness").mkdir()
-        (self.root/"source.txt").write_text("input")
+        (self.root/"source.txt").write_text("input", encoding="utf-8")
         (self.root/"harness"/"linked.txt").symlink_to(self.root/"source.txt")
         files = FileTools(self.root)
         with self.assertRaises(ValueError): files("read_file", {"path": "harness/linked.txt"})

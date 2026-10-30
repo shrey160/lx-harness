@@ -50,7 +50,7 @@ def samples_from(snapshot):
         manifest = matches[0]
     if manifest.is_symlink():
         raise ValueError("Linked manifest rejected")
-    samples = json.loads(manifest.read_text())["samples"]
+    samples = json.loads(manifest.read_text(encoding="utf-8"))["samples"]
     if not isinstance(samples, list) or not samples or len(samples) > 20:
         raise ValueError("Invalid sample manifest")
     for sample in samples:
@@ -126,7 +126,7 @@ class ImagesAdapter:
             source.mkdir(parents=True, exist_ok=True)
             # Only textual metadata is staged for the improver. Vision input stays in
             # the controller-side worker request; verifier truth is never staged.
-            (source/"sample.json").write_text(json.dumps({k:v for k,v in sample.items() if k != "image"}))
+            (source/"sample.json").write_text(json.dumps({k:v for k,v in sample.items() if k != "image"}), encoding="utf-8")
         self.executions = 0
 
     def tasks(self, split="all"):
@@ -164,7 +164,7 @@ class ImagesAdapter:
         run = self.spec.runs_root/"executions"/run_id
         identity = self._identity(task, harness_dir)
         if self.artifacts_intact(run):
-            record = json.loads((run/"execution.json").read_text())
+            record = json.loads((run/"execution.json").read_text(encoding="utf-8"))
             if record["identity"] == identity:
                 return run
         run.mkdir(parents=True, exist_ok=True)
@@ -192,16 +192,16 @@ class ImagesAdapter:
         except ValueError:
             # An invalid answer is a failed item, not an omitted denominator.
             answer = content
-        (run/"answer.json").write_text(json.dumps(answer, allow_nan=False))
+        (run/"answer.json").write_text(json.dumps(answer, allow_nan=False), encoding="utf-8")
         (run/"execution.json").write_text(json.dumps({"task": task, "identity": identity,
             "harness": str(harness_dir) if harness_dir else None, "answer_sha256": hashlib.sha256((run/"answer.json").read_bytes()).hexdigest(),
-            "usage": {k:float(v) if k == "cost_usd" else v for k,v in usage.items()}}))
+            "usage": {k:float(v) if k == "cost_usd" else v for k,v in usage.items()}}), encoding="utf-8")
         self.executions += 1
         return run
 
     def artifacts_intact(self, run):
         try:
-            record = json.loads((run/"execution.json").read_text())
+            record = json.loads((run/"execution.json").read_text(encoding="utf-8"))
             harness = Path(record["harness"]) if record["harness"] else None
             return (self._identity(record["task"], harness) == record["identity"] and
                     hashlib.sha256((run/"answer.json").read_bytes()).hexdigest() == record["answer_sha256"])
@@ -209,7 +209,7 @@ class ImagesAdapter:
             return False
 
     def delivered(self, run): return (run/"answer.json").is_file()
-    def deliverable_text(self, run): return (run/"answer.json").read_text()
+    def deliverable_text(self, run): return (run/"answer.json").read_text(encoding="utf-8")
     def deliverable_files(self, run): return {"answer.json": self.deliverable_text(run)}
     def trajectory(self, run, *, obs_trunc): return "[ACTION] Structured output request\n[OBSERVATION]\n"+self.deliverable_text(run)
     def verify(self, task, answer):
@@ -246,7 +246,7 @@ def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_co
         raise ValueError("Improvement run did not complete; last working harness is retained")
     selected = []
     for task in practice:
-        summary = json.loads((Namespace(adapter.spec.name, adapter.substrate.name, "agg", 1).task_dir(adapter.spec.runs_root,task)/"summary.json").read_text())
+        summary = json.loads((Namespace(adapter.spec.name, adapter.substrate.name, "agg", 1).task_dir(adapter.spec.runs_root,task)/"summary.json").read_text(encoding="utf-8"))
         selected.append(summary["selections"]["seq"])
     final_dir = Namespace(adapter.spec.name, adapter.substrate.name, "seq", 1).task_dir(adapter.spec.runs_root,practice[-1])/"harnesses"/selected[-1]["chosen_label"]
     package = Path(output)/"package"
@@ -283,6 +283,6 @@ def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_co
             "Deterministic provider double; these gains do not establish model capability.",
             "Synthetic task only; preview results cannot establish live capability."]), "spec": spec,
         "executions_this_invocation": adapter.executions}
-    (package/"result.json").write_text(json.dumps(report, indent=2))
-    (package/"spec.json").write_text(json.dumps(spec, indent=2))
+    (package/"result.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    (package/"spec.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
     return report

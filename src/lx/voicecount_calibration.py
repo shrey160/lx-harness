@@ -102,7 +102,7 @@ def run_calibration(dataset, output, client, perception, *, live=False):
             continue
         answer = json.loads(adapter.deliverable_text(run))
         judged = verify_count(truth[item], answer)
-        trace = json.loads((run/"trace.json").read_text())["trace"]
+        trace = json.loads((run/"trace.json").read_text(encoding="utf-8"))["trace"]
         tools = [s for s in trace if s["type"] == "tool"]
         arms["A1"][item] = {"answer": answer, "score": judged.score, "errors": list(judged.errors),
                             "turns": sum(s["type"] == "assistant" for s in trace),

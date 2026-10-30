@@ -78,7 +78,7 @@ def download(args):
 def build(args):
     if DATASET.exists():
         raise SystemExit(f"{DATASET} exists; remove it to rebuild")
-    voicecount = json.loads((LX / "datasets" / "voicecount-v1" / "controller_truth" / "dataset.json").read_text())
+    voicecount = json.loads((LX / "datasets" / "voicecount-v1" / "controller_truth" / "dataset.json").read_text(encoding="utf-8"))
     exclude = {source["image"] for source in voicecount["sources"].values()}
     for split, count in SPLIT_COUNTS.items():
         add_fsc_samples(DATASET, COCO.parent / "fsc147", count, split=split, exclude=exclude)

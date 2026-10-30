@@ -42,7 +42,7 @@ class StreamTests(unittest.TestCase):
             self.assertEqual(report["improved"], sorted(t for t, g in report["gains"].items() if g > 0))
             self.assertFalse(report["live"])
             self.assertGreater(transport.calls["improver"], 0)
-            saved = json.loads((root / "out" / "ea_report.json").read_text())
+            saved = json.loads((root / "out" / "ea_report.json").read_text(encoding="utf-8"))
             self.assertEqual(saved["gains"], report["gains"])
 
     def test_scripts_off_controller_runs_the_loop_with_skills_only(self):

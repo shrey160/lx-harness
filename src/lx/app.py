@@ -88,7 +88,7 @@ class Application:
                     pass
             result_file = self.root/"outputs"/job["id"]/"package"/"result.json"
             if job["status"] == "completed" and result_file.is_file():
-                job["result"] = json.loads(result_file.read_text())
+                job["result"] = json.loads(result_file.read_text(encoding="utf-8"))
         return {"mode": "controlled_preview", "live_application_enabled": True, "live_flow": "approval_gated_spark_only",
                 "models": self.registry.list_models(), "projects": self.store.list("project"),
                 "jobs": jobs, "preview_usage": self.preview_ledger.summary(),
@@ -230,8 +230,9 @@ class Application:
 
     def _launch(self, identifier):
         # Worker main owns POSIX signal handlers; HTTP request threads do not.
-        detach = ({"creationflags":subprocess.CREATE_NEW_PROCESS_GROUP|subprocess.CREATE_NO_WINDOW}
-                  if os.name == "nt" else {"start_new_session":True})
+        # Windows: UTF-8 mode, because the vendored engine reads text with the default encoding.
+        detach = ({"creationflags":subprocess.CREATE_NEW_PROCESS_GROUP|subprocess.CREATE_NO_WINDOW,
+                   "env":{**os.environ,"PYTHONUTF8":"1"}} if os.name == "nt" else {"start_new_session":True})
         with open(os.devnull,"wb") as output:
             subprocess.Popen([sys.executable,"-m","lx.worker","--root",str(self.root),"--job",identifier],
                              stdout=output,stderr=output,**detach)
@@ -294,7 +295,7 @@ class Application:
         _write_png(root/"fresh.png",rectangles)
         sample = {"sample_id":"fresh-scene","source_scene_id":root.name,"split":"heldout","image":"fresh.png",
                   "transcript":"A red square is above a blue rectangle."}
-        (root/"manifest.json").write_text(json.dumps({"samples":[sample]}))
+        (root/"manifest.json").write_text(json.dumps({"samples":[sample]}),encoding="utf-8")
         truth = {"fresh-scene":{"objects":[{"label":r.label,"box":list(r.box)} for r in rectangles],"text":sample["transcript"]}}
         mode = job["spec"].get("mode","controlled_preview")
         if mode == "live":

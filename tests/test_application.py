@@ -64,7 +64,7 @@ class ApplicationFlowTests(unittest.TestCase):
     def test_snapshot_change_cannot_run_after_approval(self):
         p = self.approve(self.project())
         snapshot = self.app.root/"projects"/p["id"]/"snapshot"
-        (snapshot/"manifest.json").write_text("changed")
+        (snapshot/"manifest.json").write_text("changed", encoding="utf-8")
         with self.assertRaisesRegex(ValueError,"Snapshot changed"):
             self.app.start(p["id"],launch=False)
 
@@ -95,7 +95,7 @@ class ApplicationFlowTests(unittest.TestCase):
         self.assertFalse(report["improved"])
         self.assertEqual(report["retained"],"base")
         self.assertFalse(any(report["checks"]["heldout"].values()))
-        self.assertIn("LX_BASE",(self.app.root/"negative"/"package"/"harness"/"systemprompt.md").read_text())
+        self.assertIn("LX_BASE",(self.app.root/"negative"/"package"/"harness"/"systemprompt.md").read_text(encoding="utf-8"))
 
     def test_unapproved_or_nonpublic_data_cannot_start(self):
         with self.assertRaises(ValueError): self.app.create_project({"source":"demo"})
@@ -111,7 +111,7 @@ class ApplicationFlowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"Stop the active"):
             self.app.edit_spec(p["id"],{"goal":"Changed","budget_usd":1})
         snapshot = self.app.root/"inputs"/job["id"]
-        (snapshot/"manifest.json").write_text("changed")
+        (snapshot/"manifest.json").write_text("changed", encoding="utf-8")
         with patch("lx.worker.SparkClient") as client:
             with self.assertRaisesRegex(ValueError,"Frozen snapshot changed"):
                 execute(self.app,job["id"],snapshot)

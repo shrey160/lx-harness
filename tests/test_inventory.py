@@ -189,11 +189,11 @@ class SyntheticTests(unittest.TestCase):
             names = write_synthetic(Path(tmp) / "d3", 3, seed=5)
             self.assertEqual(names, ["sample-01", "sample-02", "sample-03"])
             folder = Path(tmp) / "d3" / "sample-02"
-            truth = json.loads((folder / "truth.json").read_text())
+            truth = json.loads((folder / "truth.json").read_text(encoding="utf-8"))
             validate_truth(truth)
             self.assertEqual(sorted(p.name for p in (folder / "photos").iterdir()),
                              [f"{i}.png" for i in range(1, len(truth["photos"]) + 1)])
-            self.assertTrue((folder / "request.txt").read_text().strip())
+            self.assertTrue((folder / "request.txt").read_text(encoding="utf-8").strip())
             with self.assertRaises(ValueError):
                 write_synthetic(Path(tmp) / "d3", 1)
 

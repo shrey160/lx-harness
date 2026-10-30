@@ -51,9 +51,9 @@ def fsc_fixture(root, per_split=12):
             annotations[name] = {"points": points, "H": 300, "W": 400}
             classes.append(f"{name}\t{names[i % len(names)]}")
             splits[split].append(name)
-    (root/"annotation_FSC147_384.json").write_text(json.dumps(annotations))
-    (root/"ImageClasses_FSC147.txt").write_text("\n".join(classes) + "\n")
-    (root/"Train_Test_Val_FSC_147.json").write_text(json.dumps(splits))
+    (root/"annotation_FSC147_384.json").write_text(json.dumps(annotations), encoding="utf-8")
+    (root/"ImageClasses_FSC147.txt").write_text("\n".join(classes) + "\n", encoding="utf-8")
+    (root/"Train_Test_Val_FSC_147.json").write_text(json.dumps(splits), encoding="utf-8")
     return root, images
 
 
@@ -78,7 +78,7 @@ class VoiceCountDatasetTests(unittest.TestCase):
         self.assertFalse(set.intersection(*[set(v) for v in splits.values()]))
         loop_ids = {int(s) for s in splits["loop"]}
         self.assertTrue(all(i <= 12 for i in loop_ids))
-        worker_text = "".join(p.read_text(errors="ignore") for p in (self.dataset.root/"worker_inputs").rglob("*.json"))
+        worker_text = "".join(p.read_text(encoding="utf-8", errors="ignore") for p in (self.dataset.root/"worker_inputs").rglob("*.json"))
         for sid, script in dataset.scripts.items():
             self.assertNotIn(script["text"], worker_text)
             truth = dataset.controller_truth[sid]
@@ -116,10 +116,10 @@ class VoiceCountDatasetTests(unittest.TestCase):
         self.assertGreaterEqual(min(test["gains"].values()), 0)
         self.assertGreater(trial["means"]["candidate_dev"], trial["means"]["base_dev"])
         guidance = (self.root/"trials"/trial["trial_id"]/"package"/"harness"/"tool_descriptions"/"tool_guidance.md")
-        self.assertIn("count_boxes", guidance.read_text())
+        self.assertIn("count_boxes", guidance.read_text(encoding="utf-8"))
         rollouts = list((self.root/"trials").rglob("rollouts/*.md"))
         self.assertTrue(rollouts)
-        text = rollouts[0].read_text()
+        text = rollouts[0].read_text(encoding="utf-8")
         self.assertIn("[CALL] transcribe", text)
         self.assertIn("[RESULT] segment", text)
         self.assertGreater(transcriber.calls, 0)

@@ -130,8 +130,8 @@ class CompositeTests(unittest.TestCase):
                 made[request_type] = add_composite_samples(dataset, self.cutouts, 2, request_type=request_type,
                                                            split="stream", seed=3)
             hidden = add_composite_samples(dataset, self.cutouts, 2, request_type="inventory", split="heldout", seed=3)
-            truth = json.loads((dataset / "controller_truth" / "ground_truth.json").read_text())
-            sources = json.loads((dataset / "controller_truth" / "sources.json").read_text())
+            truth = json.loads((dataset / "controller_truth" / "ground_truth.json").read_text(encoding="utf-8"))
+            sources = json.loads((dataset / "controller_truth" / "sources.json").read_text(encoding="utf-8"))
             uses, groups = {}, {}
             for sample_id, source in sources.items():
                 t = truth[sample_id]

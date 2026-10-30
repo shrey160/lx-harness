@@ -109,7 +109,7 @@ def _guard_fixture():
             "records-1": [{"id": "A-1", "amount": "14.25"}, {"id": "A-2", "amount": "-20.10"}, {"id": "A-3", "amount": "3.85"}],
             "records-2": [{"id": "B-1", "amount": "-4.50"}, {"id": "B-2", "amount": "1.25"}, {"id": "B-3", "amount": "2.25"}],
         }.get(path.parent.name)
-        if path.is_symlink() or expected is None or json.loads(path.read_text()) != {"records": expected}:
+        if path.is_symlink() or expected is None or json.loads(path.read_text(encoding="utf-8")) != {"records": expected}:
             raise ModelError("live fixture inputs differ from approved synthetic records")
 
 
@@ -134,7 +134,7 @@ def worker():
               "resume_execution_count": resumed["execution_count"],
               "ledger_before": before, "ledger_after": spent,
               "cost_basis": "provider token usage at verified Contributor list prices; not an invoice"}
-    (RUNTIME/"live-report.json").write_text(json.dumps(report, indent=2)+"\n")
+    (RUNTIME/"live-report.json").write_text(json.dumps(report, indent=2)+"\n", encoding="utf-8")
     print(json.dumps(report, indent=2))
 
 
@@ -151,13 +151,13 @@ def main():
             inputs = RUNTIME/"job-input"
             inputs.mkdir(exist_ok=True)
             (inputs/"approval.json").write_text(json.dumps({"fixture_sha256": FIXTURE_SHA256,
-                "model": MODEL, "task": "records-1", "k": 1, "cap_usd": 20, "call_limit": MAX_CALLS})+"\n")
+                "model": MODEL, "task": "records-1", "k": 1, "cap_usd": 20, "call_limit": MAX_CALLS})+"\n", encoding="utf-8")
             job = run_job("s1-spark-live", RUNTIME/"jobs", "local", inputs, 900,
                           [sys.executable, "-m", "lx.live", "--worker"])
             if job["status"] != "completed":
                 print(json.dumps({"state": job["status"], "detail": "inspect controller logs in .lx/live-spike/jobs"}))
                 return 1
-            print((RUNTIME/"live-report.json").read_text())
+            print((RUNTIME/"live-report.json").read_text(encoding="utf-8"))
         else:
             raise ModelError("the approved live spike accepts no custom paths or inputs")
         return 0

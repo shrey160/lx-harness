@@ -74,7 +74,7 @@ def run_ladder(ladder, output, client, *, live=False):
             expected = dataset.controller_truth[task]
             for field in FIELDS:
                 field_hits[field] += type(answer) is dict and answer.get(field) == expected[field]
-            output_tokens[task] = json.loads((run/"execution.json").read_text())["usage"].get("output_tokens")
+            output_tokens[task] = json.loads((run/"execution.json").read_text(encoding="utf-8"))["usage"].get("output_tokens")
         level_mean = mean(scores.values())
         levels[level] = {"scores": scores, "mean": level_mean, "min": min(scores.values()),
                          "max": max(scores.values()), "accepted": sum(s == 1.0 for s in scores.values()),

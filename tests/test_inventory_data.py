@@ -41,11 +41,11 @@ def make_sample(root, name, truth=TRUTH, n=3, wav=None, text="How many pens are 
     (folder / "photos").mkdir(parents=True)
     for k in range(1, n + 1):
         (folder / "photos" / f"{k}.jpg").write_bytes(photo(colour=(k * 40, 50, 60)))
-    (folder / "truth.json").write_text(json.dumps(truth))
+    (folder / "truth.json").write_text(json.dumps(truth), encoding="utf-8")
     if wav is not None:
         (folder / "request.wav").write_bytes(wav)
     if text is not None:
-        (folder / "request.txt").write_text(text)
+        (folder / "request.txt").write_text(text, encoding="utf-8")
     return folder
 
 
@@ -88,7 +88,7 @@ class FolderTests(unittest.TestCase):
                 if name == "bad wav":
                     self.assertIn("ffmpeg", str(error.exception))
         folder = make_sample(self.root, "sample-x")
-        (folder / "photos" / "notes.txt").write_text("x")
+        (folder / "photos" / "notes.txt").write_text("x", encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "unexpected file"):
             check_sample_folder(folder)
 
@@ -102,14 +102,14 @@ class FolderTests(unittest.TestCase):
             add_user_samples(dataset, source, stream_count=3, calibration_count=1)
         self.assertEqual(add_user_samples(dataset, source, stream_count=1, calibration_count=1),
                          ["user-01", "user-02", "user-03"])
-        manifest = json.loads((dataset / "worker_inputs" / "manifest.json").read_text())
+        manifest = json.loads((dataset / "worker_inputs" / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual([s["split"] for s in manifest["samples"]], ["stream", "calibration", "heldout"])
-        sources = json.loads((dataset / "controller_truth" / "sources.json").read_text())
+        sources = json.loads((dataset / "controller_truth" / "sources.json").read_text(encoding="utf-8"))
         self.assertEqual(sorted(s["folder"] for s in sources.values()), ["sample-a", "sample-b", "sample-c"])
         recorded = next(i for i, s in sources.items() if s["folder"] == "sample-a")
-        scripts = json.loads((dataset / "controller_truth" / "scripts.json").read_text())
+        scripts = json.loads((dataset / "controller_truth" / "scripts.json").read_text(encoding="utf-8"))
         self.assertEqual(sorted(scripts), sorted(set(sources) - {recorded}))
-        requests = json.loads((dataset / "controller_truth" / "requests.json").read_text())
+        requests = json.loads((dataset / "controller_truth" / "requests.json").read_text(encoding="utf-8"))
         self.assertEqual(requests[recorded]["audio"], "recorded")
         with self.assertRaisesRegex(ValueError, "audio missing"):
             finalize_inventory(dataset)
@@ -153,8 +153,8 @@ class CocoTests(unittest.TestCase):
                 return photo((640, 480), colour=(len(loaded) % 255, 0, 0))
             added = add_coco_samples(Path(tmp) / "ds", annotations, load, 4, seed=5)
             self.assertEqual(added, [f"coco-heldout-{i:02d}" for i in range(1, 5)])
-            truth = json.loads((Path(tmp) / "ds" / "controller_truth" / "ground_truth.json").read_text())
-            sources = json.loads((Path(tmp) / "ds" / "controller_truth" / "sources.json").read_text())
+            truth = json.loads((Path(tmp) / "ds" / "controller_truth" / "ground_truth.json").read_text(encoding="utf-8"))
+            sources = json.loads((Path(tmp) / "ds" / "controller_truth" / "sources.json").read_text(encoding="utf-8"))
             used = [p["coco_id"] for s in sources.values() for p in s["photos"]]
             self.assertEqual(len(used), len(set(used)))
             by_id = {i["id"]: i for i in annotations["images"]}
@@ -173,11 +173,11 @@ class CocoTests(unittest.TestCase):
                     self.assertFalse(any(categories[a["category_id"]] == "person" for a in annotations["annotations"]
                                          if a["image_id"] == image_id))
                 self.assertLessEqual(sum(1 for items in t["photos"].values() if not items), 1)
-            scripts = json.loads((Path(tmp) / "ds" / "controller_truth" / "scripts.json").read_text())
+            scripts = json.loads((Path(tmp) / "ds" / "controller_truth" / "scripts.json").read_text(encoding="utf-8"))
             self.assertEqual(sorted(scripts), added)
             self.assertTrue(all(s["text"] for s in scripts.values()))
             more = add_coco_samples(Path(tmp) / "ds", annotations, load, 1, split="calibration", seed=6)
-            sources = json.loads((Path(tmp) / "ds" / "controller_truth" / "sources.json").read_text())
+            sources = json.loads((Path(tmp) / "ds" / "controller_truth" / "sources.json").read_text(encoding="utf-8"))
             again = [p["coco_id"] for p in sources[more[0]]["photos"]]
             self.assertFalse(set(again) & set(used))
 
@@ -212,8 +212,8 @@ def fsc_fixture(root, per_class=8, seed=4):
             annotations[f"{number}.jpg"] = {"points": [[1.0, 2.0]] * dots}
             lines.append(f"{number}.jpg\t{name}")
     (root / "images" / "2.jpg").write_bytes((root / "images" / "1.jpg").read_bytes())
-    (root / "annotation_FSC147_384.json").write_text(json.dumps(annotations))
-    (root / "ImageClasses_FSC147.txt").write_text("\n".join(lines) + "\n")
+    (root / "annotation_FSC147_384.json").write_text(json.dumps(annotations), encoding="utf-8")
+    (root / "ImageClasses_FSC147.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return annotations
 
 
@@ -224,8 +224,8 @@ class FscTests(unittest.TestCase):
             annotations = fsc_fixture(fsc, per_class=12)
             added = add_fsc_samples(dataset, fsc, 4, seed=8, exclude={"3.jpg"})
             self.assertEqual(added, [f"fsc-heldout-{i:02d}" for i in range(1, 5)])
-            truth = json.loads((dataset / "controller_truth" / "ground_truth.json").read_text())
-            sources = json.loads((dataset / "controller_truth" / "sources.json").read_text())
+            truth = json.loads((dataset / "controller_truth" / "ground_truth.json").read_text(encoding="utf-8"))
+            sources = json.loads((dataset / "controller_truth" / "sources.json").read_text(encoding="utf-8"))
             used = [p["fsc_image"] for s in sources.values() for p in s["photos"]]
             self.assertEqual(len(used), len(set(used)))
             self.assertNotIn("3.jpg", used)
@@ -244,7 +244,7 @@ class FscTests(unittest.TestCase):
                         self.assertEqual(items, [])
                         self.assertNotEqual({t["kind"], FSC_KINDS[entry["class"]]}, {"pen", "pencil"})
             more = add_fsc_samples(dataset, fsc, 1, split="calibration", seed=9)
-            sources = json.loads((dataset / "controller_truth" / "sources.json").read_text())
+            sources = json.loads((dataset / "controller_truth" / "sources.json").read_text(encoding="utf-8"))
             self.assertFalse({p["fsc_image"] for p in sources[more[0]]["photos"]} & set(used))
 
     def test_shortfall_writes_nothing(self):

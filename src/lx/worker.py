@@ -34,8 +34,8 @@ def execute(app, identifier, snapshot):
     result["usage_basis"] = ("live Spark usage at verified Contributor list prices; not provider billing"
                              if live else "simulated provider usage; no live calls or charges")
     result["package_version"] = identifier+"-spec-v"+str(job["spec"]["version"])
-    (package/"usage.json").write_text(json.dumps(result["usage"],indent=2))
-    (package/"result.json").write_text(json.dumps(result,indent=2))
+    (package/"usage.json").write_text(json.dumps(result["usage"],indent=2), encoding="utf-8")
+    (package/"result.json").write_text(json.dumps(result,indent=2), encoding="utf-8")
     job.update(status="completed",phase="complete",result=result)
     app.store.save("job",job)
     return result

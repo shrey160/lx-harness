@@ -101,7 +101,7 @@ def run_spike(core_source, output, client, *, backend="local", image="h2portable
             if not super().artifacts_intact(run_dir):
                 return False
             try:
-                task = json.loads((run_dir/"execution.json").read_text())["task"]
+                task = json.loads((run_dir/"execution.json").read_text(encoding="utf-8"))["task"]
                 return self._input_intact(run_dir, task)
             except (OSError, ValueError, KeyError):
                 return False
@@ -116,20 +116,20 @@ def run_spike(core_source, output, client, *, backend="local", image="h2portable
     if result["done"] != 1 or result["failed"] != 0:
         raise AssertionError(f"spike workflow failed: {result}")
     namespace = Namespace(adapter.spec.name, adapter.substrate.name, "agg", 1)
-    summary = json.loads((namespace.task_dir(adapter.spec.runs_root, "records-1")/"summary.json").read_text())
+    summary = json.loads((namespace.task_dir(adapter.spec.runs_root, "records-1")/"summary.json").read_text(encoding="utf-8"))
     selected = summary.get("selections", {}).get("seq", {}).get("chosen_run_id")
     if not selected:
         raise AssertionError("selection missing")
     run_dir = adapter.spec.runs_root/"executions"/selected
-    record = json.loads((run_dir/"execution.json").read_text())
+    record = json.loads((run_dir/"execution.json").read_text(encoding="utf-8"))
     from h2portable.execution import LocalRunner
     expected_backend = LocalRunner.backend if backend == "local" else "docker-cli"
     if record["execution"]["backend"] != expected_backend or not adapter.artifacts_intact(run_dir):
         raise AssertionError("selected result has the wrong backend or damaged artifacts")
-    answer = json.loads((run_dir/"answer.json").read_text())
+    answer = json.loads((run_dir/"answer.json").read_text(encoding="utf-8"))
     fixture._verify_answer("records-1", answer)
     harvested = list((root/"proposer_audit").glob("*.workspace/scripts/normalize.py"))
-    if not harvested or not any("if amount > 0" not in p.read_text() for p in harvested):
+    if not harvested or not any("if amount > 0" not in p.read_text(encoding="utf-8") for p in harvested):
         raise AssertionError("no edited candidate harvested")
     report = {"done": result["done"], "failed": result["failed"], "selected_run_id": selected,
               "independent_check": True, "candidate_edited_and_harvested": True,
@@ -137,7 +137,7 @@ def run_spike(core_source, output, client, *, backend="local", image="h2portable
               "fresh_sessions": sum(not c.cached for c in proposer._calls+reflector._calls),
               "cached_sessions": sum(c.cached for c in proposer._calls+reflector._calls),
               "ledger": client.ledger.summary()}
-    (root/"spike-report.json").write_text(json.dumps(report, indent=2)+"\n")
+    (root/"spike-report.json").write_text(json.dumps(report, indent=2)+"\n", encoding="utf-8")
     return report
 
 
