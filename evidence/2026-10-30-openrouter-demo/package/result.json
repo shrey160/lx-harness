@@ -1,0 +1,191 @@
+{
+  "mode": "live",
+  "live": true,
+  "simulated_usage": false,
+  "improved": false,
+  "checks": {
+    "base": {
+      "dev-sample-01": false,
+      "dev-sample-02": false
+    },
+    "selected_dev": {
+      "dev-sample-01": false,
+      "dev-sample-02": false
+    },
+    "heldout": {
+      "heldout-sample-01": false,
+      "heldout-sample-02": false
+    }
+  },
+  "scores": {
+    "base_dev": {
+      "dev-sample-01": 0.0,
+      "dev-sample-02": 0.0
+    },
+    "candidate_dev": {
+      "dev-sample-01": 0.0,
+      "dev-sample-02": 0.0
+    },
+    "base_heldout": {
+      "heldout-sample-01": 0.0,
+      "heldout-sample-02": 0.0
+    },
+    "candidate_heldout": {
+      "heldout-sample-01": 0.0,
+      "heldout-sample-02": 0.0
+    },
+    "retained_heldout": {
+      "heldout-sample-01": 0.0,
+      "heldout-sample-02": 0.0
+    }
+  },
+  "means": {
+    "base_dev": 0.0,
+    "candidate_dev": 0.0,
+    "base_heldout": 0.0,
+    "candidate_heldout": 0.0,
+    "retained_heldout": 0.0
+  },
+  "adaptation_tasks": [
+    "dev-sample-01",
+    "dev-sample-02"
+  ],
+  "retention_basis": "mean development score only; strict gain required",
+  "retained": "base",
+  "limitations": [
+    "Synthetic task only; results do not establish general capability.",
+    "Computed list-price cost from reported usage; not provider billing."
+  ],
+  "spec": {
+    "version": 2,
+    "goal": "Find colored shapes, give pixel boxes, and preserve each transcript.",
+    "budget_usd": 1,
+    "roles": {
+      "orchestrator": "9b0c62598b5e4072bf959be36b292f11",
+      "improver": "9b0c62598b5e4072bf959be36b292f11",
+      "worker": "9b0c62598b5e4072bf959be36b292f11"
+    },
+    "providers": {
+      "orchestrator": {
+        "id": "9b0c62598b5e4072bf959be36b292f11",
+        "name": "Muse Glimmer 30B (OpenRouter)",
+        "model_id": "meta/muse-glimmer-30b",
+        "base_url": "https://openrouter.ai/api/v1",
+        "pricing": {
+          "input_per_million": "0.30",
+          "output_per_million": "1.20"
+        },
+        "context_limit": 131072,
+        "accepts_images": true,
+        "supports_tools": true,
+        "priced": true
+      },
+      "improver": {
+        "id": "9b0c62598b5e4072bf959be36b292f11",
+        "name": "Muse Glimmer 30B (OpenRouter)",
+        "model_id": "meta/muse-glimmer-30b",
+        "base_url": "https://openrouter.ai/api/v1",
+        "pricing": {
+          "input_per_million": "0.30",
+          "output_per_million": "1.20"
+        },
+        "context_limit": 131072,
+        "accepts_images": true,
+        "supports_tools": true,
+        "priced": true
+      },
+      "worker": {
+        "id": "9b0c62598b5e4072bf959be36b292f11",
+        "name": "Muse Glimmer 30B (OpenRouter)",
+        "model_id": "meta/muse-glimmer-30b",
+        "base_url": "https://openrouter.ai/api/v1",
+        "pricing": {
+          "input_per_million": "0.30",
+          "output_per_million": "1.20"
+        },
+        "context_limit": 131072,
+        "accepts_images": true,
+        "supports_tools": true,
+        "priced": true
+      }
+    },
+    "domain": "images-and-supplied-transcripts",
+    "output": {
+      "objects": [
+        {
+          "label": "color_shape",
+          "box": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ]
+        }
+      ],
+      "text": "exact supplied transcript"
+    },
+    "box_edge_tolerance_px": 1,
+    "test_data": "synthetic/public only",
+    "mode": "live",
+    "estimated_cost_usd": {
+      "basis": "Live cost reserved before each call under the workspace budget; actual cost from reported usage at the entry's prices, unknown until reported"
+    }
+  },
+  "executions_this_invocation": 16,
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 37,
+        "output_tokens": 78,
+        "spent_usd": 0.0001047
+      },
+      "improver": {
+        "input_tokens": 324472,
+        "output_tokens": 36516,
+        "spent_usd": 0.1411608
+      },
+      "worker": {
+        "input_tokens": 1526,
+        "output_tokens": 13981,
+        "spent_usd": 0.017235
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "per_phase": {
+      "orchestrator/preflight": {
+        "settled_calls": 1,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0001047
+      },
+      "worker/execute": {
+        "settled_calls": 16,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.017235
+      },
+      "improver/improvement": {
+        "settled_calls": 50,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.1096155
+      },
+      "improver/reflection": {
+        "settled_calls": 24,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0315453
+      }
+    },
+    "settled_calls": 91,
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.1585005
+  },
+  "usage_basis": "live usage at the prices in each provider entry; not provider billing",
+  "package_version": "23a39e113fa7-spec-v2"
+}

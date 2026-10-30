@@ -1,0 +1,54 @@
+{
+  "per_role": {
+    "orchestrator": {
+      "input_tokens": 37,
+      "output_tokens": 78,
+      "spent_usd": 0.0001047
+    },
+    "improver": {
+      "input_tokens": 324472,
+      "output_tokens": 36516,
+      "spent_usd": 0.1411608
+    },
+    "worker": {
+      "input_tokens": 1526,
+      "output_tokens": 13981,
+      "spent_usd": 0.017235
+    },
+    "tool": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "spent_usd": 0.0
+    }
+  },
+  "per_phase": {
+    "orchestrator/preflight": {
+      "settled_calls": 1,
+      "unknown_calls": 0,
+      "reserved_calls": 0,
+      "spent_usd": 0.0001047
+    },
+    "worker/execute": {
+      "settled_calls": 16,
+      "unknown_calls": 0,
+      "reserved_calls": 0,
+      "spent_usd": 0.017235
+    },
+    "improver/improvement": {
+      "settled_calls": 50,
+      "unknown_calls": 0,
+      "reserved_calls": 0,
+      "spent_usd": 0.1096155
+    },
+    "improver/reflection": {
+      "settled_calls": 24,
+      "unknown_calls": 0,
+      "reserved_calls": 0,
+      "spent_usd": 0.0315453
+    }
+  },
+  "settled_calls": 91,
+  "reserved_calls": 0,
+  "unknown_calls": 0,
+  "spent_usd": 0.1585005
+}

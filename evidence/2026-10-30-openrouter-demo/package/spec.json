@@ -1,0 +1,75 @@
+{
+  "version": 2,
+  "goal": "Find colored shapes, give pixel boxes, and preserve each transcript.",
+  "budget_usd": 1,
+  "roles": {
+    "orchestrator": "9b0c62598b5e4072bf959be36b292f11",
+    "improver": "9b0c62598b5e4072bf959be36b292f11",
+    "worker": "9b0c62598b5e4072bf959be36b292f11"
+  },
+  "providers": {
+    "orchestrator": {
+      "id": "9b0c62598b5e4072bf959be36b292f11",
+      "name": "Muse Glimmer 30B (OpenRouter)",
+      "model_id": "meta/muse-glimmer-30b",
+      "base_url": "https://openrouter.ai/api/v1",
+      "pricing": {
+        "input_per_million": "0.30",
+        "output_per_million": "1.20"
+      },
+      "context_limit": 131072,
+      "accepts_images": true,
+      "supports_tools": true,
+      "priced": true
+    },
+    "improver": {
+      "id": "9b0c62598b5e4072bf959be36b292f11",
+      "name": "Muse Glimmer 30B (OpenRouter)",
+      "model_id": "meta/muse-glimmer-30b",
+      "base_url": "https://openrouter.ai/api/v1",
+      "pricing": {
+        "input_per_million": "0.30",
+        "output_per_million": "1.20"
+      },
+      "context_limit": 131072,
+      "accepts_images": true,
+      "supports_tools": true,
+      "priced": true
+    },
+    "worker": {
+      "id": "9b0c62598b5e4072bf959be36b292f11",
+      "name": "Muse Glimmer 30B (OpenRouter)",
+      "model_id": "meta/muse-glimmer-30b",
+      "base_url": "https://openrouter.ai/api/v1",
+      "pricing": {
+        "input_per_million": "0.30",
+        "output_per_million": "1.20"
+      },
+      "context_limit": 131072,
+      "accepts_images": true,
+      "supports_tools": true,
+      "priced": true
+    }
+  },
+  "domain": "images-and-supplied-transcripts",
+  "output": {
+    "objects": [
+      {
+        "label": "color_shape",
+        "box": [
+          "x1",
+          "y1",
+          "x2",
+          "y2"
+        ]
+      }
+    ],
+    "text": "exact supplied transcript"
+  },
+  "box_edge_tolerance_px": 1,
+  "test_data": "synthetic/public only",
+  "mode": "live",
+  "estimated_cost_usd": {
+    "basis": "Live cost reserved before each call under the workspace budget; actual cost from reported usage at the entry's prices, unknown until reported"
+  }
+}
