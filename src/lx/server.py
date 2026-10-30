@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 
 from .engine import Engine, DEFAULT_ROOT, ROOT
 
+MAX_BODY = 30*1024*1024
+
 
 def server_for(app, port=8765):
     token = secrets.token_urlsafe(32)
@@ -65,7 +67,17 @@ def server_for(app, port=8765):
             except Exception:
                 return self.respond({"error":"Request failed; private details withheld"},500)
 
+        def _read_body(self):
+            """The whole body comes off the socket first: closing with unread bytes resets the
+            connection on Windows, and the client loses the reply (WinError 10053)."""
+            try:
+                length = int(self.headers.get("Content-Length","0"))
+            except ValueError:
+                return None
+            return self.rfile.read(length) if 0 < length <= MAX_BODY else None
+
         def do_POST(self):
+            body = self._read_body()
             if not self._valid_host() or self.headers.get("X-LX-Token") != token:
                 return self.respond({"error":"Refresh this local session before making changes"},403)
             origin = self.headers.get("Origin")
@@ -74,10 +86,9 @@ def server_for(app, port=8765):
             if self.headers.get_content_type() != "application/json":
                 return self.respond({"error":"Send JSON"},415)
             try:
-                length = int(self.headers.get("Content-Length","0"))
-                if not 0 < length <= 30*1024*1024:
+                if body is None:
                     raise ValueError("Request is empty or too large")
-                data = json.loads(self.rfile.read(length))
+                data = json.loads(body)
                 if not isinstance(data,dict):
                     raise ValueError("Send an object")
                 route = urlparse(self.path).path.strip("/").split("/")
@@ -136,7 +147,7 @@ def main():
     parser.add_argument("--root",type=Path,default=DEFAULT_ROOT)
     args=parser.parse_args()
     server=server_for(Engine(args.root),args.port)
-    print(f"LX controlled preview: http://127.0.0.1:{server.server_port}",flush=True)
+    print(f"LX: http://127.0.0.1:{server.server_port}",flush=True)
     try: server.serve_forever()
     except KeyboardInterrupt: pass
     finally: server.server_close()

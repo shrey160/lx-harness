@@ -1,4 +1,4 @@
-"""Loopback HTTP boundary tests for the controlled preview application."""
+"""Loopback HTTP boundary tests for the local app."""
 
 import http.client
 import gc
@@ -93,6 +93,11 @@ class ServerBoundaryTests(unittest.TestCase):
         status, _, _ = self.request(
             "POST", "/api/projects", {"synthetic_public": True, "source": "demo"}
         )
+        self.assertEqual(status, 403)
+
+    def test_a_rejected_post_still_gets_its_reply_with_a_large_body(self):
+        # Unread bytes at close reset the connection on Windows (WinError 10053).
+        status, _, _ = self.request("POST", "/api/projects", b"x"*(16*1024*1024))
         self.assertEqual(status, 403)
 
     def test_invalid_host_is_rejected(self):
