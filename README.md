@@ -95,6 +95,22 @@ stops the run until it is approved again. Live runs need prices on every entry
 so the budget can be enforced. Each call reserves its context limit at the input
 price, so set that limit for paid models or a small budget has no room.
 
+Run limits are yours to set, on the spec page under Run limits: agent turns and
+tool calls per photo, improver turns and session time, time per model call and
+per run, reply length, and call counts per run. Each has a default and a hard
+outer bound (`lx.limits`). Spark keeps its original numbers and other providers
+get longer ones; a provider entry can set its own default for time per call and
+reply length. A field tied to a role takes its default from that role's
+provider; the others take the longest default among the run's providers. The
+spec holds every value, so a change is a new version that needs approval. A run
+keeps the limits it was approved with, so a raised limit reaches a new run, not
+a resumed one. Sandbox rules, check and script run times, the self-test, human
+approval, request size bounds and no-redirects are not settable.
+
+A provider entry can also state requests per minute. Calls to it are then spaced
+evenly within a run; two runs at once do not share the pacing. The rate is part
+of what the spec binds, so changing it after approval needs a new approval.
+
 Each workspace has its own budget and real-spend ledger, kept in user-level
 state so they do not depend on files in the folder. The default is $5 and the
 most is $20. Preview usage is simulated and stays in `.lx/`.
