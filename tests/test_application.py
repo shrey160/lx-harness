@@ -287,6 +287,20 @@ class ApplicationFlowTests(unittest.TestCase):
             worker.main()
         self.assertEqual(run_job.call_args.args[4],900.0)
 
+    def test_a_provider_failure_is_reported_and_other_errors_stay_private(self):
+        from unittest.mock import patch
+        from lx import worker
+        from lx.spark import ModelError
+        p = self.approve(self.project())
+        job = self.app.start(p["id"],launch=False)
+        argv = ["worker","--root",str(self.app.root),"--workspace",p["path"],"--job",job["id"],"--execute"]
+        with patch("sys.argv",argv),patch("lx.worker.execute",side_effect=ModelError("provider did not reply in time")):
+            self.assertEqual(worker.main(),1)
+        self.assertEqual(self.workspace(p).run(job["id"])["error"],"provider did not reply in time")
+        with patch("sys.argv",argv),patch("lx.worker.execute",side_effect=RuntimeError("private path C:/x")):
+            self.assertEqual(worker.main(),1)
+        self.assertNotIn("private path",self.workspace(p).run(job["id"])["error"])
+
     def test_a_provider_changed_after_approval_stops_the_run(self):
         roles = self.three_roles()
         project = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})

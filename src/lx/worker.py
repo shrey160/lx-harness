@@ -5,6 +5,7 @@ import sys
 
 from .engine import ROLES, Engine
 from .providers import time_limits
+from .spark import ModelError
 from .usage import usage_rows, summarize
 from .workflow import optimize_preview
 from .workspace import Workspace, write_json
@@ -22,7 +23,8 @@ def execute(engine, workspace, identifier, snapshot):
     # Once per provider entry: a bad key or endpoint stops the run before the loop starts.
     for role in {job["spec"]["roles"][r]:r for r in reversed(ROLES)}.values():
         message,_ = clients[role].chat([{"role":"developer","content":"LX_PREFLIGHT"},{"role":"user","content":"Reply PREFLIGHT_OK"}],
-                                       role=role,phase="preflight",candidate=identifier)
+                                       role=role,phase="preflight",candidate=identifier,
+                                       timeout=max(120,time_limits(clients[role].profile)["worker_call"]))
         if (message["content"] or "").strip() != "PREFLIGHT_OK":
             raise ValueError("Live preflight failed" if live else "Controlled preflight failed")
     workspace.update_run(identifier,phase="improving")
@@ -70,7 +72,7 @@ def main():
                                      error=reason,launch_pending=False)
         return 0
     except Exception as exc:
-        workspace.update_run(args.job,status="failed",phase="failed",error=str(exc) if isinstance(exc,ValueError) else "Controller failed; no private exception details exposed")
+        workspace.update_run(args.job,status="failed",phase="failed",error=str(exc) if isinstance(exc,(ValueError,ModelError)) else "Controller failed; no private exception details exposed")
         return 1
 
 

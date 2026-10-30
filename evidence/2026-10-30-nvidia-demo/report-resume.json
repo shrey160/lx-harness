@@ -1,0 +1,61 @@
+{
+  "approved_by": "user in chat: Yes, resume it",
+  "model": "meta/muse-glimmer-30b",
+  "elapsed_seconds": 138,
+  "status": "failed",
+  "phase": "failed",
+  "error": "Controller failed; no private exception details exposed",
+  "calls_before_resume": 17,
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 37,
+        "output_tokens": 91,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 54109,
+        "output_tokens": 4833,
+        "spent_usd": 0.0
+      },
+      "worker": {
+        "input_tokens": 285,
+        "output_tokens": 2922,
+        "spent_usd": 0.0
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "per_phase": {
+      "orchestrator/preflight": {
+        "settled_calls": 1,
+        "unknown_calls": 1,
+        "reserved_calls": 0,
+        "spent_usd": 0.0
+      },
+      "worker/execute": {
+        "settled_calls": 3,
+        "unknown_calls": 2,
+        "reserved_calls": 0,
+        "spent_usd": 0.0
+      },
+      "improver/improvement": {
+        "settled_calls": 13,
+        "unknown_calls": 2,
+        "reserved_calls": 0,
+        "spent_usd": 0.0
+      }
+    },
+    "settled_calls": 17,
+    "reserved_calls": 0,
+    "unknown_calls": 5,
+    "spent_usd": 0.0
+  },
+  "improved": null,
+  "retained": null,
+  "checks": null,
+  "scores": null
+}
