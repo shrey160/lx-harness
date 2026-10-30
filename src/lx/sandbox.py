@@ -98,7 +98,7 @@ def _limits(cpu):
     return apply
 
 
-def run_python(source, stdin_text, files=None, *, timeout=TIMEOUT):
+def run_python(source, stdin_text, files=None, *, timeout=TIMEOUT, max_stdout=MAX_STDOUT):
     """Run `source` with `stdin_text` on stdin and `files` ({relative path: bytes}) in its work dir.
 
     Returns {"exit_code", "stdout", "stderr", "timed_out"}; stdout and stderr
@@ -130,7 +130,7 @@ def run_python(source, stdin_text, files=None, *, timeout=TIMEOUT):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
         if kind == "docker":
-            return _run_docker(base, work, stdin_text, timeout)
+            return _run_docker(base, work, stdin_text, timeout, max_stdout)
         process = subprocess.Popen(
             ["unshare", "-rnm", "--propagation", "private", "sh", "-c", _SETUP, "sh",
              str(root), site, str(work), python, shutil.which("chroot")],
@@ -144,13 +144,13 @@ def run_python(source, stdin_text, files=None, *, timeout=TIMEOUT):
             os.killpg(process.pid, signal.SIGKILL)
             stdout, stderr = process.communicate()
         return {"exit_code": process.returncode, "timed_out": timed_out,
-                "stdout": stdout[:MAX_STDOUT].decode("utf-8", "replace"),
+                "stdout": stdout[:max_stdout].decode("utf-8", "replace"),
                 "stderr": stderr[-MAX_STDERR:].decode("utf-8", "replace")}
     finally:
         shutil.rmtree(base, ignore_errors=True)
 
 
-def _run_docker(base, work, stdin_text, timeout):
+def _run_docker(base, work, stdin_text, timeout, max_stdout=MAX_STDOUT):
     from h2portable.execution import DockerRunner
     (work / ".stdin").write_text(stdin_text, encoding="utf-8")
     logs = base / "logs"
@@ -160,13 +160,13 @@ def _run_docker(base, work, stdin_text, timeout):
         raise RuntimeError(f"Docker script sandbox failed: {result.error or 'no exit code'}")
     stdout, stderr = Path(result.stdout_file).read_bytes(), Path(result.stderr_file).read_bytes()
     return {"exit_code": result.returncode, "timed_out": result.outcome == "timed_out",
-            "stdout": stdout[:MAX_STDOUT].decode("utf-8", "replace"),
+            "stdout": stdout[:max_stdout].decode("utf-8", "replace"),
             "stderr": stderr[-MAX_STDERR:].decode("utf-8", "replace")}
 
 
-def run_json(source, payload, files=None, *, timeout=TIMEOUT):
+def run_json(source, payload, files=None, *, timeout=TIMEOUT, max_stdout=MAX_STDOUT):
     """run_python with a JSON payload; parses stdout as JSON when it is JSON."""
-    result = run_python(source, json.dumps(payload, allow_nan=False), files, timeout=timeout)
+    result = run_python(source, json.dumps(payload, allow_nan=False), files, timeout=timeout, max_stdout=max_stdout)
     try:
         result["output"] = json.loads(result["stdout"]) if result["stdout"].strip() else None
     except ValueError:
