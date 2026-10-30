@@ -101,7 +101,7 @@ class _Ledger:
     def reserve(self, *_args):
         return 1
 
-    def unknown(self, _reservation):
+    def unknown(self, _reservation, _reason=None):
         pass
 
 

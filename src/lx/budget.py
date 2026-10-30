@@ -80,6 +80,10 @@ class BudgetLedger:
                 """
             )
             db.execute("BEGIN IMMEDIATE")
+            present = {row["name"] for row in db.execute("PRAGMA table_info(reservations)")}
+            for column, kind in (("reason", "TEXT"), ("reported_nanos", "INTEGER")):
+                if column not in present:
+                    db.execute(f"ALTER TABLE reservations ADD COLUMN {column} {kind}")
             existing = db.execute(
                 "SELECT cap_nanos, initial_nanos FROM ledger_config WHERE singleton=1"
             ).fetchone()
@@ -160,8 +164,11 @@ class BudgetLedger:
         cost_usd: Any,
         input_tokens: int,
         output_tokens: int,
+        reported_cost_usd: Any = None,
     ) -> None:
+        """`reported_cost_usd` is what the provider said the call cost, kept beside our computed cost."""
         actual = _nanos(cost_usd, "cost_usd")
+        reported = None if reported_cost_usd is None else _nanos(reported_cost_usd, "reported_cost_usd")
         in_tokens = self._tokens(input_tokens, "input_tokens")
         out_tokens = self._tokens(output_tokens, "output_tokens")
         with self._connect() as db:
@@ -175,8 +182,8 @@ class BudgetLedger:
                 raise BudgetError("reservation has already been settled or marked unknown")
             db.execute(
                 "UPDATE reservations SET status='settled', actual_nanos=?, "
-                "input_tokens=?, output_tokens=? WHERE id=?",
-                (actual, in_tokens, out_tokens, reservation_id),
+                "input_tokens=?, output_tokens=?, reported_nanos=? WHERE id=?",
+                (actual, in_tokens, out_tokens, reported, reservation_id),
             )
             db.commit()
         state = self.summary()["error_state"]
@@ -185,7 +192,7 @@ class BudgetLedger:
         if state == "actual_spend_exceeded_cap":
             raise BudgetExceeded("actual spend exceeded the configured budget cap")
 
-    def unknown(self, reservation_id: str) -> None:
+    def unknown(self, reservation_id: str, reason: str | None = None) -> None:
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT status FROM reservations WHERE id=?", (reservation_id,)).fetchone()
@@ -195,7 +202,25 @@ class BudgetLedger:
             if row["status"] != "reserved":
                 db.rollback()
                 raise BudgetError("reservation has already been settled or marked unknown")
-            db.execute("UPDATE reservations SET status='unknown' WHERE id=?", (reservation_id,))
+            db.execute("UPDATE reservations SET status='unknown', reason=? WHERE id=?", (reason, reservation_id))
+            db.commit()
+
+    def release(self, reservation_id: str, *, charged: bool) -> None:
+        """A human's ruling on a held call after checking the provider's bill.
+
+        Charged counts the whole hold as spent, since the true cost is unknown;
+        otherwise the call counts as free. Either way the hold ends."""
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT status, reserved_nanos, reason FROM reservations WHERE id=?", (reservation_id,)).fetchone()
+            if row is None or row["status"] not in ("reserved", "unknown"):
+                db.rollback()
+                raise BudgetError("this call is not held")
+            ruling = "owner counted it as spent" if charged else "owner released it as not billed"
+            db.execute(
+                "UPDATE reservations SET status='settled', actual_nanos=?, reason=? WHERE id=?",
+                (row["reserved_nanos"] if charged else 0, f"{row['reason'] or 'no reason recorded'}; {ruling}", reservation_id),
+            )
             db.commit()
 
     @staticmethod

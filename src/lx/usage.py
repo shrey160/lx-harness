@@ -10,7 +10,7 @@ def usage_rows(ledger, prefix=""):
     # closing(): a bare `with connect()` only commits and leaves the file open (locked on Windows).
     with closing(sqlite3.connect(ledger.path, timeout=30)) as db:
         db.row_factory = sqlite3.Row
-        rows = db.execute("SELECT id,role,phase,candidate,status,reserved_nanos,actual_nanos,input_tokens,output_tokens FROM reservations ORDER BY rowid").fetchall()
+        rows = db.execute("SELECT id,role,phase,candidate,status,reserved_nanos,actual_nanos,input_tokens,output_tokens,reason,reported_nanos FROM reservations ORDER BY rowid").fetchall()
     return [dict(r) for r in rows if r["candidate"].startswith(prefix)]
 
 
@@ -30,7 +30,17 @@ def summarize(rows):
             entry["spent_usd"] += row["actual_nanos"] or 0
     for entry in phases.values():
         entry["spent_usd"] /= 1_000_000_000
+    held = [r for r in rows if r["status"] in ("reserved","unknown")]
+    reasons = {}
+    for row in held:
+        reason = row.get("reason") or "no reason recorded"
+        reasons[reason] = reasons.get(reason,0)+1
+    reported = [r for r in rows if r.get("reported_nanos") is not None]
     return {"per_role":roles,"per_phase":phases,"settled_calls":sum(r["status"]=="settled" for r in rows),
+            "held":{"calls":len(held),"usd":sum(r.get("reserved_nanos") or 0 for r in held)/1_000_000_000,"reasons":reasons},
+            # Only calls the provider priced itself, so the two totals compare like with like.
+            "provider_reported":{"calls":len(reported),"reported_usd":sum(r["reported_nanos"] for r in reported)/1_000_000_000,
+                                 "computed_usd":sum(r["actual_nanos"] or 0 for r in reported)/1_000_000_000},
             "reserved_calls":sum(r["status"]=="reserved" for r in rows),
             "unknown_calls":sum(r["status"]=="unknown" for r in rows),
             "spent_usd":sum(r["actual_nanos"] or 0 for r in rows if r["status"]=="settled")/1_000_000_000}

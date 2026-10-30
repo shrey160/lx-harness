@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import random
 import threading
 import time
@@ -36,6 +37,11 @@ class RateLimited(ModelError):
         self.retry_after = min(max(float(retry_after), 0), 60)
 
 
+def failure_reason(exc):
+    """Why a call failed, safe to store: our own messages withhold provider bodies."""
+    return str(exc) if isinstance(exc, ModelError) else f"controller error: {type(exc).__name__}"
+
+
 def _nanodollars(amount):
     """Round up to the ledger's precision; provider list prices can be finer."""
     return amount.quantize(Decimal("0.000000001"), rounding=ROUND_CEILING)
@@ -61,7 +67,12 @@ def usage_of(raw, profile=SPARK):
     if cached > inputs:
         raise ModelError("cached token count exceeds input tokens")
     cost = (inputs-cached)*profile.input_price + cached*profile.cached_price + outputs*profile.output_price
-    return {"input_tokens": inputs, "output_tokens": outputs, "cost_usd": _nanodollars(cost)}
+    computed = {"input_tokens": inputs, "output_tokens": outputs, "cost_usd": _nanodollars(cost)}
+    # OpenRouter states each call's cost; it is kept to compare with ours, never to bill from.
+    reported = usage.get("cost")
+    if type(reported) in (int, float) and math.isfinite(reported) and reported >= 0:
+        computed["reported_cost_usd"] = _nanodollars(Decimal(str(reported)))
+    return computed
 
 
 def normalize(raw: dict, *, max_tokens: int, profile=SPARK) -> tuple[dict, dict]:
@@ -144,23 +155,24 @@ class SparkClient:
                 remaining = max(0.1, deadline-time.monotonic())
                 raw = self.transport(body, min(self.call_seconds, remaining) if self.call_seconds else remaining)
             except RateLimited as exc:
-                self.ledger.unknown(reservation)
+                self.ledger.unknown(reservation, "provider rate limited the request")
                 if attempt >= self.retries:
                     raise ModelError("rate limit retries exhausted") from None
                 delay = max(exc.retry_after, 0.5*2**attempt+random.random()*0.1)
                 if delay >= deadline-time.monotonic() or self.cancel.wait(delay):
                     raise ModelError("model session stopped or timed out") from None
                 continue
-            except BaseException:
-                self.ledger.unknown(reservation)
+            except BaseException as exc:
+                self.ledger.unknown(reservation, failure_reason(exc))
                 raise
             try:
                 usage = usage_of(raw, profile)
-            except BaseException:
+            except BaseException as exc:
                 # Missing/malformed usage cannot establish what was billed.
-                self.ledger.unknown(reservation)
+                self.ledger.unknown(reservation, failure_reason(exc))
                 raise
-            self.ledger.settle(reservation, **usage)
+            reported = usage.pop("reported_cost_usd", None)
+            self.ledger.settle(reservation, **usage, **({} if reported is None else {"reported_cost_usd": reported}))
             # Account for a charged response even if its content is malformed or
             # reported usage violates the requested bounds. Ledger detects overruns.
             message, _ = normalize(raw, max_tokens=self.max_tokens, profile=profile)

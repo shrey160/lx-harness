@@ -30,7 +30,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from .providers import SAM, TRANSCRIBE
-from .spark import ModelError, RateLimited
+from .spark import ModelError, RateLimited, failure_reason
 
 MAX_IMAGE_BYTES = 2_000_000
 MAX_AUDIO_BYTES = 32_000_000
@@ -300,8 +300,8 @@ class PerceptionClient:
         reservation = self.ledger.reserve(cost, "tool", phase, candidate)
         try:
             raw = transport(payload, timeout)
-        except BaseException:
-            self.ledger.unknown(reservation)
+        except BaseException as exc:
+            self.ledger.unknown(reservation, failure_reason(exc))
             raise
         self.live_calls += 1
         return raw, reservation
@@ -332,8 +332,8 @@ class PerceptionClient:
                                       "transcribe", candidate, timeout)
         try:
             result = parse_transcript(raw)
-        except BaseException:
-            self.ledger.unknown(reservation)
+        except BaseException as exc:
+            self.ledger.unknown(reservation, failure_reason(exc))
             raise
         cost = (Decimal(result["duration_ms"]) / 3_600_000 * TRANSCRIBE.audio_hour_price).quantize(Decimal("1E-9"))
         self.ledger.settle(reservation, cost_usd=cost, input_tokens=0, output_tokens=0)
