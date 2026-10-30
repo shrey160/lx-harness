@@ -1,0 +1,178 @@
+{
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "model": "meta/muse-glimmer-30b",
+  "max_tokens": 8192,
+  "calls_made": 3,
+  "computed_cost_usd": 0.0009672,
+  "passed": true,
+  "results": [
+    {
+      "call": "text",
+      "ok": true,
+      "answer": "9.8 is larger.\n\n9.8 = 9.80 > 9.11, by 0.69.",
+      "reply": {
+        "top_keys": [
+          "choices",
+          "created",
+          "id",
+          "model",
+          "object",
+          "provider",
+          "service_tier",
+          "system_fingerprint",
+          "usage"
+        ],
+        "finish_reason": "stop",
+        "message_keys": [
+          "content",
+          "reasoning",
+          "reasoning_details",
+          "refusal",
+          "role"
+        ],
+        "content_chars": 43,
+        "reasoning_chars": {
+          "reasoning": 862,
+          "reasoning_details": null
+        },
+        "tool_calls": [],
+        "usage": {
+          "prompt_tokens": 45,
+          "completion_tokens": 373,
+          "total_tokens": 418,
+          "cost": 0.0004611,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.0004611,
+            "upstream_inference_prompt_cost": 1.35e-05,
+            "upstream_inference_completions_cost": 0.0004476
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 230,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    },
+    {
+      "call": "tool",
+      "ok": true,
+      "answer": "",
+      "reply": {
+        "top_keys": [
+          "choices",
+          "created",
+          "id",
+          "model",
+          "object",
+          "provider",
+          "service_tier",
+          "system_fingerprint",
+          "usage"
+        ],
+        "finish_reason": "tool_calls",
+        "message_keys": [
+          "content",
+          "reasoning",
+          "reasoning_details",
+          "refusal",
+          "role",
+          "tool_calls"
+        ],
+        "content_chars": null,
+        "reasoning_chars": {
+          "reasoning": 130,
+          "reasoning_details": null
+        },
+        "tool_calls": [
+          "list_files"
+        ],
+        "usage": {
+          "prompt_tokens": 529,
+          "completion_tokens": 61,
+          "total_tokens": 590,
+          "cost": 0.0002319,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.0002319,
+            "upstream_inference_prompt_cost": 0.0001587,
+            "upstream_inference_completions_cost": 7.32e-05
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 34,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    },
+    {
+      "call": "image",
+      "ok": true,
+      "answer": "There is one small red square on the left and two blue rectangular blocks to its right. The blue blocks are the same height, the one on the right is wider than the one in the middle.",
+      "reply": {
+        "top_keys": [
+          "choices",
+          "created",
+          "id",
+          "model",
+          "object",
+          "provider",
+          "service_tier",
+          "system_fingerprint",
+          "usage"
+        ],
+        "finish_reason": "stop",
+        "message_keys": [
+          "content",
+          "reasoning",
+          "reasoning_details",
+          "refusal",
+          "role"
+        ],
+        "content_chars": 182,
+        "reasoning_chars": {
+          "reasoning": 815,
+          "reasoning_details": null
+        },
+        "tool_calls": [],
+        "usage": {
+          "prompt_tokens": 46,
+          "completion_tokens": 217,
+          "total_tokens": 263,
+          "cost": 0.0002742,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.0002742,
+            "upstream_inference_prompt_cost": 1.38e-05,
+            "upstream_inference_completions_cost": 0.0002604
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 209,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

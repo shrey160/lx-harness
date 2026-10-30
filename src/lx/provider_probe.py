@@ -1,14 +1,16 @@
-"""Fixed three-call compatibility probe for the NVIDIA-hosted Muse Glimmer endpoint.
+"""Fixed three-call compatibility probe for Muse Glimmer on a hosted endpoint.
 
-Approved by the user on 30 Oct 2026 ("Yes, run the probe"): one text call, one
-tool call and one synthetic demo image, stopping at the first failure, with no
-retries. It records the shape of each reply so the client can be fitted to the
-provider. The key is read at runtime and is never recorded or printed.
+Approved by the user on 30 Oct 2026 for NVIDIA ("Yes, run the probe") and then
+OpenRouter ("test it out"): one text call, one tool call and one synthetic demo
+image, stopping at the first failure, with no retries. It records the shape of
+each reply so the client can be fitted to the provider. The key is read at
+runtime and is never recorded or printed.
 """
 from __future__ import annotations
 
 import argparse
 import base64
+from decimal import Decimal
 import json
 from pathlib import Path
 import tempfile
@@ -20,15 +22,24 @@ from .proposer import TOOLS
 from .providers import ProviderProfile, chat_endpoint
 from .spark import ModelError, SparkClient
 
-BASE_URL = "https://integrate.api.nvidia.com/v1"
 MODEL = "meta/muse-glimmer-30b"
-KEY_ENV = "NVIDIA_API"
 CONTEXT_LIMIT = 131_072
 MAX_TOKENS = 8192
 CALLS = 3
 TIMEOUT = 180
-PROFILE = ProviderProfile(kind="chat", endpoint=chat_endpoint(BASE_URL), model=MODEL, token_param="max_tokens",
-                          context_limit=CONTEXT_LIMIT, accepts_images=True, supports_tools=True)
+
+
+def _profile(base_url, input_per_million=0, output_per_million=0):
+    return ProviderProfile(kind="chat", endpoint=chat_endpoint(base_url), model=MODEL, token_param="max_tokens",
+                           context_limit=CONTEXT_LIMIT, accepts_images=True, supports_tools=True,
+                           input_price=Decimal(str(input_per_million))/1_000_000, cached_price=Decimal(str(input_per_million))/1_000_000,
+                           output_price=Decimal(str(output_per_million))/1_000_000)
+
+
+# OpenRouter's listed prices, read from its catalogue on 30 Oct 2026; NVIDIA publishes none.
+PROVIDERS = {"nvidia": (_profile("https://integrate.api.nvidia.com/v1"), "NVIDIA_API"),
+             "openrouter": (_profile("https://openrouter.ai/api/v1", "0.30", "1.20"), "OPENROUTER_API_KEY")}
+PROFILE = PROVIDERS["nvidia"][0]
 
 
 def shape(raw):
@@ -57,14 +68,14 @@ def requests(image_path):
     )
 
 
-def run(transport, ledger, image_path):
+def run(transport, ledger, image_path, profile=PROFILE):
     """Run the calls in order and stop at the first failure."""
     replies = []
     def recording(body, timeout):
         raw = transport(body, timeout)
         replies.append(raw)
         return raw
-    client = SparkClient(recording, ledger, max_tokens=MAX_TOKENS, retries=0, profile=PROFILE)
+    client = SparkClient(recording, ledger, max_tokens=MAX_TOKENS, retries=0, profile=profile)
     results = []
     for name, messages, tools in requests(image_path):
         before = len(replies)
@@ -85,16 +96,20 @@ def run(transport, ledger, image_path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--provider", choices=sorted(PROVIDERS), default="nvidia")
     args = parser.parse_args()
     from .inventory_stream_local import key_loader
+    profile, key_env = PROVIDERS[args.provider]
     with tempfile.TemporaryDirectory() as folder:
         root = Path(folder)
         demo = build_demo_dataset(root/"demo")
         image = sorted((demo.root/"worker_inputs").rglob("*.png"))[0]
-        transport = LiveMetaTransport(key_loader(KEY_ENV), call_limit=CALLS, profile=PROFILE)
-        results = run(transport, BudgetLedger(root/"ledger.sqlite3", 1, 0), image)
-    report = {"endpoint": PROFILE.endpoint, "model": MODEL, "max_tokens": MAX_TOKENS, "calls_made": transport.calls,
-              "passed": len(results) == CALLS and all(r["ok"] for r in results), "results": results}
+        transport = LiveMetaTransport(key_loader(key_env), call_limit=CALLS, profile=profile)
+        ledger = BudgetLedger(root/"ledger.sqlite3", 1, 0)
+        results = run(transport, ledger, image, profile)
+        spent = ledger.summary()["spent_usd"]
+    report = {"endpoint": profile.endpoint, "model": MODEL, "max_tokens": MAX_TOKENS, "calls_made": transport.calls,
+              "computed_cost_usd": spent, "passed": len(results) == CALLS and all(r["ok"] for r in results), "results": results}
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output/"probe.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps(report, indent=2))
