@@ -204,7 +204,7 @@ class TaskRunTests(Base):
         workspace = self.app.workspace(p["id"])
         result = execute(self.app, workspace, job["id"], workspace.run_dir(job["id"])/"snapshot")
         self.assertTrue(result["live"])
-        usage = self.app._ledger(workspace).summary()
+        usage = self.app.spend(p["id"])
         self.assertGreater(usage["per_role"]["tool"]["settled_calls"], 0)
         self.assertGreater(usage["per_role"]["worker"]["settled_calls"], 0)
         self.assertEqual(workspace.preview_ledger.summary()["settled_calls"], 0)

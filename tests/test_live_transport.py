@@ -141,9 +141,7 @@ class LiveWiringTests(unittest.TestCase):
         before = ledger.summary()["settled_calls"]
         updated = self.app.discuss(project["id"], "Keep exact text", True, "live")
         self.assertEqual(len(updated["messages"]), 2)
-        spending = self.app._ledger(self.app.workspace(project["id"]))
-        rows = [r for r in __import__("lx.usage", fromlist=["usage_rows"]).usage_rows(spending, "discussion-")]
-        self.assertTrue(rows)
+        self.assertTrue(self.app.spend_rows(project["id"], "discussion-"))
         self.assertEqual(ledger.summary()["settled_calls"], before)
 
     def test_live_job_completes_with_mocked_transport_and_fresh_reuse(self):
@@ -155,7 +153,8 @@ class LiveWiringTests(unittest.TestCase):
         self.assertTrue(result["live"])
         self.assertFalse(result["simulated_usage"])
         self.assertTrue(all(result["checks"]["heldout"].values()))
-        self.assertGreater(self.app._ledger(workspace).summary()["settled_calls"], 0)
+        self.assertGreater(self.app.spend(project["id"])["settled_calls"], 0)
+        self.assertEqual(self.app.runs(project["id"])[0]["id"], job["id"])
         reuse = self.app.fresh(project["id"], job["id"])
         self.assertEqual(reuse["mode"], "live")
         self.assertTrue(reuse["accepted"], reuse)

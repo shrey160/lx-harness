@@ -658,6 +658,18 @@ class Engine:
                 "usage_events": (rows + spent)[-80:],
                 "live_usage": self.pilot_ledger.summary() if self.pilot_ledger else None}
 
+    def runs(self, identifier):
+        """A workspace's runs, newest first, reconciled with the core's job state."""
+        return self._jobs(self.workspace(identifier))
+
+    def spend(self, identifier):
+        """A workspace's real-spend summary: its cap, what is spent, held and left."""
+        return self._ledger(self.workspace(identifier)).summary()
+
+    def spend_rows(self, identifier, prefix=""):
+        """Its real-spend ledger, one row per call, optionally for one run or scope."""
+        return usage_rows(self._ledger(self.workspace(identifier)), prefix)
+
     def system(self):
         """What Settings shows. Apart from state, because finding the sandbox can start Docker's client."""
         from .inventory_probe import TOOLS

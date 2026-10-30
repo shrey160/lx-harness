@@ -1,5 +1,6 @@
 """Inventory dataset intake (user folders), COCO held-out builder, freezing (offline)."""
 
+import importlib.util
 import io
 import json
 import random
@@ -141,6 +142,23 @@ def coco_fixture(n_images=120, seed=3):
                                     "area": 2000 if image_id % 7 else 900, "iscrowd": 1 if image_id == 3 else 0})
     licenses = [{"id": 2, "name": "BY-NC"}, {"id": 4, "name": "CC BY 2.0"}]
     return {"images": images, "annotations": annotations, "categories": categories, "licenses": licenses}
+
+
+class ExportTests(unittest.TestCase):
+    def test_export_writes_the_layout_the_app_reads(self):
+        from lx.inventory_data import build_synthetic_dataset
+        from lx.tasks import inventory_task, sample_truths
+        path = Path(__file__).resolve().parents[1]/"scripts"/"export_samples.py"
+        spec = importlib.util.spec_from_file_location("export_samples", path)
+        script = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(script)
+        with tempfile.TemporaryDirectory() as temporary:
+            dataset, target = Path(temporary)/"dataset", Path(temporary)/"samples"
+            build_synthetic_dataset(dataset, 6, stream_count=6)
+            self.assertEqual(script.export(dataset, target), 6)
+            self.assertEqual(len(sample_truths(target, inventory_task())), 6)
+            with self.assertRaises(SystemExit):
+                script.export(dataset, target)
 
 
 class CocoTests(unittest.TestCase):

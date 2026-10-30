@@ -427,8 +427,8 @@ class ApplicationFlowTests(unittest.TestCase):
         workspace = self.workspace(first)
         clients = self.app.build_clients(workspace,first["draft"],"scope",1)
         clients["worker"].chat([{"role":"developer","content":"LX_PREFLIGHT"}],role="worker",phase="preflight",candidate="one")
-        self.assertGreater(self.app._ledger(workspace).summary()["settled_calls"],0)
-        self.assertEqual(self.app._ledger(self.workspace(other)).summary()["settled_calls"],0)
+        self.assertGreater(self.app.spend(first["id"])["settled_calls"],0)
+        self.assertEqual(self.app.spend(other["id"])["settled_calls"],0)
         self.assertFalse(list(workspace.home.rglob("*ledger*")))
         self.app.set_budget(first["id"],0.11)
         before = self.app.project(first["id"])["budget"]["spent_usd"]
