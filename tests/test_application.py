@@ -251,6 +251,13 @@ class ApplicationFlowTests(unittest.TestCase):
                 self.assertNotIn(b"dummy-key-",path.read_bytes(),path)
         self.assertEqual(sorted(self.keychain.values.values()),["dummy-key-gilmer","dummy-key-vision"])
 
+    def test_other_providers_get_the_larger_reply_cap_and_spark_keeps_its_own(self):
+        roles = {"orchestrator":"spark-contributor","improver":self.entry("reasoning")["id"],"worker":self.entry("vision")["id"]}
+        p = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})
+        clients = self.app.build_clients(self.workspace(p),p["draft"],"scope",1)
+        self.assertEqual({role:client.max_tokens for role,client in clients.items()},
+                         {"orchestrator":4096,"improver":8192,"worker":8192})
+
     def test_a_provider_changed_after_approval_stops_the_run(self):
         roles = self.three_roles()
         project = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})

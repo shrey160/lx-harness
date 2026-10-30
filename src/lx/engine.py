@@ -33,6 +33,7 @@ from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
 from .intake import IntakeError, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveMetaTransport
+from .providers import SPARK
 from .registry import Registry
 from .spark import SparkClient
 from .store import Store
@@ -97,7 +98,9 @@ class Engine:
             profile = self.registry.profile(entry)
             if entry not in transports:
                 transports[entry] = self._transport(entry, profile, call_limit, truth) if mode == "live" else PreviewTransport(truth)
-            clients[role] = SparkClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile)
+            # Reasoning models spend the reply cap before answering; Spark keeps its original cap.
+            clients[role] = SparkClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile,
+                                        max_tokens=4096 if profile is SPARK else 8192)
         return clients
 
     def _ledger(self, workspace):
