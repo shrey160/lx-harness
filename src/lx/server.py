@@ -50,8 +50,8 @@ def server_for(app, port=8765):
                             if p.is_file(): archive.write(p,p.relative_to(app.demo.root/"worker_inputs").as_posix())
                     return self.respond(stream.getvalue(),mime="application/zip")
                 pieces = path.strip("/").split("/")
-                if len(pieces)==4 and pieces[:2]==["api","packages"] and pieces[3]=="download":
-                    return self.respond(app.package_bytes(pieces[2]),mime="application/zip")
+                if len(pieces)==5 and pieces[:2]==["api","packages"] and pieces[4]=="download":
+                    return self.respond(app.package_bytes(pieces[2],pieces[3]),mime="application/zip")
                 allowed = {"/":"index.html","/app.js":"app.js","/app.css":"app.css"}
                 if path not in allowed:
                     return self.respond({"error":"Not found"},404)
@@ -84,6 +84,8 @@ def server_for(app, port=8765):
                 if route == ["api","projects"]:
                     blob = base64.b64decode(data.pop("zip_base64"),validate=True) if data.get("source")=="zip" else None
                     result = app.create_project(data,blob)
+                elif route == ["api","workspaces","open"]:
+                    result = app.open_workspace(data.get("path"))
                 elif route == ["api","models"]:
                     result = app.registry.create(data.get("name"),data.get("model_id"),data.get("capabilities"),data.get("api_key"),
                         base_url=data.get("base_url"),accepts_images=data.get("accepts_images",False),
@@ -101,11 +103,11 @@ def server_for(app, port=8765):
                     elif action=="approve": result=app.approve(identifier,data)
                     elif action=="run": result=app.start(identifier)
                     else: raise ValueError("Unknown project action")
-                elif len(route)==4 and route[:2]==["api","jobs"]:
-                    identifier,action = route[2:]
-                    if action=="stop": result=app.stop(identifier)
-                    elif action=="resume": result=app.resume(identifier)
-                    elif action=="fresh": result=app.fresh(identifier)
+                elif len(route)==5 and route[:2]==["api","jobs"]:
+                    identifier,job_id,action = route[2:]
+                    if action=="stop": result=app.stop(identifier,job_id)
+                    elif action=="resume": result=app.resume(identifier,job_id)
+                    elif action=="fresh": result=app.fresh(identifier,job_id)
                     else: raise ValueError("Unknown job action")
                 else:
                     raise ValueError("Unknown API route")

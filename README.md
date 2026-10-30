@@ -51,7 +51,22 @@ Open [the local workspace](http://127.0.0.1:8765). The service binds to loopback
 uses a per-session change token and rejects foreign origins. Close the serving
 terminal to stop it. No hosting/account or public service is configured.
 
-Application runtime records use the WSL user's native local-state directory;
+Every project is a workspace: a folder you choose. LX keeps its files in `.lx/`
+inside it (`project.json`, immutable `spec/vN.json`, `runs/<id>/`, `packages/<id>/`,
+`snapshots/`, simulated usage) and adds a `.gitignore` so they stay out of your
+repository. Samples stay in your folder, in `samples/` if that exists; a folder
+holding code needs that subfolder, because dotfiles such as `.git` are refused
+as samples. Approval freezes the samples as they are at that moment, and each
+run uses that frozen copy. Later edits need a new approval to take effect.
+
+`lx.engine` is the single service layer behind the app. Approval records stay
+in user-level application state rather than `.lx/`, so writing to the folder
+cannot approve a run, and any change to a spec file voids its approval. An agent
+with full access to this machine is not stopped by this; the human confirmation
+step comes with the CLI and MCP server.
+
+The list of open workspaces, the model registry and approvals use the user's
+native local-state directory;
 private credentials use native local-share storage with owner-only files.
 The service refuses key writes on filesystems that cannot enforce private
 POSIX permissions. Its secret directory is separate from samples and exports.
@@ -111,7 +126,8 @@ session cache and harvested workspace, not only whole-task skipping.
 
 The core is a declared local library dependency; the engine remains its pinned
 vendored dependency. `uv.lock` uses relative paths. No core source changes are
-required. Tests use the existing synthetic core fixture from the sibling source
+required beyond the recorded Windows port patches (`UPSTREAM.md` in the core).
+Tests use the existing synthetic core fixture from the sibling source
 repository. The user confirmed library consumption for S3 on 28 October 2026.
 
 ## Implemented contracts

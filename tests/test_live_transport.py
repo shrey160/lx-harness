@@ -127,31 +127,37 @@ class LiveWiringTests(unittest.TestCase):
         truth = self.app.demo.controller_truth
         self.app._live_transport_factory = lambda hint=None: PreviewTransport(hint if hint is not None else truth)
 
+    def folder(self):
+        path = Path(tempfile.mkdtemp(dir=self.temp.name))
+        return str(path)
+
     def _live_project(self):
-        project = self.app.create_project({"source": "demo", "synthetic_public": True, "name": "Live wiring"})
+        project = self.app.create_project({"source": "demo", "synthetic_public": True, "name": "Live wiring", "path": self.folder()})
         project = self.app.edit_spec(project["id"], {"goal": project["goal"], "budget_usd": 5, "mode": "live"})
         return self.app.approve(project["id"], {"version": project["draft"]["version"],
                                                 "data_approved": True, "contributor_accepted": True})
 
     def test_live_discussion_uses_live_ledger_only(self):
         project = self._live_project()
-        before = self.app.preview_ledger.summary()["settled_calls"]
+        ledger = self.app.workspace(project["id"]).preview_ledger
+        before = ledger.summary()["settled_calls"]
         updated = self.app.discuss(project["id"], "Keep exact text", True, "live")
         self.assertEqual(len(updated["messages"]), 2)
         rows = [r for r in __import__("lx.usage", fromlist=["usage_rows"]).usage_rows(self.app.live_ledger, "discussion-")]
         self.assertTrue(rows)
-        self.assertEqual(self.app.preview_ledger.summary()["settled_calls"], before)
+        self.assertEqual(ledger.summary()["settled_calls"], before)
 
     def test_live_job_completes_with_mocked_transport_and_fresh_reuse(self):
         from lx.worker import execute
         project = self._live_project()
         job = self.app.start(project["id"], launch=False)
-        result = execute(self.app, job["id"], self.app.root / "inputs" / job["id"])
+        workspace = self.app.workspace(project["id"])
+        result = execute(self.app, workspace, job["id"], workspace.run_dir(job["id"]) / "snapshot")
         self.assertTrue(result["live"])
         self.assertFalse(result["simulated_usage"])
         self.assertTrue(all(result["checks"]["heldout"].values()))
         self.assertGreater(self.app.live_ledger.summary()["settled_calls"], 0)
-        reuse = self.app.fresh(job["id"])
+        reuse = self.app.fresh(project["id"], job["id"])
         self.assertEqual(reuse["mode"], "live")
         self.assertTrue(reuse["accepted"], reuse)
 
@@ -159,7 +165,7 @@ class LiveWiringTests(unittest.TestCase):
         from lx.engine import Engine
         other = Engine(Path(self.temp.name) / "other")
         self.assertIsNone(other.live_ledger)
-        project = other.create_project({"source": "demo", "synthetic_public": True})
+        project = other.create_project({"source": "demo", "synthetic_public": True, "path": self.folder()})
         with self.assertRaises(ValueError):
             other.discuss(project["id"], "hello", True, "live")
         with self.assertRaises(ValueError):

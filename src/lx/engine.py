@@ -1,4 +1,9 @@
-"""Local application services with approval-gated live Spark flow (O-11).
+"""The engine API: one service layer for the GUI and, later, the CLI and MCP server.
+
+Every project is a workspace folder (lx.workspace). The engine itself is
+user-level: it remembers which folders are open and holds the model registry,
+the demo truth and the approval records. Approval lives here, not in the folder,
+so an agent working in a workspace cannot write itself an approval.
 
 Specs default to controlled preview. A spec saved with mode "live" runs real
 Spark calls only after versioned spec, data, budget and Contributor approval,
@@ -11,27 +16,29 @@ import io
 import json
 import math
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shutil
 import subprocess
 import sys
-import threading
+import time
 import uuid
 import zipfile
 
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
-from .intake import snapshot_folder, snapshot_zip, windows_to_wsl
+from .intake import IntakeError, inspect_folder, snapshot_folder, snapshot_zip
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveMetaTransport
 from .registry import Registry
 from .spark import SparkClient
 from .store import Store
 from .usage import BudgetScope, usage_rows, summarize
 from .workflow import ImagesAdapter, PreviewTransport, samples_from, sample_path
+from .workspace import Workspace, native_path
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ROOT = Path.home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
+SAMPLES = "samples"
 
 
 def fingerprint(value):
@@ -47,18 +54,16 @@ class Engine:
                        if self.root == DEFAULT_ROOT.resolve() and os.name == "posix" else self.root/"secrets")
         self.registry = Registry(self.root/"app.sqlite3", secret_root)
         self.demo = build_demo_dataset(self.root/"demo")
-        # Real pilot spend is never reset by creating the application or previews.
+        # Real pilot spend is never reset by creating the engine or previews.
         self.live_ledger = BudgetLedger(ROOT/".lx"/"live-spike"/"pilot-budget.sqlite3") if self.root == DEFAULT_ROOT.resolve() else None
-        self.preview_ledger = BudgetLedger(self.root/"preview-usage.sqlite3", initial_spend_usd=0)
         self._live_transport_factory = None
-        self.lock = threading.RLock()
 
     def make_live_transport(self, call_limit=RUN_CALL_LIMIT, truth_hint=None):
         if self._live_transport_factory is not None:
             return self._live_transport_factory(truth_hint)
         return LiveMetaTransport(lambda: self.registry.credential("spark-contributor"), call_limit=call_limit)
 
-    def build_client(self, mode, scope_id, cap_usd, *, call_limit=RUN_CALL_LIMIT):
+    def build_client(self, workspace, mode, scope_id, cap_usd, *, call_limit=RUN_CALL_LIMIT):
         """Live mode spends from the shared pilot ledger; preview never does."""
         if mode == "live":
             if self.live_ledger is None:
@@ -66,160 +71,193 @@ class Engine:
             transport = self.make_live_transport(call_limit, self.demo.controller_truth)
             return SparkClient(transport, BudgetScope(self.live_ledger, scope_id, cap_usd))
         if mode == "controlled_preview":
-            return SparkClient(PreviewTransport(self.demo.controller_truth), BudgetScope(self.preview_ledger, scope_id, cap_usd))
+            return SparkClient(PreviewTransport(self.demo.controller_truth), BudgetScope(workspace.preview_ledger, scope_id, cap_usd))
         raise ValueError("Unknown run mode")
 
-    def state(self):
-        jobs = self.store.list("job")
-        from h2portable.jobs import read_job
-        for job in jobs:
-            ledger = self.live_ledger if job.get("spec",{}).get("mode") == "live" and self.live_ledger is not None else self.preview_ledger
-            job["usage"] = summarize(usage_rows(ledger,job["id"]+"/"))
-            if not job.get("launch_pending") and job["status"] in {"queued", "running", "interrupted", "cancelled", "failed"}:
-                try:
-                    core = read_job(job["id"], self.root/"core-jobs")
-                    job["status"] = core["status"]
-                    if job["status"] in {"completed","cancelled","failed","interrupted","timed_out"}:
-                        latest = self.store.get("job",job["id"])
-                        latest["status"] = job["status"]
-                        if job["status"] == "completed": latest["phase"] = "complete"
-                        job.update(self.store.save("job",latest))
-                except ValueError:
-                    pass
-            result_file = self.root/"outputs"/job["id"]/"package"/"result.json"
-            if job["status"] == "completed" and result_file.is_file():
-                job["result"] = json.loads(result_file.read_text(encoding="utf-8"))
-        return {"mode": "controlled_preview", "live_application_enabled": True, "live_flow": "approval_gated_spark_only",
-                "models": self.registry.list_models(), "projects": self.store.list("project"),
-                "jobs": jobs, "preview_usage": self.preview_ledger.summary(),
-                "usage_events": (usage_rows(self.preview_ledger) + (usage_rows(self.live_ledger) if self.live_ledger else []))[-80:],
-                "live_usage": self.live_ledger.summary() if self.live_ledger else None}
+    # Workspaces
+
+    def workspace(self, identifier):
+        if not isinstance(identifier, str) or not re.fullmatch(r"[a-f0-9]{32}", identifier):
+            raise ValueError("Invalid project identity")
+        workspace = Workspace.open(self.store.get("workspace", identifier)["path"])
+        if workspace.project()["id"] != identifier:
+            raise ValueError("That folder now holds a different project")
+        return workspace
+
+    def _remember(self, workspace):
+        self.store.save("workspace", {"id": workspace.project()["id"], "path": str(workspace.folder)})
+        return self._view(workspace)
+
+    def _view(self, workspace):
+        record = workspace.project()
+        return {**record, "path": str(workspace.folder), "draft": workspace.spec(record["spec_version"]),
+                "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"])}
 
     def project(self, identifier):
-        if not re.fullmatch(r"[a-f0-9]{32}", identifier):
-            raise ValueError("Invalid project identity")
-        return self.store.get("project", identifier)
+        return self._view(self.workspace(identifier))
 
-    def _draft(self, project, goal=None, budget=1, mode=None):
+    def open_workspace(self, path):
+        return self._remember(Workspace.open(native_path(path)))
+
+    def create_project(self, data, zip_data=None):
+        if data.get("synthetic_public") is not True:
+            raise ValueError("Confirm that samples are synthetic or public")
+        folder = native_path(data.get("path"))
+        if not folder.is_dir():
+            raise ValueError("The workspace folder does not exist")
+        if (folder/".lx").exists():
+            raise ValueError("This folder is already a workspace; open it instead")
+        source = data.get("source", "folder")
+        if source == "demo":
+            snapshot_folder(self.demo.root/"worker_inputs", folder/SAMPLES)
+            samples = SAMPLES
+        elif source == "zip" and zip_data is not None:
+            snapshot_zip(zip_data, folder/SAMPLES)
+            samples = SAMPLES
+        elif source == "folder":
+            samples = data.get("samples_dir") or (SAMPLES if (folder/SAMPLES).is_dir() else ".")
+        else:
+            raise ValueError("Choose demo data, this folder, or data.zip")
+        location = folder if samples == "." else folder.joinpath(*PurePosixPath(samples).parts)
+        try:
+            inventory = inspect_folder(location, skip_root=(".lx",))
+        except IntakeError as exc:
+            raise ValueError(f"{exc}. Put your samples in a '{SAMPLES}' folder inside the workspace") from exc
+        workspace = Workspace.create(folder, name=str(data.get("name") or folder.name or "Workspace")[:120],
+            goal=data.get("goal") or "Find colored shapes, give pixel boxes, and preserve each transcript.",
+            samples_dir=samples, inventory=inventory, compatible_demo=self._matches_demo(location))
+        with workspace.lock():
+            self._draft(workspace, workspace.project())
+        return self._remember(workspace)
+
+    def _matches_demo(self, location):
+        try:
+            input_root, samples = samples_from(location)
+            expected = {s["sample_id"]:s for s in self.demo.worker_inputs}
+            return len(samples) == len(expected) and all(
+                s == expected.get(s["sample_id"]) and sample_path(input_root,s["image"]).read_bytes() ==
+                sample_path(self.demo.root/"worker_inputs",s["image"]).read_bytes() for s in samples)
+        except (ValueError, KeyError, OSError):
+            return False
+
+    def _approval(self, identifier):
+        try:
+            return self.store.get("approval", identifier)
+        except ValueError:
+            return None
+
+    def _draft(self, workspace, record, goal=None, budget=1, mode=None):
+        """Write the next spec version; any new version clears approval."""
         if isinstance(budget, bool) or not isinstance(budget, (int,float)) or not math.isfinite(budget) or not 0.11 <= budget <= 20:
             raise ValueError("Budget must be between $0.11 and $20")
         if mode is None:
-            mode = project.get("draft", {}).get("mode", "controlled_preview")
+            mode = workspace.spec(record["spec_version"]).get("mode", "controlled_preview") if record["spec_version"] else "controlled_preview"
         if mode not in {"controlled_preview", "live"}:
             raise ValueError("Choose controlled preview or a live Spark run")
-        goal = goal if goal is not None else project["goal"]
+        goal = goal if goal is not None else record["goal"]
         if not isinstance(goal, str) or not goal.strip() or len(goal) > 4000:
             raise ValueError("Enter a goal of at most 4000 characters")
-        versions = project.setdefault("spec_versions", [])
-        spec = {"version": len(versions)+1, "goal": goal.strip(), "budget_usd": budget,
+        versions = workspace.spec_versions()
+        spec = {"version": (versions[-1] if versions else 0)+1, "goal": goal.strip(), "budget_usd": budget,
                 "model": "spark-contributor", "roles": {r:"spark-contributor" for r in ("orchestrator","improver","worker")},
                 "domain": "images-and-supplied-transcripts", "output": {"objects": [{"label":"color_shape", "box":["x1","y1","x2","y2"]}], "text":"exact supplied transcript"},
                 "box_edge_tolerance_px": 1, "test_data": "synthetic/public only", "mode": mode}
         spec["estimated_cost_usd"] = ({"basis":"Live cost reserved before each call under the shared $20 cap; actual cost from reported usage, unknown until reported"}
             if mode == "live" else {"orchestrator":0.00002,"improver":0.0003,"worker":0.0003,"basis":"Approximate controlled preview only; live cost unknown"})
-        versions.append(spec)
-        project.update(goal=goal.strip(), draft=spec, approved=None)
-        return project
+        workspace.add_spec(spec)
+        record.update(goal=goal.strip(), spec_version=spec["version"])
+        workspace.write_project(record)
+        self._drop_approval(workspace, record["id"])
 
-    def create_project(self, data, zip_data=None):
-        if data.get("synthetic_public") is not True:
-            raise ValueError("Confirm that samples are synthetic or public")
-        identifier = uuid.uuid4().hex
-        directory = self.root/"projects"/identifier
-        directory.mkdir(parents=True)
-        destination = directory/"snapshot"
-        source = data.get("source", "demo")
-        if source == "demo":
-            inventory = snapshot_folder(self.demo.root/"worker_inputs", destination)
-        elif source == "folder":
-            path = data.get("path", "")
-            if not isinstance(path, str) or len(path)>2048:
-                raise ValueError("Invalid folder path")
-            # A WSL controller receives Windows paths from the browser; a native Windows one uses them as they are.
-            inventory = snapshot_folder(Path(windows_to_wsl(path) if os.name == "posix" else path), destination)
-        elif source == "zip" and zip_data is not None:
-            inventory = snapshot_zip(zip_data, destination)
-        else:
-            raise ValueError("Choose demo data, a folder, or data.zip")
-        compatible = False
-        try:
-            input_root, samples = samples_from(destination)
-            expected = {s["sample_id"]:s for s in self.demo.worker_inputs}
-            compatible = len(samples) == len(expected) and all(
-                s == expected.get(s["sample_id"]) and sample_path(input_root,s["image"]).read_bytes() ==
-                sample_path(self.demo.root/"worker_inputs",s["image"]).read_bytes() for s in samples)
-        except (ValueError, KeyError, OSError):
-            pass
-        record = {"id":identifier,"name":str(data.get("name") or "Image annotation workflow")[:120],
-            "goal":data.get("goal") or "Find colored shapes, give pixel boxes, and preserve each transcript.",
-            "inventory":inventory,"compatible_demo":compatible,"messages":[],"spec_versions":[],"approved":None}
-        return self.store.save("project", self._draft(record))
+    def _drop_approval(self, workspace, identifier):
+        approval = self._approval(identifier)
+        if approval:
+            self.store.delete("approval", identifier)
+            shutil.rmtree(workspace.snapshot_dir(approval["snapshot"]), ignore_errors=True)
+
+    # Discussion, spec and approval
 
     def discuss(self, identifier, text, consent, mode=None):
         if consent is not True:
             raise ValueError("Approve the discussion data disclosure first")
         if not isinstance(text,str) or not text.strip() or len(text)>4000:
             raise ValueError("Enter a short requirements message")
-        with self.lock:
-            project = self.project(identifier)
-            mode = mode or project["draft"].get("mode", "controlled_preview")
-            client = self.build_client(mode, "discussion-"+identifier, project["draft"]["budget_usd"],
-                                       call_limit=DISCUSSION_CALL_LIMIT if mode == "live" else RUN_CALL_LIMIT)
-            history = [{"role":"developer","content":"LX_DISCUSSION\nUse inventory metadata first; ask only consequential questions."},
-                {"role":"user","content":json.dumps({"goal":project["goal"],"inventory":project["inventory"],"message":text})}]
-            reply,_ = client.chat(history, role="orchestrator",phase="discussion",candidate=identifier)
-            project["messages"].extend([{"role":"user","content":text},{"role":"assistant","content":reply["content"]}])
-            return self.store.save("project", project)
+        workspace = self.workspace(identifier)
+        project = self._view(workspace)
+        mode = mode or project["draft"].get("mode", "controlled_preview")
+        client = self.build_client(workspace, mode, "discussion-"+identifier, project["draft"]["budget_usd"],
+                                   call_limit=DISCUSSION_CALL_LIMIT if mode == "live" else RUN_CALL_LIMIT)
+        history = [{"role":"developer","content":"LX_DISCUSSION\nUse inventory metadata first; ask only consequential questions."},
+            {"role":"user","content":json.dumps({"goal":project["goal"],"inventory":project["inventory"],"message":text})}]
+        reply,_ = client.chat(history, role="orchestrator",phase="discussion",candidate=identifier)
+        with workspace.lock():
+            record = workspace.project()
+            record["messages"].extend([{"role":"user","content":text},{"role":"assistant","content":reply["content"]}])
+            workspace.write_project(record)
+        return self._view(workspace)
 
     def edit_spec(self, identifier, data):
-        with self.lock:
-            if any(j["project_id"]==identifier and j["status"] in {"queued","running"} for j in self.state()["jobs"]):
+        workspace = self.workspace(identifier)
+        self._jobs(workspace)  # reconcile first: the lock below is not re-entrant
+        with workspace.lock():
+            if any(j["status"] in {"queued","running"} for j in workspace.runs()):
                 raise ValueError("Stop the active run before editing its spec")
-            project = self.project(identifier)
             if data.get("model", "spark-contributor") != "spark-contributor":
                 raise ValueError("Only Spark Contributor may fill a live role")
-            return self.store.save("project", self._draft(project, data.get("goal"), data.get("budget_usd",1), data.get("mode")))
+            self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"))
+        return self._view(workspace)
 
     def approve(self, identifier, data):
-        with self.lock:
-            project = self.project(identifier)
-            if data.get("version") != project["draft"]["version"] or data.get("data_approved") is not True or data.get("contributor_accepted") is not True:
+        """A human step. Freezes the samples as they are now, whatever was seen earlier."""
+        workspace = self.workspace(identifier)
+        with workspace.lock():
+            record = workspace.project()
+            draft = workspace.spec(record["spec_version"])
+            if data.get("version") != draft["version"] or data.get("data_approved") is not True or data.get("contributor_accepted") is not True:
                 raise ValueError("Approve the current spec, synthetic data and Contributor disclosure")
-            if not project["compatible_demo"]:
+            record.update(inventory=workspace.inspect_samples(), compatible_demo=self._matches_demo(workspace.samples_path))
+            workspace.write_project(record)
+            if not record["compatible_demo"]:
                 raise ValueError("This first workflow requires the constructed demo manifest and images; other inputs can be inventoried and discussed")
-            project["approved"] = {"version":project["draft"]["version"],"spec_hash":fingerprint(project["draft"]),"data_hash":fingerprint(project["inventory"])}
-            return self.store.save("project", project)
+            self._drop_approval(workspace, identifier)
+            name = uuid.uuid4().hex
+            captured = snapshot_folder(workspace.samples_path, workspace.snapshot_dir(name), skip_root=(".lx",))
+            self.store.save("approval", {"id":identifier,"version":draft["version"],"spec_hash":fingerprint(draft),
+                "data_hash":fingerprint(captured["inventory"]),"inventory":captured["inventory"],"snapshot":name})
+        return self._view(workspace)
+
+    # Runs
 
     def start(self, identifier, launch=True):
-        with self.lock:
-            project = self.project(identifier)
-            if not project["approved"] or project["approved"]["spec_hash"] != fingerprint(project["draft"]):
+        workspace = self.workspace(identifier)
+        self._jobs(workspace)
+        with workspace.lock():
+            record = workspace.project()
+            draft = workspace.spec(record["spec_version"])
+            approved = self._approval(identifier)
+            if not approved or approved["spec_hash"] != fingerprint(draft):
                 raise ValueError("Approve the current spec before starting")
-            if any(j["status"] in {"queued","running"} for j in self.state()["jobs"]):
+            if any(j["status"] in {"queued","running"} for j in workspace.runs()):
                 raise ValueError("One run is already active")
-            job_id = uuid.uuid4().hex
-            job = {"id":job_id,"project_id":identifier,"name":project["name"],"status":"queued","phase":"queued",
-                   "mode":project["draft"].get("mode","controlled_preview"),"spec":project["draft"],"approved":project["approved"],"launch_pending":True}
-            inputs = self.root/"inputs"/job_id
-            captured = snapshot_folder(self.root/"projects"/identifier/"snapshot",inputs)
-            if captured["inventory"] != project["inventory"]["inventory"]:
-                raise ValueError("Snapshot changed since approval; create a new project snapshot")
-            # Verify frozen bytes against the approved inventory, never arbitrary paths.
-            for item in project["inventory"]["inventory"]:
-                target = inputs.joinpath(*PureSafe(item["path"]))
-                if target.is_symlink() or hashlib.sha256(target.read_bytes()).hexdigest() != item["sha256"]:
-                    raise ValueError("Snapshot changed since approval; create a new project snapshot")
-            self.store.save("job", job)
-            if launch:
-                self._launch(job_id)
-            return job
+            job_id = uuid.uuid4().hex[:12]
+            inputs = workspace.run_dir(job_id)/"snapshot"
+            captured = snapshot_folder(workspace.snapshot_dir(approved["snapshot"]),inputs)
+            if captured["inventory"] != approved["inventory"]:
+                shutil.rmtree(workspace.run_dir(job_id))
+                raise ValueError("Snapshot changed since approval; approve again")
+            job = {"id":job_id,"project_id":identifier,"name":record["name"],"status":"queued","phase":"queued","created_at":time.time(),
+                   "mode":draft.get("mode","controlled_preview"),"spec":draft,"approved":_approval_identity(approved),"launch_pending":True}
+            workspace.write_run(job)
+        if launch:
+            self._launch(workspace, job_id)
+        return job
 
-    def verify_job_approval(self,job,snapshot):
-        project = self.project(job["project_id"])
-        if (project["approved"] != job["approved"] or fingerprint(job["spec"]) != job["approved"]["spec_hash"]
-            or fingerprint(project["inventory"]) != job["approved"]["data_hash"]):
+    def verify_job_approval(self,workspace,job,snapshot):
+        approved = self._approval(job["project_id"])
+        if (not approved or _approval_identity(approved) != job["approved"] or fingerprint(job["spec"]) != approved["spec_hash"]
+            or fingerprint(workspace.spec(job["spec"]["version"])) != approved["spec_hash"]):
             raise ValueError("Approval changed before execution; approve a new run")
-        for item in project["inventory"]["inventory"]:
+        for item in approved["inventory"]:
             target = Path(snapshot)
             for part in PureSafe(item["path"]):
                 target = target/part
@@ -228,66 +266,104 @@ class Engine:
             if not target.is_file() or target.stat().st_size != item["size"] or hashlib.sha256(target.read_bytes()).hexdigest() != item["sha256"]:
                 raise ValueError("Frozen snapshot changed before execution")
 
-    def _launch(self, identifier):
+    def _launch(self, workspace, identifier):
         # Worker main owns POSIX signal handlers; HTTP request threads do not.
         # Windows: UTF-8 mode, because the vendored engine reads text with the default encoding.
         detach = ({"creationflags":subprocess.CREATE_NEW_PROCESS_GROUP|subprocess.CREATE_NO_WINDOW,
                    "env":{**os.environ,"PYTHONUTF8":"1"}} if os.name == "nt" else {"start_new_session":True})
         with open(os.devnull,"wb") as output:
-            subprocess.Popen([sys.executable,"-m","lx.worker","--root",str(self.root),"--job",identifier],
+            subprocess.Popen([sys.executable,"-m","lx.worker","--root",str(self.root),"--workspace",str(workspace.folder),"--job",identifier],
                              stdout=output,stderr=output,**detach)
 
-    def stop(self, identifier):
+    def stop(self, identifier, job_id):
         from h2portable.jobs import stop_job
-        job = self.store.get("job",identifier)
+        workspace = self.workspace(identifier)
+        job = workspace.run(job_id)
         try:
-            state = stop_job(identifier,self.root/"core-jobs")
+            state = stop_job(job_id,workspace.home/"core-jobs")
         except ValueError:
             if job["status"] != "queued":
                 raise
             state = {"status":"cancelled"}
-        job["status"],job["phase"] = state["status"],"stopped"
-        job["launch_pending"] = False
-        return self.store.save("job",job)
+        return workspace.update_run(job_id,status=state["status"],phase="stopped",launch_pending=False)
 
-    def resume(self, identifier):
-        with self.lock:
-            return self._resume(identifier)
-
-    def _resume(self, identifier):
-        if any(j["id"] != identifier and j["status"] in {"queued","running"} for j in self.state()["jobs"]):
-            raise ValueError("Another run is already active")
-        job = self.store.get("job",identifier)
-        if job["status"] in {"queued","running","completed"}:
-            raise ValueError("Only interrupted, stopped or failed jobs can resume")
-        project = self.project(job["project_id"])
-        if project["approved"] != job["approved"]:
-            raise ValueError("Spec changed; approve and start a new run")
-        job.update(status="queued",phase="resuming",launch_pending=True)
-        job.pop("error",None)
-        self.store.save("job",job)
-        self._launch(identifier)
+    def resume(self, identifier, job_id):
+        workspace = self.workspace(identifier)
+        self._jobs(workspace)
+        with workspace.lock():
+            if any(j["id"] != job_id and j["status"] in {"queued","running"} for j in workspace.runs()):
+                raise ValueError("Another run is already active")
+            job = workspace.run(job_id)
+            if job["status"] in {"queued","running","completed"}:
+                raise ValueError("Only interrupted, stopped or failed jobs can resume")
+            approved = self._approval(identifier)
+            if not approved or _approval_identity(approved) != job["approved"]:
+                raise ValueError("Spec changed; approve and start a new run")
+            job.update(status="queued",phase="resuming",launch_pending=True)
+            job.pop("error",None)
+            workspace.write_run(job)
+        self._launch(workspace, job_id)
         return job
 
-    def package_bytes(self, identifier):
-        job = self.store.get("job",identifier)
+    def _jobs(self, workspace):
+        """Run records with usage attached, reconciled against the core's job state."""
+        from h2portable.jobs import read_job
+        jobs = workspace.runs()
+        for job in jobs:
+            live = job.get("spec",{}).get("mode") == "live" and self.live_ledger is not None
+            job["usage"] = summarize(usage_rows(self.live_ledger if live else workspace.preview_ledger,job["id"]+"/"))
+            if not job.get("launch_pending") and job["status"] in {"queued", "running", "interrupted", "cancelled", "failed"}:
+                try:
+                    core = read_job(job["id"], workspace.home/"core-jobs")
+                    job["status"] = core["status"]
+                    if job["status"] in {"completed","cancelled","failed","interrupted","timed_out"}:
+                        changes = {"phase":"complete"} if job["status"] == "completed" else {}
+                        job.update(workspace.update_run(job["id"],status=job["status"],**changes))
+                except ValueError:
+                    pass
+            result_file = workspace.package_dir(job["id"])/"result.json"
+            if job["status"] == "completed" and result_file.is_file():
+                job["result"] = json.loads(result_file.read_text(encoding="utf-8"))
+        return jobs
+
+    def state(self):
+        projects, jobs, rows, missing = [], [], [], []
+        for entry in self.store.list("workspace"):
+            try:
+                workspace = self.workspace(entry["id"])
+            except ValueError:
+                missing.append(entry["path"])
+                continue
+            projects.append(self._view(workspace))
+            jobs.extend(self._jobs(workspace))
+            rows.extend(usage_rows(workspace.preview_ledger))
+        return {"mode": "controlled_preview", "live_application_enabled": True, "live_flow": "approval_gated_spark_only",
+                "models": self.registry.list_models(), "projects": projects, "missing_workspaces": missing,
+                "jobs": jobs, "preview_usage": summarize(rows),
+                "usage_events": (rows + (usage_rows(self.live_ledger) if self.live_ledger else []))[-80:],
+                "live_usage": self.live_ledger.summary() if self.live_ledger else None}
+
+    # Packages
+
+    def package_bytes(self, identifier, job_id):
+        workspace = self.workspace(identifier)
+        job = workspace.run(job_id)
         if job["status"] != "completed":
             raise ValueError("No completed package is available")
-        folder = self.root/"outputs"/identifier/"package"
+        folder = workspace.package_dir(job_id)
         stream = io.BytesIO()
         with zipfile.ZipFile(stream,"w",zipfile.ZIP_DEFLATED) as archive:
             for path in folder.rglob("*"):
                 if path.is_file() and not path.is_symlink() and path.suffix in {".md",".json"}:
                     archive.write(path,path.relative_to(folder).as_posix())
-            if not (folder/"usage.json").exists():
-                archive.writestr("usage.json",json.dumps(summarize(usage_rows(self.preview_ledger,identifier+"/")),indent=2))
         return stream.getvalue()
 
-    def fresh(self, identifier):
-        job = self.store.get("job",identifier)
+    def fresh(self, identifier, job_id):
+        workspace = self.workspace(identifier)
+        job = workspace.run(job_id)
         if job["status"] != "completed":
             raise ValueError("Complete the run before reusing its harness")
-        root = self.root/"fresh"/uuid.uuid4().hex
+        root = workspace.run_dir(job_id)/"fresh"/uuid.uuid4().hex[:12]
         root.mkdir(parents=True)
         offset = int(root.name[:2],16)%10
         rectangles = (_Rectangle("red_square",(5+offset,9,25+offset,29),(220,45,45)),
@@ -301,22 +377,24 @@ class Engine:
         if mode == "live":
             if self.live_ledger is None:
                 raise ValueError("Live reuse is unavailable in this workspace; use the local app workspace")
-            client = SparkClient(self.make_live_transport(truth_hint=truth), BudgetScope(self.live_ledger,"reuse-"+identifier,job["spec"]["budget_usd"]))
+            client = SparkClient(self.make_live_transport(truth_hint=truth), BudgetScope(self.live_ledger,"reuse-"+job_id,job["spec"]["budget_usd"]))
         else:
-            client = SparkClient(PreviewTransport(truth),BudgetScope(self.preview_ledger,"reuse-"+identifier,1))
+            client = SparkClient(PreviewTransport(truth),BudgetScope(workspace.preview_ledger,"reuse-"+job_id,1))
         adapter = ImagesAdapter(root,root/"execution",client,mode=mode)
-        run = adapter.execute("fresh-scene",self.root/"outputs"/identifier/"package"/"harness","fresh")
+        run = adapter.execute("fresh-scene",workspace.package_dir(job_id)/"harness","fresh")
         answer = json.loads(adapter.deliverable_text(run))
         checked = verify_output(truth["fresh-scene"],answer)
         result = {"mode":mode,"accepted":checked.accepted,"errors":checked.errors,"answer":answer,
                   "source_scene_id":sample["source_scene_id"],"note":("New constructed scene; live Spark call" if mode=="live" else "New constructed scene; controlled response, no live model call")}
-        job["fresh_result"] = result
-        self.store.save("job",job)
+        workspace.update_run(job_id,fresh_result=result)
         return result
 
 
+def _approval_identity(approved):
+    return {key:approved[key] for key in ("version","spec_hash","data_hash")}
+
+
 def PureSafe(value):
-    from pathlib import PurePosixPath
     path = PurePosixPath(value)
     if path.is_absolute() or any(p.startswith(".") for p in path.parts) or "\\" in value or ":" in value:
         raise ValueError("Invalid snapshot inventory path")

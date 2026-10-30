@@ -8,6 +8,7 @@ from pathlib import Path
 import tempfile
 from threading import Thread
 import unittest
+import uuid
 
 from lx.engine import Engine
 from lx.server import server_for
@@ -29,6 +30,11 @@ class ServerBoundaryTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.token = session["token"]
         self.assertEqual(session["mode"], "controlled_preview")
+
+    def body(self, name):
+        folder = Path(self.tempdir.name) / uuid.uuid4().hex
+        folder.mkdir()
+        return {"synthetic_public": True, "source": "demo", "name": name, "goal": "Annotate demo", "path": str(folder)}
 
     def _stop_server(self):
         self.server.shutdown()
@@ -102,14 +108,28 @@ class ServerBoundaryTests(unittest.TestCase):
     def test_create_project_requires_and_accepts_demo_data_consent(self):
         status, project, _ = self.request(
             "POST", "/api/projects",
-            {"synthetic_public": True, "source": "demo", "name": "Boundary test", "goal": "Annotate demo"},
+            self.body("Boundary test"),
             token=self.token,
         )
         self.assertEqual(status, 200, project)
         self.assertEqual(project["name"], "Boundary test")
         self.assertIsNone(project["approved"])
         self.assertTrue(project["compatible_demo"])
-        self.project_id = project["id"]
+        self.assertTrue((Path(project["path"]) / ".lx" / "project.json").is_file())
+        self.assertTrue((Path(project["path"]) / "samples" / "manifest.json").is_file())
+
+    def test_existing_workspace_opens_and_a_plain_folder_does_not(self):
+        body = self.body("Reopened")
+        status, project, _ = self.request("POST", "/api/projects", body, token=self.token)
+        self.assertEqual(status, 200, project)
+        status, opened, _ = self.request("POST", "/api/workspaces/open", {"path": body["path"]}, token=self.token)
+        self.assertEqual(status, 200, opened)
+        self.assertEqual(opened["id"], project["id"])
+        status, _, _ = self.request("POST", "/api/projects", body, token=self.token)
+        self.assertEqual(status, 400)
+        status, refused, _ = self.request("POST", "/api/workspaces/open", {"path": self.body("x")["path"]}, token=self.token)
+        self.assertEqual(status, 400)
+        self.assertIn("not a workspace", refused["error"])
 
     def test_model_key_never_appears_in_response_or_state_and_spec_rejects_catalog(self):
         dummy = "dummy-key-never-render-this"
@@ -131,7 +151,7 @@ class ServerBoundaryTests(unittest.TestCase):
         self.assertNotIn("api_key", json.dumps(updated))
         status, project, _ = self.request(
             "POST", "/api/projects",
-            {"synthetic_public": True, "source": "demo", "name": "Model boundary", "goal": "Annotate demo"},
+            self.body("Model boundary"),
             token=self.token,
         )
         self.assertEqual(status, 200)
@@ -155,7 +175,7 @@ class ServerBoundaryTests(unittest.TestCase):
     def test_run_is_refused_before_approval(self):
         status, project, _ = self.request(
             "POST", "/api/projects",
-            {"synthetic_public": True, "source": "demo", "name": "Approval boundary", "goal": "Annotate demo"},
+            self.body("Approval boundary"),
             token=self.token,
         )
         self.assertEqual(status, 200)
