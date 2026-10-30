@@ -19,8 +19,8 @@ class RecordsCalibrationGuardTests(unittest.TestCase):
 
     def test_wrong_dataset_approval_fails_before_application_or_transport(self):
         with patch.object(sys, "argv", self.arguments("wrong-dataset")), \
-             patch("lx.app.Application") as application, \
-             patch("lx.app.LiveMetaTransport") as transport:
+             patch("lx.engine.Engine") as application, \
+             patch("lx.engine.LiveMetaTransport") as transport:
             with self.assertRaises(SystemExit) as raised:
                 main()
 
@@ -32,9 +32,9 @@ class RecordsCalibrationGuardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             with patch.object(sys, "argv", self.arguments()), \
-                 patch("lx.app.ROOT", root), \
-                 patch("lx.app.Application") as application, \
-                 patch("lx.app.LiveMetaTransport") as transport:
+                 patch("lx.engine.ROOT", root), \
+                 patch("lx.engine.Engine") as application, \
+                 patch("lx.engine.LiveMetaTransport") as transport:
                 with self.assertRaisesRegex(ValueError, "existing shared pilot ledger"):
                     main()
 
@@ -59,9 +59,9 @@ class RecordsCalibrationGuardTests(unittest.TestCase):
                 )
 
                 with patch.object(sys, "argv", self.arguments()), \
-                     patch("lx.app.ROOT", root), \
-                     patch("lx.app.Application", return_value=app) as application, \
-                     patch("lx.app.LiveMetaTransport") as transport:
+                     patch("lx.engine.ROOT", root), \
+                     patch("lx.engine.Engine", return_value=app) as application, \
+                     patch("lx.engine.LiveMetaTransport") as transport:
                     with self.assertRaisesRegex(ValueError, "older than the recorded checkpoint"):
                         main()
 
@@ -91,12 +91,12 @@ class RecordsCalibrationGuardTests(unittest.TestCase):
             )
 
             with patch.object(sys, "argv", self.arguments()), \
-                 patch("lx.app.ROOT", root), \
-                 patch("lx.app.Application", return_value=app) as application, \
+                 patch("lx.engine.ROOT", root), \
+                 patch("lx.engine.Engine", return_value=app) as application, \
                  patch("lx.records_calibration.build_records_dataset", return_value=dataset), \
                  patch("lx.records_calibration.usage_rows", return_value=[]), \
                  patch("lx.records_calibration.calibrate") as calibrate, \
-                 patch("lx.app.LiveMetaTransport") as transport:
+                 patch("lx.engine.LiveMetaTransport") as transport:
                 with self.assertRaisesRegex(
                     ValueError, "Contract, controller truth or verifier differs"
                 ):

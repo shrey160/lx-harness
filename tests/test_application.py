@@ -9,7 +9,7 @@ import tempfile
 import unittest
 import zipfile
 
-from lx.app import Application
+from lx.engine import Engine
 from lx.budget import BudgetExceeded
 from lx.usage import BudgetScope
 
@@ -19,7 +19,7 @@ class ApplicationFlowTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.app = Application(Path(self.temp.name))
+        self.app = Engine(Path(self.temp.name))
 
     def project(self):
         return self.app.create_project({"source":"demo","synthetic_public":True,"name":"Image workflow"})

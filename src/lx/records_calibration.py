@@ -28,12 +28,12 @@ def main():
     args = parser.parse_args()
     if args.approve_dataset != APPROVED_DATASET:
         parser.error("Dataset approval does not match this fixed request")
-    from .app import Application, ROOT
+    from .engine import Engine, ROOT
     # Refuse to initialize an empty replacement for the historical pilot ledger.
     ledger_path = ROOT/".lx"/"live-spike"/"pilot-budget.sqlite3"
     if not ledger_path.is_file() or ledger_path.is_symlink():
         raise ValueError("The existing shared pilot ledger is required")
-    app = Application()
+    app = Engine()
     ledger = app.live_ledger
     state = ledger.summary()
     if Decimal(str(state["spent_usd"])) < Decimal("0.036492926") or state["settled_calls"] < 154:

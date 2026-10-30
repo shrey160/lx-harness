@@ -9,7 +9,7 @@ import tempfile
 from threading import Thread
 import unittest
 
-from lx.app import Application
+from lx.engine import Engine
 from lx.server import server_for
 
 
@@ -17,7 +17,7 @@ class ServerBoundaryTests(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory(dir=None if os.name == "posix" else Path(__file__).resolve().parents[1])
         self.addCleanup(self.tempdir.cleanup)
-        self.app = Application(Path(self.tempdir.name) / "app-root")
+        self.app = Engine(Path(self.tempdir.name) / "app-root")
         self.assertIsNone(self.app.live_ledger)
         self.server = server_for(self.app, 0)
         self.thread = Thread(target=self.server.serve_forever, daemon=True)

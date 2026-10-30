@@ -38,7 +38,7 @@ def fingerprint(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, allow_nan=False).encode()).hexdigest()
 
 
-class Application:
+class Engine:
     def __init__(self, root=DEFAULT_ROOT):
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)

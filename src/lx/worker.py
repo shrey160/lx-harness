@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import sys
 
-from .app import Application
+from .engine import Engine
 from .spark import SparkClient
 from .usage import BudgetScope
 from .usage import usage_rows, summarize
@@ -47,7 +47,7 @@ def main():
     parser.add_argument("--job",required=True)
     parser.add_argument("--execute",action="store_true")
     args = parser.parse_args()
-    app = Application(args.root)
+    app = Engine(args.root)
     job = app.store.get("job",args.job)
     try:
         if args.execute:

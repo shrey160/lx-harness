@@ -117,12 +117,12 @@ class LiveTransportTests(unittest.TestCase):
 @unittest.skipUnless(os.name in ("posix", "nt"), "requires a WSL, Linux or Windows controller")
 class LiveWiringTests(unittest.TestCase):
     def setUp(self):
-        from lx.app import Application
+        from lx.engine import Engine
         from lx.budget import BudgetLedger
         from lx.workflow import PreviewTransport
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.app = Application(Path(self.temp.name))
+        self.app = Engine(Path(self.temp.name))
         self.app.live_ledger = BudgetLedger(Path(self.temp.name) / "live.sqlite3", initial_spend_usd=0)
         truth = self.app.demo.controller_truth
         self.app._live_transport_factory = lambda hint=None: PreviewTransport(hint if hint is not None else truth)
@@ -156,8 +156,8 @@ class LiveWiringTests(unittest.TestCase):
         self.assertTrue(reuse["accepted"], reuse)
 
     def test_live_unavailable_without_shared_ledger(self):
-        from lx.app import Application
-        other = Application(Path(self.temp.name) / "other")
+        from lx.engine import Engine
+        other = Engine(Path(self.temp.name) / "other")
         self.assertIsNone(other.live_ledger)
         project = other.create_project({"source": "demo", "synthetic_public": True})
         with self.assertRaises(ValueError):

@@ -71,8 +71,8 @@ class CalibrationGuardTests(unittest.TestCase):
 
     def test_wrong_approval_fails_before_application_or_transport(self):
         with patch.object(sys, "argv", self.arguments("wrong")), \
-             patch("lx.app.Application") as application, \
-             patch("lx.app.LiveMetaTransport") as transport:
+             patch("lx.engine.Engine") as application, \
+             patch("lx.engine.LiveMetaTransport") as transport:
             with self.assertRaises(SystemExit) as raised:
                 main()
         self.assertEqual(2, raised.exception.code)
@@ -82,9 +82,9 @@ class CalibrationGuardTests(unittest.TestCase):
     def test_missing_ledger_fails_before_application_or_transport(self):
         with tempfile.TemporaryDirectory() as directory, \
              patch.object(sys, "argv", self.arguments()), \
-             patch("lx.app.ROOT", Path(directory)), \
-             patch("lx.app.Application") as application, \
-             patch("lx.app.LiveMetaTransport") as transport:
+             patch("lx.engine.ROOT", Path(directory)), \
+             patch("lx.engine.Engine") as application, \
+             patch("lx.engine.LiveMetaTransport") as transport:
             with self.assertRaisesRegex(ValueError, "existing shared pilot ledger"):
                 main()
         application.assert_not_called()
@@ -103,9 +103,9 @@ class CalibrationGuardTests(unittest.TestCase):
             with self.subTest(state=state), tempfile.TemporaryDirectory() as directory:
                 app = self.guarded_app(Path(directory), state)
                 with patch.object(sys, "argv", self.arguments()), \
-                     patch("lx.app.ROOT", Path(directory)), \
-                     patch("lx.app.Application", return_value=app), \
-                     patch("lx.app.LiveMetaTransport") as transport:
+                     patch("lx.engine.ROOT", Path(directory)), \
+                     patch("lx.engine.Engine", return_value=app), \
+                     patch("lx.engine.LiveMetaTransport") as transport:
                     with self.assertRaisesRegex(ValueError, "older than the recorded checkpoint"):
                         main()
                 app.make_live_transport.assert_not_called()
@@ -116,8 +116,8 @@ class CalibrationGuardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             app = self.guarded_app(Path(directory), state)
             with patch.object(sys, "argv", self.arguments()), \
-                 patch("lx.app.ROOT", Path(directory)), \
-                 patch("lx.app.Application", return_value=app), \
+                 patch("lx.engine.ROOT", Path(directory)), \
+                 patch("lx.engine.Engine", return_value=app), \
                  patch("lx.eventlog_calibration.usage_rows", return_value=[{"status": "settled"}]):
                 with self.assertRaisesRegex(ValueError, "already dispatched"):
                     main()
@@ -125,8 +125,8 @@ class CalibrationGuardTests(unittest.TestCase):
             marker.parent.mkdir(parents=True)
             marker.write_text("{}", encoding="utf-8")
             with patch.object(sys, "argv", self.arguments()), \
-                 patch("lx.app.ROOT", Path(directory)), \
-                 patch("lx.app.Application", return_value=app), \
+                 patch("lx.engine.ROOT", Path(directory)), \
+                 patch("lx.engine.Engine", return_value=app), \
                  patch("lx.eventlog_calibration.usage_rows", return_value=[]):
                 with self.assertRaises(FileExistsError):
                     main()
@@ -140,8 +140,8 @@ class CalibrationGuardTests(unittest.TestCase):
             task = ladder[4].worker_inputs[0]["sample_id"]
             ladder[4].controller_truth[task]["status"] = "open?"
             with patch.object(sys, "argv", self.arguments()), \
-                 patch("lx.app.ROOT", Path(directory)), \
-                 patch("lx.app.Application", return_value=app), \
+                 patch("lx.engine.ROOT", Path(directory)), \
+                 patch("lx.engine.Engine", return_value=app), \
                  patch("lx.eventlog_calibration.build_ladder", return_value=ladder), \
                  patch("lx.eventlog_calibration.usage_rows", return_value=[]), \
                  patch("lx.eventlog_calibration.run_ladder") as run:
