@@ -111,6 +111,22 @@ A provider entry can also state requests per minute. Calls to it are then spaced
 evenly within a run; two runs at once do not share the pacing. The rate is part
 of what the spec binds, so changing it after approval needs a new approval.
 
+The run page shows how a run is really going: agent runs answered, improver
+sessions finished, why any failed, and samples left ungraded. A run stops early
+after 8 agent runs in a row with no answer (a run limit you can change). A failed
+task run whose loop finished can be graded from its saved answers, with no calls.
+
+A call that ends without a known cost stays held against the budget, with its
+reason shown. After checking your provider's bill, release a stopped run's held
+calls as not billed, or count them as spent. Where a provider states each call's
+cost, as OpenRouter does, the run page compares it with the cost from your entered
+prices. The budget still uses your prices, and a live spec warns about any provider
+whose prices are $0, because budgets count nothing for it.
+
+On the Models page, Test sends one short live message to check a key, endpoint and
+model; it does not test images or tool calls. Browse opens a folder dialog on
+native Windows; where none is available, such as WSL, type the path.
+
 Each workspace has its own budget and real-spend ledger, kept in user-level
 state so they do not depend on files in the folder. The default is $5 and the
 most is $20. Preview usage is simulated and stays in `.lx/`.

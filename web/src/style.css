@@ -85,6 +85,8 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .button.danger { border-color: #e7c8c4; background: #fff; color: #a33f35; }
 .button.danger:hover { background: #fff5f3; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.health { margin-top: 18px; }
+.reasons { margin: 8px 0; padding-left: 18px; font-size: 13px; }
 .limits summary { cursor: pointer; font-weight: 700; }
 .limit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 12px; }
 .field { display: grid; gap: 7px; }
