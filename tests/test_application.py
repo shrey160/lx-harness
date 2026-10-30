@@ -14,7 +14,7 @@ from lx.budget import BudgetExceeded
 from lx.usage import BudgetScope
 
 
-@unittest.skipUnless(os.name=="posix","requires the supported WSL controller")
+@unittest.skipUnless(os.name in ("posix","nt"),"requires a WSL, Linux or Windows controller")
 class ApplicationFlowTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

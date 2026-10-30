@@ -90,6 +90,16 @@ uv sync --locked
 .venv/bin/python -m lx.spike --core-source ../harness2_portable_core --output .lx/controlled-spike
 ```
 
+Natively on Windows (D-016), use a separate uv-managed environment so the WSL
+`.venv` stays untouched. Helper scripts are turned off there unless a script
+sandbox exists (Docker support pending): the agent gets no `run_script` and the
+improver keeps procedures in skills.
+
+```powershell
+$env:UV_PROJECT_ENVIRONMENT = ".venv-win"; uv sync --locked --managed-python --python 3.12
+.venv-win\Scripts\python.exe -m unittest discover -s tests
+```
+
 Repeat the last command with the same output directory: completed task work is
 reused without fresh provider-double calls. These calls simulate token usage;
 they do not spend credits. The test suite separately verifies the proposer

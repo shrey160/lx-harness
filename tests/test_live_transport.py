@@ -114,7 +114,7 @@ class LiveTransportTests(unittest.TestCase):
             LiveMetaTransport(lambda: "", opener=self.opener)
 
 
-@unittest.skipUnless(os.name == "posix", "requires the supported WSL controller")
+@unittest.skipUnless(os.name in ("posix", "nt"), "requires a WSL, Linux or Windows controller")
 class LiveWiringTests(unittest.TestCase):
     def setUp(self):
         from lx.app import Application

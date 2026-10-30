@@ -22,7 +22,7 @@ from lx.eventlog_calibration import (
 from lx.spark import ModelError
 
 
-CORE_AVAILABLE = os.name == "posix"
+CORE_AVAILABLE = os.name in ("posix", "nt")  # the core runs natively on Windows too (D-016)
 
 
 class _ScriptedClient:

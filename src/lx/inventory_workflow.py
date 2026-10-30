@@ -19,7 +19,7 @@ import re
 from pathlib import Path, PurePosixPath
 
 from .agent import PhotoSetTools, photo_tools, render_trace, run_agent, tool_identity
-from .components import COMPONENT_TOOLS, ComponentTools, compose_prompt, validate_components
+from .components import COMPONENT_TOOLS, LOAD_SKILL, ComponentTools, compose_prompt, scripts, validate_components
 from .inventory import (COLOURS, CONTRACT, SHAPES, WORDING, caps, canonical_colour, singular, verify_inventory)
 from .perception import FakeTranscription, media_hash
 from .spike import wire_reply
@@ -34,6 +34,14 @@ COMPONENT_NOTE = (
     "stdin with input, photos and segments, prints JSON; the agent runs it with run_script in a "
     "sandbox without network). Mention each skill by name in guardrails.md. Sub-agents and plugins "
     "are not available.")
+# A controller with no script sandbox (native Windows without Docker, D-016) turns scripts off.
+SKILLS_ONLY_NOTE = (
+    "The harness may also contain skills/<name>/SKILL.md (frontmatter name and description; the agent "
+    "reads one with load_skill). Mention each skill by name in guardrails.md. Helper scripts are turned "
+    "off on this controller (no script sandbox), so put procedures in skills and instructions. "
+    "Sub-agents and plugins are not available.")
+SCRIPTS_OFF = ("helper scripts are turned off on this controller (no script sandbox); keep procedures in "
+               "skills/<name>/SKILL.md and the always-on files")
 
 
 def media_path(root, relative, suffix):
@@ -53,12 +61,14 @@ class InventoryDomain:
     task_prompt = CONTRACT
     verify = staticmethod(verify_inventory)
 
-    @staticmethod
-    def prompts():
+    def __init__(self, scripts_enabled=True):
+        self.scripts_enabled = scripts_enabled
+
+    def prompts(self):
         from harness2.core.spec import BenchPrompts
         return BenchPrompts(
             work="answer spoken inventory requests about several photos, calling the available model tools. "
-                 + COMPONENT_NOTE,
+                 + (COMPONENT_NOTE if self.scripts_enabled else SKILLS_ONLY_NOTE),
             domain_word="spoken photo inventory", yardstick=CONTRACT, deliverable_word="inventory JSON",
             selection_checks="Check that the request was heard, every photo was examined, the right kinds and "
                              "colours were counted per photo, tool results were filtered sensibly, and the "
@@ -112,14 +122,19 @@ class InventoryAdapter(ImagesAdapter):
 
     def __init__(self, snapshot, output, client, truth, *, perception, catalog, mode="offline_preview",
                  script_runner=None):
-        super().__init__(snapshot, output, client, mode=mode, domain=InventoryDomain(), truth=truth)
+        from . import sandbox
+        self.scripts_enabled = script_runner is not None or sandbox.available()
+        super().__init__(snapshot, output, client, mode=mode, domain=InventoryDomain(self.scripts_enabled),
+                         truth=truth)
         self.perception = perception
-        self.tools = photo_tools(catalog) + COMPONENT_TOOLS
+        self.tools = photo_tools(catalog) + (COMPONENT_TOOLS if self.scripts_enabled else [LOAD_SKILL])
         self.script_runner = script_runner
 
     def validate_tree(self, value):
         if not value.get("systemprompt.md", "").strip():
             raise ValueError("Keep a nonempty systemprompt.md")
+        if not self.scripts_enabled and scripts(value):
+            raise ValueError(SCRIPTS_OFF)
         validate_components(self.substrate.surface(), value)
 
     def _photos(self, task):
@@ -282,8 +297,9 @@ class InventoryPreviewTransport:
     script. This proves the plumbing, not any capability.
     """
 
-    def __init__(self):
+    def __init__(self, scripts=True):
         self.calls = {"worker": 0, "reflection": 0, "improver": 0}
+        self.scripts = scripts
 
     def __call__(self, body, timeout):
         messages = body["messages"]
@@ -298,17 +314,20 @@ class InventoryPreviewTransport:
                               "check only.\nconfidence: low\n</experience>")
         self.calls["improver"] += 1
         if not any(m["role"] == "tool" for m in messages):
-            files = {f"harness/skills/{SKILL_NAME}/SKILL.md": PREVIEW_SKILL, "harness/guardrails.md": PREVIEW_GUARDRAIL,
-                     "harness/scripts/sum_counts.py": PREVIEW_SCRIPT}
+            files = {f"harness/skills/{SKILL_NAME}/SKILL.md": PREVIEW_SKILL, "harness/guardrails.md": PREVIEW_GUARDRAIL}
+            if self.scripts:
+                files["harness/scripts/sum_counts.py"] = PREVIEW_SCRIPT
             return wire_reply(calls=[{"id": f"preview-{i}", "type": "function", "function": {
                 "name": "write_file", "arguments": json.dumps({"path": path, "content": content})}}
                 for i, (path, content) in enumerate(files.items())])
-        return wire_reply("<notes>Added an inventory-check skill, its trigger and a sum_counts script.</notes>")
+        return wire_reply("<notes>Added an inventory-check skill, its trigger"
+                          + (" and a sum_counts script.</notes>" if self.scripts else ".</notes>"))
 
     @staticmethod
     def _agent(messages):
         developer = messages[0]["content"]
-        skilled = f"- {SKILL_NAME}:" in developer and "- sum_counts:" in developer
+        has_skill = f"- {SKILL_NAME}:" in developer
+        skilled = has_skill and "- sum_counts:" in developer
         n_photos = len(json.loads(messages[1]["content"])["photos"])
         tool_results = [json.loads(m["content"]) for m in messages if m["role"] == "tool"]
         step = len(tool_results)
@@ -333,10 +352,13 @@ class InventoryPreviewTransport:
             output = tool_results[-1]["result"]["output"]
             return wire_reply(json.dumps({"request": {"type": request_type, "kind": kind, "colour": colour},
                                           "photos": output["photos"], "answer": output["answer"]}))
-        covered = max(1, n_photos - 1)
-        if step - 1 < covered:
-            return call("segment", {"photo": step, "concept": concept})
-        counts = [r["result"]["instances"] for r in tool_results[1:]]
+        if has_skill and step == 1:  # skill without its script: check every photo, count every box
+            return call("load_skill", {"name": SKILL_NAME})
+        first = 2 if has_skill else 1
+        covered = n_photos if has_skill else max(1, n_photos - 1)
+        if step - first < covered:
+            return call("segment", {"photo": step - first + 1, "concept": concept})
+        counts = [r["result"]["instances"] for r in tool_results[first:]]
         photos = [{"photo": k, "items": [{"kind": kind or "shape", "colour": colour, "count": c}] if c else []}
                   for k, c in enumerate(counts, 1)]
         return wire_reply(json.dumps({"request": {"type": request_type, "kind": kind, "colour": colour},
@@ -367,7 +389,8 @@ def preview_stream(output, *, count=3, seed=20261029):
     scenes, requests = build_synthetic_dataset(output/"dataset", count, seed=seed)
     _, truth, _ = load_inventory_dataset(output/"dataset")
     ledger = BudgetLedger(output/"simulated-usage.sqlite3", initial_spend_usd=0)
-    transport = InventoryPreviewTransport()
+    from . import sandbox
+    transport = InventoryPreviewTransport(scripts=sandbox.available())
     client = SparkClient(transport, BudgetScope(ledger, "inventory-preview", "5"))
     perception = PerceptionClient(FakeShapeSegmentation(scenes), preview_transcription(output/"dataset", requests),
                                   ledger, PerceptionCache(output/"perception-cache"))

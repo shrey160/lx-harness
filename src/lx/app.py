@@ -135,7 +135,8 @@ class Application:
             path = data.get("path", "")
             if not isinstance(path, str) or len(path)>2048:
                 raise ValueError("Invalid folder path")
-            inventory = snapshot_folder(Path(windows_to_wsl(path)), destination)
+            # A WSL controller receives Windows paths from the browser; a native Windows one uses them as they are.
+            inventory = snapshot_folder(Path(windows_to_wsl(path) if os.name == "posix" else path), destination)
         elif source == "zip" and zip_data is not None:
             inventory = snapshot_zip(zip_data, destination)
         else:
@@ -229,9 +230,11 @@ class Application:
 
     def _launch(self, identifier):
         # Worker main owns POSIX signal handlers; HTTP request threads do not.
+        detach = ({"creationflags":subprocess.CREATE_NEW_PROCESS_GROUP|subprocess.CREATE_NO_WINDOW}
+                  if os.name == "nt" else {"start_new_session":True})
         with open(os.devnull,"wb") as output:
             subprocess.Popen([sys.executable,"-m","lx.worker","--root",str(self.root),"--job",identifier],
-                             stdout=output,stderr=output,start_new_session=True)
+                             stdout=output,stderr=output,**detach)
 
     def stop(self, identifier):
         from h2portable.jobs import stop_job

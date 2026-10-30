@@ -122,7 +122,8 @@ def run_spike(core_source, output, client, *, backend="local", image="h2portable
         raise AssertionError("selection missing")
     run_dir = adapter.spec.runs_root/"executions"/selected
     record = json.loads((run_dir/"execution.json").read_text())
-    expected_backend = "local-posix" if backend == "local" else "docker-cli"
+    from h2portable.execution import LocalRunner
+    expected_backend = LocalRunner.backend if backend == "local" else "docker-cli"
     if record["execution"]["backend"] != expected_backend or not adapter.artifacts_intact(run_dir):
         raise AssertionError("selected result has the wrong backend or damaged artifacts")
     answer = json.loads((run_dir/"answer.json").read_text())

@@ -10,7 +10,7 @@ from lx.proposer import SparkProposer
 from lx.spike import FixtureTransport, run_spike
 
 
-@unittest.skipUnless(os.name == "posix", "requires the supported WSL/Linux controller")
+@unittest.skipUnless(os.name in ("posix", "nt"), "requires a WSL, Linux or Windows controller")
 class SpikeIntegration(unittest.TestCase):
     def test_real_engine_harvest_select_and_resume_without_new_usage(self):
         core = Path(__file__).resolve().parents[2]/"harness2_portable_core"

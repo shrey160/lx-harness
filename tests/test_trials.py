@@ -16,7 +16,7 @@ from lx.trials import calibrate, criterion_result, run_trials
 from lx.usage import BudgetScope
 
 
-CORE_AVAILABLE = os.name == "posix"
+CORE_AVAILABLE = os.name in ("posix", "nt")  # the core runs natively on Windows too (D-016)
 
 
 class _RecordingClient:

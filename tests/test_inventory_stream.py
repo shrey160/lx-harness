@@ -45,6 +45,29 @@ class StreamTests(unittest.TestCase):
             saved = json.loads((root / "out" / "ea_report.json").read_text())
             self.assertEqual(saved["gains"], report["gains"])
 
+    def test_scripts_off_controller_runs_the_loop_with_skills_only(self):
+        # Native Windows without Docker (D-016): no run_script tool, scripts refused, skills still learned.
+        with tempfile.TemporaryDirectory() as tmp, patch.object(sandbox, "available", return_value=False):
+            root = Path(tmp)
+            scenes, requests = build_synthetic_dataset(root / "ds", 2)
+            ledger = BudgetLedger(root / "ledger.sqlite3", initial_spend_usd=0)
+            transport = InventoryPreviewTransport(scripts=False)
+            client = SparkClient(transport, BudgetScope(ledger, "t8-test", "5"))
+            perception = PerceptionClient(FakeShapeSegmentation(scenes), preview_transcription(root / "ds", requests),
+                                          ledger, PerceptionCache(root / "cache"))
+            report = stream.run_ea(root / "ds", root / "out", client, perception)
+            self.assertEqual(report["run"]["done"], 2)
+            for row in report["per_sample"].values():
+                self.assertIn("skills/inventory-check/SKILL.md", row["files_added"])
+                self.assertFalse(any(f.startswith("scripts/") for f in row["files_added"]))
+            self.assertTrue(report["improved"])
+            from lx.inventory_workflow import InventoryAdapter, SCRIPTS_OFF
+            adapter = InventoryAdapter(root / "ds" / "worker_inputs", root / "check", client, {},
+                                       perception=perception, catalog=stream.CATALOG)
+            self.assertNotIn("run_script", [t["function"]["name"] for t in adapter.tools])
+            with self.assertRaisesRegex(ValueError, SCRIPTS_OFF[:30]):
+                adapter.validate_tree({"systemprompt.md": "x", "scripts/sum.py": "print(1)"})
+
     def test_main_refuses_a_wrong_approval(self):
         with patch.object(sys, "argv", ["inventory_stream", "--approve-dataset", "0" * 64]):
             with self.assertRaises(SystemExit):
