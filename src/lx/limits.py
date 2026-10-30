@@ -30,7 +30,7 @@ FIELDS = {
 def preset(spark, task=False):
     """Spark keeps its original numbers. Hosted reasoning and local models can take over a
     minute a call, and Glimmer made one tool call per turn (live runs, 30 Oct 2026)."""
-    return {"agent_turns_per_photo": 3, "agent_tools_per_photo": 6,
+    return {"agent_turns_per_photo": 12, "agent_tools_per_photo": 6,
             "improver_turns": 12 if spark else 30, "improver_seconds": 180 if spark else 900,
             "call_seconds": 90 if spark else 600 if task else 300,
             "run_seconds": 4*HOUR if task else 900 if spark else HOUR,

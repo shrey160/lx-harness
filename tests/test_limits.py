@@ -15,6 +15,11 @@ class PresetTests(unittest.TestCase):
         self.assertEqual((other["call_seconds"], other["improver_seconds"], other["run_seconds"], other["improver_turns"], other["reply_tokens"]),
                          (300, 900, 3600, 30, 8192))
 
+    def test_agent_defaults_leave_room_to_look_at_every_photo(self):
+        for spark in (True, False):
+            self.assertEqual(limits.preset(spark)["agent_turns_per_photo"], 12)
+            self.assertEqual(limits.preset(spark)["agent_tools_per_photo"], 6)
+
     def test_a_task_gets_its_longer_run_and_call_limits(self):
         task = limits.preset(False, task=True)
         self.assertEqual((task["call_seconds"], task["run_seconds"], task["chat_calls"], task["segment_calls"], task["transcribe_calls"]),
