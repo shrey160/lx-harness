@@ -91,12 +91,16 @@ uv sync --locked
 ```
 
 Natively on Windows (D-016), use a separate uv-managed environment so the WSL
-`.venv` stays untouched. Helper scripts are turned off there unless a script
-sandbox exists (Docker support pending): the agent gets no `run_script` and the
-improver keeps procedures in skills.
+`.venv` stays untouched. Helper scripts run in a Docker sandbox there
+(`lx-sandbox:pillow-11.3.0`: no network, read-only root, no capabilities,
+unprivileged user). Build it once with Docker Desktop running; it uses the
+digest-pinned base image and the Pillow wheel pinned in `uv.lock`. Without
+Docker or the image, scripts are turned off: the agent gets no `run_script` and
+the improver keeps procedures in skills.
 
 ```powershell
 $env:UV_PROJECT_ENVIRONMENT = ".venv-win"; uv sync --locked --managed-python --python 3.12
+.venv-win\Scripts\python.exe scripts\build_sandbox_image.py
 .venv-win\Scripts\python.exe -m unittest discover -s tests
 ```
 
