@@ -121,8 +121,9 @@ class InventoryAdapter(ImagesAdapter):
     """Agent executions over photo sets; identity covers agent, tools, caps, harness and media."""
 
     def __init__(self, snapshot, output, client, truth, *, perception, catalog, mode="offline_preview",
-                 script_runner=None, domain=None, limits=None):
+                 script_runner=None, domain=None, limits=None, health=None):
         from . import sandbox
+        self.health = health
         self.scripts_enabled = script_runner is not None or sandbox.available()
         super().__init__(snapshot, output, client, mode=mode, domain=domain or InventoryDomain(self.scripts_enabled),
                          truth=truth, limits=limits)
@@ -192,6 +193,8 @@ class InventoryAdapter(ImagesAdapter):
             "answer_sha256": hashlib.sha256((run/"answer.json").read_bytes()).hexdigest(),
             "tool_calls": sum(step["type"] == "tool" for step in trace)}), encoding="utf-8")
         self.executions += 1
+        if self.health:
+            self.health.agent(bool(text), next((step["reason"] for step in trace if step["type"] == "stopped"), None))
         return run
 
     def trajectory(self, run, *, obs_trunc):
@@ -199,7 +202,7 @@ class InventoryAdapter(ImagesAdapter):
         return render_trace(record["trace"], record["final_text"], obs_trunc=obs_trunc)
 
 
-def run_stream(adapter, output, client, *, tasks=None, limits=None):
+def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None):
     """E-A: Harness² k=1 (sequential mode) over the stream, then controller-side grading per sample."""
     from harness2.core import tree
     from harness2.core.schedule import Namespace, run_domain
@@ -210,8 +213,8 @@ def run_stream(adapter, output, client, *, tasks=None, limits=None):
     stream = list(tasks) if tasks is not None else adapter.tasks("dev")
     if not stream:
         raise ValueError("The stream needs at least one sample")
-    proposer = SparkProposer(client, output/"proposer_audit", limits=limits)
-    reflector = SparkProposer(client, output/"reflector_audit", limits=limits)
+    proposer = SparkProposer(client, output/"proposer_audit", limits=limits, health=health)
+    reflector = SparkProposer(client, output/"reflector_audit", limits=limits, health=health)
     result = run_domain(adapter.domain_of(stream[0]), stream, 1, adapter=adapter, prop=proposer,
                         runs_root=adapter.spec.runs_root, library_root=output/"library", modes=("seq",),
                         reflector_prop=reflector)

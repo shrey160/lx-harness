@@ -226,18 +226,18 @@ class ImagesAdapter:
                 "n_criteria": getattr(result, "n_criteria", 1), "all_pass": result.accepted}
 
 
-def optimize_preview(snapshot, output, client, truth, spec, *, live=False, worker_client=None, limits=None):
+def optimize_preview(snapshot, output, client, truth, spec, *, live=False, worker_client=None, limits=None, health=None):
     """client is the improver; worker_client, when given, is a different provider for the worker role."""
     adapter = ImagesAdapter(snapshot, output, worker_client or client, mode="live" if live else "controlled_preview", truth=truth, limits=limits)
-    return optimize_adapter(adapter, output, client, spec, live=live, limits=limits)
+    return optimize_adapter(adapter, output, client, spec, live=live, limits=limits, health=health)
 
 
-def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_count=None, limits=None):
+def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_count=None, limits=None, health=None):
     """Blind core adaptation, then controller-side mean-dev retention and evaluation."""
     from harness2.core.schedule import Namespace, run_domain
     from harness2.core import tree
-    proposer = SparkProposer(client, Path(output)/"proposer_audit", limits=limits)
-    reflector = SparkProposer(client, Path(output)/"reflector_audit", limits=limits)
+    proposer = SparkProposer(client, Path(output)/"proposer_audit", limits=limits, health=health)
+    reflector = SparkProposer(client, Path(output)/"reflector_audit", limits=limits, health=health)
     dev = adapter.tasks("dev")
     if not dev or not adapter.tasks("heldout"):
         raise ValueError("Separate development and held-out samples are required")

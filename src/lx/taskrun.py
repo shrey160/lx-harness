@@ -42,7 +42,7 @@ def summarize_report(task, report, gains, chosen, live):
             "grading": "controller-side check file after the run; never shown to the improver"}
 
 
-def run_task(engine, workspace, job, snapshot, clients, *, live, check):
+def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=None):
     spec, identifier = job["spec"], job["id"]
     task = spec["task"]
     run_dir = workspace.run_dir(identifier)
@@ -61,8 +61,8 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check):
     output = run_dir/"outputs"
     adapter = InventoryAdapter(run_dir/"dataset"/"worker_inputs", output, clients["worker"], truth, perception=perception,
                                catalog=CATALOG, mode="live" if live else "offline_preview", domain=TaskDomain(task, check),
-                               limits=limits)
-    report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits)
+                               limits=limits, health=health)
+    report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health)
     gains, chosen = _package(adapter, report, output, spec)
     return summarize_report(task, report, gains, chosen, live)
 

@@ -5,11 +5,11 @@ import sys
 import traceback
 
 from .engine import ROLES, Engine
+from .health import RunHealth, StoppedEarly
 from .spark import ModelError
 from .taskrun import run_task
-from .usage import usage_rows, summarize
 from .workflow import optimize_preview
-from .workspace import Workspace, write_json
+from .workspace import Workspace
 
 
 def execute(engine, workspace, identifier, snapshot):
@@ -31,20 +31,13 @@ def execute(engine, workspace, identifier, snapshot):
             raise ValueError("Live preflight failed" if live else "Controlled preflight failed")
     workspace.update_run(identifier,phase="improving")
     output = workspace.run_dir(identifier)/"outputs"
+    health = RunHealth(workspace.run_dir(identifier)/"health.json",stop_after=limits["stop_after_empty_runs"])
     if job["spec"].get("task"):
-        result = run_task(engine,workspace,job,snapshot,clients,live=live,check=workspace.check_source(job["spec"]["check"]))
+        result = run_task(engine,workspace,job,snapshot,clients,live=live,check=workspace.check_source(job["spec"]["check"]),health=health)
     else:
         result = optimize_preview(snapshot,output,clients["improver"],engine.demo.controller_truth,job["spec"],live=live,
-                                  worker_client=clients["worker"],limits=limits)
-    result["usage"] = summarize(usage_rows(engine._ledger(workspace) if live else workspace.preview_ledger,identifier+"/"))
-    result["usage_basis"] = ("live usage at the prices in each provider entry; not provider billing"
-                             if live else "simulated provider usage; no live calls or charges")
-    result["package_version"] = identifier+"-spec-v"+str(job["spec"]["version"])
-    write_json(output/"package"/"usage.json",result["usage"])
-    write_json(output/"package"/"result.json",result)
-    workspace.publish_package(identifier)
-    workspace.update_run(identifier,status="completed",phase="complete",result=result)
-    return result
+                                  worker_client=clients["worker"],limits=limits,health=health)
+    return engine.finish_run(workspace,job,result)
 
 
 def main():
@@ -78,7 +71,7 @@ def main():
                                      error=reason,launch_pending=False)
         return 0
     except Exception as exc:
-        reportable = isinstance(exc,(ValueError,ModelError))
+        reportable = isinstance(exc,(ValueError,ModelError,StoppedEarly))
         if not reportable:
             traceback.print_exc()  # the attempt's local log; the run record stays free of private detail
         workspace.update_run(args.job,status="failed",phase="failed",error=str(exc) if reportable else "Controller failed; no private exception details exposed")

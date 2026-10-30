@@ -86,6 +86,8 @@ def server_for(app, port=8765):
                     result = app.create_project(data,blob)
                 elif route == ["api","workspaces","open"]:
                     result = app.open_workspace(data.get("path"))
+                elif route == ["api","pick-folder"]:
+                    result = app.pick_folder()
                 elif route == ["api","models"]:
                     result = app.registry.create(data.get("name"),data.get("model_id"),data.get("capabilities"),data.get("api_key"),
                         base_url=data.get("base_url"),accepts_images=data.get("accepts_images",False),
@@ -96,6 +98,7 @@ def server_for(app, port=8765):
                         base_url=data.get("base_url"),accepts_images=data.get("accepts_images"),
                         supports_tools=data.get("supports_tools"),pricing=data.get("pricing"),context_limit=data.get("context_limit"),
                         requests_per_minute=data.get("requests_per_minute"),limits=data.get("limits"))
+                    elif route[3]=="test": result = app.test_provider(route[2])
                     elif route[3]=="delete": app.registry.delete(route[2]); result={"deleted":True}
                     else: raise ValueError("Unknown model action")
                 elif len(route)==4 and route[:2]==["api","projects"]:
@@ -113,6 +116,8 @@ def server_for(app, port=8765):
                     if action=="stop": result=app.stop(identifier,job_id)
                     elif action=="resume": result=app.resume(identifier,job_id)
                     elif action=="fresh": result=app.fresh(identifier,job_id)
+                    elif action=="regrade": result=app.regrade(identifier,job_id)
+                    elif action=="release": result=app.release_held(identifier,job_id,data.get("charged"))
                     else: raise ValueError("Unknown job action")
                 else:
                     raise ValueError("Unknown API route")

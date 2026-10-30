@@ -16,6 +16,7 @@ HOUR = 3600
 FIELDS = {
     "agent_turns_per_photo": ("Agent turns per photo (plus 4)", 1, 20, "worker"),
     "agent_tools_per_photo": ("Agent tool calls per photo (plus 6)", 1, 40, "worker"),
+    "stop_after_empty_runs": ("Stop after this many agent runs in a row with no answer", 1, 1000, "worker"),
     "improver_turns": ("Improver turns per session", 1, 100, "improver"),
     "improver_seconds": ("Improver session, seconds", 30, HOUR, "improver"),
     "call_seconds": ("One model call with its retries, seconds", 10, 1800, None),
@@ -30,7 +31,7 @@ FIELDS = {
 def preset(spark, task=False):
     """Spark keeps its original numbers. Hosted reasoning and local models can take over a
     minute a call, and Glimmer made one tool call per turn (live runs, 30 Oct 2026)."""
-    return {"agent_turns_per_photo": 12, "agent_tools_per_photo": 12,
+    return {"agent_turns_per_photo": 12, "agent_tools_per_photo": 12, "stop_after_empty_runs": 8,
             "improver_turns": 12 if spark else 30, "improver_seconds": 180 if spark else 900,
             "call_seconds": 90 if spark else 600 if task else 300,
             "run_seconds": 4*HOUR if task else 900 if spark else HOUR,

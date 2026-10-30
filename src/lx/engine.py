@@ -14,6 +14,7 @@ approval, under the workspace's own cap. The shared $20 pilot ledger
 """
 from __future__ import annotations
 
+from dataclasses import replace
 import hashlib
 import io
 import json
@@ -31,6 +32,7 @@ import zipfile
 
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
+from .health import read_health
 from . import checks, limits as run_limits, tasks
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
@@ -38,13 +40,13 @@ from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveMetaTrans
 from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
 from .providers import META_API, SAM, SPARK, TRANSCRIBE
 from .registry import Registry
-from .spark import SparkClient
+from .spark import IncompleteResponse, ModelError, SparkClient
 from .store import Store
 from .usage import BudgetScope, usage_rows, summarize
 from .inventory import write_synthetic
 from .inventory_workflow import InventoryPreviewTransport
 from .workflow import ImagesAdapter, PreviewTransport, samples_from, sample_path
-from .workspace import Workspace, native_path
+from .workspace import Workspace, native_path, write_json
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ROOT = Path.home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
@@ -52,6 +54,8 @@ SAMPLES = "samples"
 ROLES = ("orchestrator","improver","worker")
 DEFAULT_ROLE_ENTRY = "spark-contributor"
 DEFAULT_WORKSPACE_BUDGET = 5
+PROVIDER_TEST_CAP = 1
+PROVIDER_TEST_SECONDS = 60
 
 
 def fingerprint(value):
@@ -89,8 +93,8 @@ class Engine:
                                  requests_per_minute=rate, **(contract or {}))
 
     def limits_of(self, spec):
-        """A spec's limits; one written before limits existed runs on the defaults."""
-        return spec.get("limits") or self._limit_defaults(spec["providers"], spec.get("task"))
+        """A spec's limits; anything it predates runs on the default."""
+        return {**self._limit_defaults(spec["providers"], spec.get("task")), **(spec.get("limits") or {})}
 
     @staticmethod
     def _limit_defaults(providers, task):
@@ -215,6 +219,8 @@ class Engine:
         draft = workspace.spec(record["spec_version"])
         return {**record, "path": str(workspace.folder), "draft": {**draft, "limits": self.limits_of(draft)},
                 "limit_defaults": self._limit_defaults(draft["providers"], draft.get("task")),
+                "free_providers": sorted({p["name"] for p in draft["providers"].values()
+                                          if p["pricing"] and not any(float(price) for price in p["pricing"].values())}),
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
                 "notice": self.data_notice(draft),
                 "notice_accepted": self._notice_hosts(record["id"]),
@@ -526,13 +532,95 @@ class Engine:
         self._launch(workspace, job_id)
         return job
 
+    def finish_run(self, workspace, job, result):
+        """Publish a run's package and mark it completed."""
+        identifier, live = job["id"], job["spec"].get("mode") == "live"
+        output = workspace.run_dir(identifier)/"outputs"
+        result["usage"] = summarize(usage_rows(self._ledger(workspace) if live else workspace.preview_ledger,identifier+"/"))
+        result["usage_basis"] = ("live usage at the prices in each provider entry; not provider billing"
+                                 if live else "simulated provider usage; no live calls or charges")
+        result["package_version"] = identifier+"-spec-v"+str(job["spec"]["version"])
+        write_json(output/"package"/"usage.json",result["usage"])
+        write_json(output/"package"/"result.json",result)
+        workspace.publish_package(identifier)
+        workspace.update_run(identifier,status="completed",phase="complete",result=result,error=None)
+        return result
+
+    def regrade(self, identifier, job_id):
+        """Score a failed task run from its saved answers; no model or tool calls."""
+        from .taskrun import regrade
+        workspace = self.workspace(identifier)
+        self._jobs(workspace)
+        job = workspace.run(job_id)
+        if job["status"] != "failed" or not job["spec"].get("task"):
+            raise ValueError("Only a failed task run can be graded again")
+        try:
+            result = regrade(self, workspace, job, live=job["spec"].get("mode") == "live")
+        except (OSError, KeyError):
+            raise ValueError("This run's loop did not finish, so there is nothing to grade; resume it instead") from None
+        result["regraded"] = True
+        self.finish_run(workspace, job, result)
+        return workspace.run(job_id)
+
+    def release_held(self, identifier, job_id, charged):
+        """A human's step after checking the provider's bill: ends a stopped run's held calls."""
+        if type(charged) is not bool:
+            raise ValueError("Say whether the provider billed these calls")
+        workspace = self.workspace(identifier)
+        self._jobs(workspace)
+        job = workspace.run(job_id)
+        if job["status"] in {"queued","running"}:
+            raise ValueError("Stop the run before releasing its held calls")
+        ledger = self._ledger(workspace) if job["spec"].get("mode") == "live" else workspace.preview_ledger
+        for row in usage_rows(ledger, job_id+"/"):
+            if row["status"] in {"reserved","unknown"}:
+                ledger.release(row["id"], charged=charged)
+        return self._view(workspace)
+
+    def test_provider(self, entry):
+        """One short live call, on the owner's click: is this key and model answering?
+
+        Not a test of images or tools. It spends from a small ledger of its own."""
+        model = next((m for m in self.registry.list_models() if m["id"] == entry), None)
+        if model is None or not model["role_ready"]:
+            raise ValueError("Only a chat provider with an endpoint can be tested")
+        profile = self.registry.profile(entry)
+        started = time.monotonic()
+        try:
+            transport = self._transport(entry, profile, 1, None, limits={"call_seconds":PROVIDER_TEST_SECONDS}, rate=None)
+            scope = BudgetScope(BudgetLedger(self.root/"ledgers"/"provider-tests.sqlite3", PROVIDER_TEST_CAP, 0), entry, PROVIDER_TEST_CAP)
+            client = SparkClient(transport, scope, profile=replace(profile, context_limit=4096), max_tokens=256, retries=0,
+                                 call_seconds=PROVIDER_TEST_SECONDS)
+            reply,usage = client.chat([{"role":"user","content":"Reply OK"}], role="orchestrator", phase="provider-test",
+                                      timeout=PROVIDER_TEST_SECONDS)
+            outcome = {"ok":True,"reply":(reply["content"] or "")[:200],"cost_usd":float(usage["cost_usd"])}
+        except IncompleteResponse:
+            outcome = {"ok":True,"reply":"The provider answered, but its reply was cut off at the short test length"}
+        except (ModelError, ValueError) as exc:
+            outcome = {"ok":False,"error":str(exc)}
+        return {**outcome,"seconds":round(time.monotonic()-started,1)}
+
+    def pick_folder(self):
+        """A native folder dialog on this machine; a browser page cannot give a full path."""
+        script = ("import tkinter, tkinter.filedialog as dialog\nroot = tkinter.Tk()\nroot.withdraw()\n"
+                  "root.attributes('-topmost', True)\nprint(dialog.askdirectory(title='Choose a workspace folder'))\n")
+        try:
+            done = subprocess.run([sys.executable,"-c",script],capture_output=True,encoding="utf-8",timeout=600,
+                                  env={**os.environ,"PYTHONUTF8":"1"})
+        except (OSError, subprocess.TimeoutExpired):
+            done = None
+        if done is None or done.returncode != 0:
+            raise ValueError("No folder dialog is available here; type the path instead")
+        return {"path":done.stdout.strip()}
+
     def _jobs(self, workspace):
-        """Run records with usage attached, reconciled against the core's job state."""
+        """Run records with usage and health attached, reconciled against the core's job state."""
         from h2portable.jobs import read_job
         jobs = workspace.runs()
         for job in jobs:
             live = job.get("spec",{}).get("mode") == "live"
             job["usage"] = summarize(usage_rows(self._ledger(workspace) if live else workspace.preview_ledger,job["id"]+"/"))
+            job["health"] = read_health(workspace.run_dir(job["id"])/"health.json")
             if not job.get("launch_pending") and job["status"] in {"queued", "running", "interrupted", "cancelled", "failed"}:
                 try:
                     core = read_job(job["id"], workspace.home/"core-jobs")

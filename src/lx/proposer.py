@@ -4,7 +4,7 @@ import threading
 
 from .limits import preset
 from .providers import SPARK
-from .spark import MODEL
+from .spark import MODEL, ModelError
 
 _SECRET_NAMES = {"credentials", "credentials.json", "service-account.json", "secrets.json",
                  "id_rsa", "id_ed25519", "id_ecdsa", "authorized_keys"}
@@ -81,10 +81,10 @@ class FileTools:
 
 
 class SparkProposer:
-    def __init__(self, client, audit_dir, *, role="improver", limits=None):
+    def __init__(self, client, audit_dir, *, role="improver", limits=None, health=None):
         from harness2.core.proposer import Proposer
         from harness2.core.spec import ChannelSpec
-        self.client, self.role = client, role
+        self.client, self.role, self.health = client, role, health
         self.limits = limits or preset(getattr(client, "profile", SPARK) is SPARK)
         self._local = threading.local()
         self._delegate = Proposer(ChannelSpec("opencode", MODEL, timeout=self.limits["improver_seconds"]),
@@ -105,7 +105,19 @@ class SparkProposer:
                 allowed_path(root, item.relative_to(root).as_posix())
         # Upstream may request 2; the protocol alone owns transport retries.
         kwargs["max_attempts"] = 1
-        return self._delegate.call(*args, **kwargs)
+        from harness2.core.events import Stopped
+        self._local.failure = None
+        try:
+            reply = self._delegate.call(*args, **kwargs)
+        except Stopped:
+            raise
+        except Exception:
+            if self.health:
+                self.health.improver(self._local.failure or "the session gave no usable reply")
+            raise
+        if self.health and not reply.cached:
+            self.health.improver()
+        return reply
 
     def _session(self, cwd, mission, system, wall):
         files = FileTools(cwd/"context")
@@ -118,7 +130,11 @@ class SparkProposer:
         ]
         phase = "reflection" if (cwd/"context"/"adoption.json").is_file() else (
             "selection" if (cwd/"context"/"candidates").is_dir() else "improvement")
-        text, cost = self.client.session(messages, files, TOOLS, role=self.role, phase=phase,
-                                         candidate=self._local.label, timeout=wall,
-                                         max_turns=self.limits["improver_turns"])
+        try:
+            text, cost = self.client.session(messages, files, TOOLS, role=self.role, phase=phase,
+                                             candidate=self._local.label, timeout=wall,
+                                             max_turns=self.limits["improver_turns"])
+        except ModelError as exc:
+            self._local.failure = str(exc)
+            raise
         return text, float(cost), ""
