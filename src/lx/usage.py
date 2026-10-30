@@ -1,4 +1,5 @@
 """Scope the shared durable pilot ledger to an approved run budget."""
+from contextlib import closing
 from decimal import Decimal
 import sqlite3
 
@@ -6,7 +7,8 @@ from .budget import BudgetExceeded
 
 
 def usage_rows(ledger, prefix=""):
-    with sqlite3.connect(ledger.path, timeout=30) as db:
+    # closing(): a bare `with connect()` only commits and leaves the file open (locked on Windows).
+    with closing(sqlite3.connect(ledger.path, timeout=30)) as db:
         db.row_factory = sqlite3.Row
         rows = db.execute("SELECT id,role,phase,candidate,status,reserved_nanos,actual_nanos,input_tokens,output_tokens FROM reservations ORDER BY rowid").fetchall()
     return [dict(r) for r in rows if r["candidate"].startswith(prefix)]
