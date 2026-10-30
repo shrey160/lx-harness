@@ -214,7 +214,7 @@ class RegistryTests(unittest.TestCase):
             self.registry.update("missing", name="Nope")
 
     def test_any_chat_entry_with_an_endpoint_is_ready_and_prices_are_tracked(self):
-        free = self.registry.create("Gilmer", "muse/gilmer", ["General"], base_url="https://openrouter.ai/api/v1")
+        free = self.registry.create("Glimmer", "muse/glimmer", ["General"], base_url="https://openrouter.ai/api/v1")
         self.assertTrue(free["role_ready"])
         self.assertFalse(free["priced"])
         priced = self.registry.update(free["id"], pricing={"input_per_million": 0.0375, "output_per_million": 0},
