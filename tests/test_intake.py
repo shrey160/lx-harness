@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from lx.intake import (
     IntakeError,
+    inspect_folder,
     snapshot_folder,
     snapshot_zip,
     windows_to_wsl,
@@ -185,6 +186,24 @@ class IntakeTests(unittest.TestCase):
         with self.assertRaises(IntakeError):
             snapshot_folder(source, destination)
         self.assertEqual("keep", sentinel.read_text(encoding="utf-8"))
+
+    def test_inspect_matches_snapshot_and_skips_only_the_named_root_folder(self):
+        source = self.root / "workspace"
+        (source / ".lx" / "runs").mkdir(parents=True)
+        (source / ".lx" / "project.json").write_text("{}", encoding="utf-8")
+        (source / "nested").mkdir()
+        (source / "nested" / "a.txt").write_bytes(b"a\r\nb")
+        inspected = inspect_folder(source, skip_root=(".lx",))
+        copied = snapshot_folder(source, source / ".lx" / "runs" / "one", skip_root=(".lx",))
+        self.assertEqual(inspected, copied)
+        self.assertEqual(["nested/a.txt"], [item["path"] for item in inspected["inventory"]])
+        self.assertEqual(hashlib.sha256(b"a\r\nb").hexdigest(), inspected["inventory"][0]["sha256"])
+        (source / "nested" / ".lx").mkdir()
+        (source / "nested" / ".lx" / "b.txt").write_text("b", encoding="utf-8")
+        with self.assertRaises(IntakeError):
+            inspect_folder(source, skip_root=(".lx",))
+        with self.assertRaises(IntakeError):
+            snapshot_folder(source, source / "inside", skip_root=(".lx",))
 
     def test_windows_to_wsl_translation_and_rejections(self):
         self.assertEqual("/mnt/c/Users/Me/My Data", windows_to_wsl(r"C:\Users\Me\My Data"))

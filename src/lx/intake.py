@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 import hashlib
 import io
 import os
@@ -68,12 +69,14 @@ def _is_link_mode(info: os.stat_result) -> bool:
     return bool(reparse and attributes & reparse)
 
 
-def _paths_disjoint(source: Path, destination: Path) -> tuple[Path, Path]:
+def _paths_disjoint(source: Path, destination: Path, skip_root: tuple[str, ...] = ()) -> tuple[Path, Path]:
     try:
         src = source.resolve(strict=True)
     except OSError as exc:
         raise IntakeError("source does not exist or cannot be resolved") from exc
     dst = destination.resolve(strict=False)
+    if any(src/name in dst.parents for name in skip_root):
+        return src, dst  # the destination sits in a folder the walk never enters
     if src == dst or src in dst.parents or dst in src.parents:
         raise IntakeError("source and destination must not contain one another")
     return src, dst
@@ -88,8 +91,9 @@ def _check_destination(dst: Path) -> None:
         raise IntakeError("destination parent cannot be created") from exc
 
 
-def _walk_folder(source: Path) -> list[tuple[Path, str, int]]:
+def _walk_folder(source: Path, skip_root: tuple[str, ...] = ()) -> list[tuple[Path, str, int]]:
     entries: list[tuple[Path, str, int]] = []
+    skipped = {name.casefold() for name in skip_root}
     input_bytes = 0
     input_count = 0
 
@@ -100,6 +104,8 @@ def _walk_folder(source: Path) -> list[tuple[Path, str, int]]:
         except OSError as exc:
             raise IntakeError(f"cannot inspect source directory: {prefix or '.'}") from exc
         for child in children:
+            if not prefix and child.name.casefold() in skipped:
+                continue
             relative = f"{prefix}/{child.name}" if prefix else child.name
             _check_component(child.name)
             _check_name(relative)
@@ -128,9 +134,12 @@ def _walk_folder(source: Path) -> list[tuple[Path, str, int]]:
     return entries
 
 
-def _copy_and_hash(source: Path, destination: Path, expected_size: int) -> str:
-    destination.parent.mkdir(parents=True, exist_ok=True)
+def _copy_and_hash(source: Path, destination: Path | None, expected_size: int) -> str:
+    if destination is not None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
     flags = os.O_RDONLY
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     try:
@@ -141,7 +150,7 @@ def _copy_and_hash(source: Path, destination: Path, expected_size: int) -> str:
                 raise IntakeError(f"source entry changed during snapshot: {source.name}")
             digest = hashlib.sha256()
             copied = 0
-            with destination.open("wb") as dst:
+            with destination.open("wb") if destination is not None else nullcontext() as dst:
                 while True:
                     block = src.read(1024 * 1024)
                     if not block:
@@ -150,7 +159,8 @@ def _copy_and_hash(source: Path, destination: Path, expected_size: int) -> str:
                     if copied > expected_size or copied > MAX_BYTES:
                         raise IntakeError(f"source entry changed during snapshot: {source.name}")
                     digest.update(block)
-                    dst.write(block)
+                    if dst is not None:
+                        dst.write(block)
             if copied != expected_size:
                 raise IntakeError(f"source entry changed during snapshot: {source.name}")
             return digest.hexdigest()
@@ -185,7 +195,23 @@ def _cleanup_stage(stage: Path) -> None:
         shutil.rmtree(stage)
 
 
-def snapshot_folder(source: Path, destination: Path) -> dict[str, object]:
+def inspect_folder(source: Path, *, skip_root: tuple[str, ...] = ()) -> dict[str, object]:
+    """Inventory and hash supported files in place, under the same rules as a snapshot."""
+    source = Path(source)
+    if source.is_symlink() or (hasattr(source, "is_junction") and source.is_junction()):
+        raise IntakeError("source root cannot be a link")
+    try:
+        src = source.resolve(strict=True)
+    except OSError as exc:
+        raise IntakeError("source does not exist or cannot be resolved") from exc
+    if not src.is_dir():
+        raise IntakeError("source must be a directory")
+    entries = _walk_folder(src, skip_root)
+    inventory = [_inventory_record(relative, size, _copy_and_hash(path, None, size)) for path, relative, size in entries]
+    return {"source_name": src.name, "inventory": inventory, "total_bytes": sum(size for _, _, size in entries)}
+
+
+def snapshot_folder(source: Path, destination: Path, *, skip_root: tuple[str, ...] = ()) -> dict[str, object]:
     """Copy supported regular files into a new atomic snapshot directory."""
     source = Path(source)
     destination = Path(destination)
@@ -193,11 +219,11 @@ def snapshot_folder(source: Path, destination: Path) -> dict[str, object]:
         raise IntakeError("source root cannot be a link")
     if destination.is_symlink() or (hasattr(destination, "is_junction") and destination.is_junction()):
         raise IntakeError("destination already exists")
-    src, dst = _paths_disjoint(source, destination)
+    src, dst = _paths_disjoint(source, destination, skip_root)
     if not src.is_dir():
         raise IntakeError("source must be a directory")
     _check_destination(dst)
-    entries = _walk_folder(src)  # validate every name and type before opening content
+    entries = _walk_folder(src, skip_root)  # validate every name and type before opening content
     stage = _new_stage(dst)
     inventory: list[dict[str, object]] = []
     try:
