@@ -334,7 +334,8 @@ def _attach_images(history, images, keep):
                 budget -= 1
             else:
                 kept.append({"type": "text", "text": "[an earlier view image was removed to save space; "
-                                                     "call view again if needed]"})
+                                                     "you have already seen it, so work from what you noted "
+                                                     "and view it again only to check one detail]"})
         message["content"] = kept[::-1]
 
 

@@ -34,3 +34,4 @@ works today, read the [main README](../README.md).
 | [inventory-eval-review.md](inventory-eval-review.md) | E-B evaluation |
 | [inventory-local-eval-review.md](inventory-local-eval-review.md) | E-C evaluation and its retry |
 | [inventory-stream-local-review.md](inventory-stream-local-review.md) | G1b probe and G2 stream |
+| [inventory-rerun-review.md](inventory-rerun-review.md) | Graded inventory rerun on OpenRouter; prepared, not run |

@@ -136,6 +136,7 @@ class ImageLoopTests(_Fixture):
             wire_reply(content="{}"), keep_images=2)
         self.assertEqual([images_in(b) for b in transport.bodies], [0, 1, 2, 2])
         self.assertIn("was removed to save space", json.dumps(transport.bodies[-1]["messages"]))
+        self.assertNotIn("call view again", json.dumps(transport.bodies[-1]["messages"]))  # Glimmer cycled on that wording
 
     def test_caps_grow_with_photo_count(self):
         self.assertEqual(caps(3), {"max_turns": 13, "max_tool_calls": 24})
