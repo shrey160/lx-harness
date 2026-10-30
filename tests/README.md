@@ -41,5 +41,5 @@ Most `test_<name>.py` files cover `lx/<name>.py`. These go wider:
 - Never open the network. Mock the transport.
 - Keep a scratch state root for anything that writes state.
 
-`test_managed_workflow` and `test_nested_recovery` in the core suite are known to be
-flaky in WSL.
+`test_managed_workflow` and `test_nested_recovery` in the core suite skip unless
+`H2_TEST_DOCKER_IMAGE` is set, so a repeat run without it proves nothing.
