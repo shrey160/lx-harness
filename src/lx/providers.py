@@ -96,10 +96,12 @@ TRANSCRIBE = ProviderProfile(
 
 
 def time_limits(profile):
-    """Seconds for one worker call, one improver session and a whole run.
+    """Seconds for one worker call, one improver session and a whole run, plus turns per improver session.
 
     Spark keeps its original limits. Hosted reasoning models and local models
-    can take over a minute a call (Muse Glimmer on NVIDIA, 30 Oct 2026)."""
+    can take over a minute a call (Muse Glimmer on NVIDIA, 30 Oct 2026), and
+    Glimmer made one tool call per turn, so 12 turns ended most improver
+    sessions before they edited anything (inventory run, 30 Oct 2026)."""
     if profile is SPARK:
-        return {"worker_call": 90, "improver_session": 180, "run": 900}
-    return {"worker_call": 300, "improver_session": 900, "run": 3600}
+        return {"worker_call": 90, "improver_session": 180, "run": 900, "improver_turns": 12}
+    return {"worker_call": 300, "improver_session": 900, "run": 3600, "improver_turns": 30}

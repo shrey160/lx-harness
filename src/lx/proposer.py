@@ -117,5 +117,6 @@ class SparkProposer:
         phase = "reflection" if (cwd/"context"/"adoption.json").is_file() else (
             "selection" if (cwd/"context"/"candidates").is_dir() else "improvement")
         text, cost = self.client.session(messages, files, TOOLS, role=self.role, phase=phase,
-                                         candidate=self._local.label, timeout=wall)
+                                         candidate=self._local.label, timeout=wall,
+                                         max_turns=time_limits(getattr(self.client, "profile", SPARK))["improver_turns"])
         return text, float(cost), ""

@@ -174,11 +174,12 @@ class TimeLimitTests(unittest.TestCase):
     def test_spark_keeps_its_limits_and_other_providers_get_longer_ones(self):
         from dataclasses import replace
         from lx.providers import SPARK, time_limits
-        self.assertEqual(time_limits(SPARK), {"worker_call": 90, "improver_session": 180, "run": 900})
+        self.assertEqual(time_limits(SPARK), {"worker_call": 90, "improver_session": 180, "run": 900, "improver_turns": 12})
         other = time_limits(replace(SPARK, model="meta/muse-glimmer-30b"))
         self.assertGreater(other["worker_call"], 90)
         self.assertGreater(other["improver_session"], 180)
         self.assertGreater(other["run"], 900)
+        self.assertGreater(other["improver_turns"], 12)
 
     def test_a_timeout_is_named_as_one(self):
         from dataclasses import replace
