@@ -318,8 +318,22 @@ at `~/.local/state/lx-harness/`, so writing to the folder cannot approve a run. 
 change to a spec file voids its approval. An agent with full access to this machine
 is not stopped by this; the human confirmation step comes with the CLI and MCP server.
 
-`lx.engine` is the single service layer behind the app. `lx.server` is a thin HTTP
-layer over it, and the React UI is in `web/`.
+## Repository map
+
+Each folder has its own README:
+
+| Folder | Holds |
+|---|---|
+| [src/lx](src/lx/README.md) | The product package; `lx.engine` is the single service layer |
+| [web](web/README.md) | The React UI |
+| [scripts](scripts/README.md) | Start, build and validation scripts |
+| [docker](docker/README.md) | The sandbox image definition |
+| [tests](tests/README.md) | The offline test suite |
+| [docs](docs/README.md) | Task contracts, experiment reviews and history |
+| [evidence](evidence/README.md) | Saved results of tests and live runs |
+| [harnesses](harnesses/README.md) | Frozen harnesses from experiments |
+
+[overview.md](overview.md) is the original project vision.
 
 ## Not built yet
 
