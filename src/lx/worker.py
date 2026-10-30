@@ -5,7 +5,6 @@ import sys
 import traceback
 
 from .engine import ROLES, Engine
-from .providers import time_limits
 from .spark import ModelError
 from .taskrun import run_task
 from .usage import usage_rows, summarize
@@ -21,12 +20,13 @@ def execute(engine, workspace, identifier, snapshot):
     job = workspace.update_run(identifier,status="running",phase="preflight",launch_pending=False,error=None)
     mode = job["spec"].get("mode","controlled_preview")
     live = mode == "live"
+    limits = engine.limits_of(job["spec"])
     clients = engine.build_clients(workspace, job["spec"], identifier, job["spec"]["budget_usd"])
     # Once per provider entry: a bad key or endpoint stops the run before the loop starts.
     for role in {job["spec"]["roles"][r]:r for r in reversed(ROLES)}.values():
         message,_ = clients[role].chat([{"role":"developer","content":"LX_PREFLIGHT"},{"role":"user","content":"Reply PREFLIGHT_OK"}],
                                        role=role,phase="preflight",candidate=identifier,
-                                       timeout=max(120,time_limits(clients[role].profile)["worker_call"]))
+                                       timeout=max(120,limits["call_seconds"]))
         if (message["content"] or "").strip() != "PREFLIGHT_OK":
             raise ValueError("Live preflight failed" if live else "Controlled preflight failed")
     workspace.update_run(identifier,phase="improving")
@@ -34,7 +34,8 @@ def execute(engine, workspace, identifier, snapshot):
     if job["spec"].get("task"):
         result = run_task(engine,workspace,job,snapshot,clients,live=live,check=workspace.check_source(job["spec"]["check"]))
     else:
-        result = optimize_preview(snapshot,output,clients["improver"],engine.demo.controller_truth,job["spec"],live=live,worker_client=clients["worker"])
+        result = optimize_preview(snapshot,output,clients["improver"],engine.demo.controller_truth,job["spec"],live=live,
+                                  worker_client=clients["worker"],limits=limits)
     result["usage"] = summarize(usage_rows(engine._ledger(workspace) if live else workspace.preview_ledger,identifier+"/"))
     result["usage_basis"] = ("live usage at the prices in each provider entry; not provider billing"
                              if live else "simulated provider usage; no live calls or charges")
@@ -67,8 +68,7 @@ def main():
                 # A resumed job must keep its command identity, including this limit.
                 limit = read_job(args.job,workspace.home/"core-jobs")["spec"]["timeout"]
             except ValueError:
-                limit = job["spec"].get("task",{}).get("run_seconds") or max(
-                    time_limits(engine.registry.profile(entry))["run"] for entry in job["spec"]["roles"].values())
+                limit = engine.limits_of(job["spec"])["run_seconds"]
             state = run_job(args.job,workspace.home/"core-jobs","local",workspace.run_dir(args.job)/"snapshot",limit,
                 [sys.executable,"-m","lx.worker","--root",str(engine.root),"--workspace",str(workspace.folder),"--job",args.job,"--execute"])
             if state["status"] != "completed":

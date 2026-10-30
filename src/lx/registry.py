@@ -18,6 +18,7 @@ import uuid
 from contextlib import contextmanager
 from typing import Any
 
+from . import limits
 from .providers import META_API, SAM, SPARK, TRANSCRIBE, ProviderProfile, chat_endpoint, validate_endpoint
 from .spark import MODEL
 
@@ -46,7 +47,8 @@ _BUILTINS = (
 _PROFILES = {entry[0]: entry[4] for entry in _BUILTINS}
 _COLUMNS = {"kind": "TEXT NOT NULL DEFAULT 'chat'", "base_url": "TEXT",
             "accepts_images": "INTEGER NOT NULL DEFAULT 0", "supports_tools": "INTEGER NOT NULL DEFAULT 0",
-            "pricing": "TEXT NOT NULL DEFAULT '{}'", "context_limit": "INTEGER"}
+            "pricing": "TEXT NOT NULL DEFAULT '{}'", "context_limit": "INTEGER",
+            "requests_per_minute": "INTEGER", "limits": "TEXT NOT NULL DEFAULT '{}'"}
 _PRICE_FIELDS = ("input_per_million", "output_per_million")
 _MAX_NAME = 120
 _MAX_MODEL_ID = 200
@@ -183,6 +185,24 @@ class Registry:
             raise RegistryError("invalid context limit")
         return value
 
+    @staticmethod
+    def _rate(value: Any) -> int | None:
+        """Calls a minute; 0 clears a stored rate on update."""
+        if value is None:
+            return None
+        if type(value) is not int or not 0 <= value <= 100_000:
+            raise RegistryError("invalid request rate")
+        return value
+
+    @staticmethod
+    def _limits(value: Any) -> dict[str, int] | None:
+        if value is None:
+            return None
+        try:
+            return limits.check(value)
+        except ValueError as exc:
+            raise RegistryError(str(exc)) from None
+
     def _public(self, row: sqlite3.Row) -> dict[str, Any]:
         prices = json.loads(row["pricing"])
         return {
@@ -196,6 +216,8 @@ class Registry:
             "supports_tools": bool(row["supports_tools"]),
             "pricing": prices,
             "context_limit": row["context_limit"],
+            "requests_per_minute": row["requests_per_minute"],
+            "limits": json.loads(row["limits"]),
             # Any chat entry with an endpoint can fill any role; live spending also needs prices.
             "role_ready": row["kind"] == "chat" and bool(row["base_url"]),
             "priced": bool(row["builtin"]) or set(prices) == set(_PRICE_FIELDS),
@@ -225,6 +247,8 @@ class Registry:
         supports_tools: bool = False,
         pricing: dict[str, Any] | None = None,
         context_limit: int | None = None,
+        requests_per_minute: int | None = None,
+        limits: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         name = self._text(name, "name", _MAX_NAME)
         model_id = self._text(model_id, "model_id", _MAX_MODEL_ID)
@@ -238,6 +262,8 @@ class Registry:
         url = self._base_url(base_url)
         prices = self._pricing(pricing)
         context = self._context_limit(context_limit)
+        rate = self._rate(requests_per_minute) or None
+        own_limits = self._limits(limits) or {}
         if type(accepts_images) is not bool or type(supports_tools) is not bool:
             raise RegistryError("invalid model flags")
         record_id = uuid.uuid4().hex
@@ -247,10 +273,11 @@ class Registry:
                 db.execute("BEGIN IMMEDIATE")
                 db.execute(
                     "INSERT INTO models (id,name,model_id,capabilities,builtin,secret_ref,"
-                    "kind,base_url,accepts_images,supports_tools,pricing,context_limit) "
-                    "VALUES (?,?,?,?,0,?,?,?,?,?,?,?)",
+                    "kind,base_url,accepts_images,supports_tools,pricing,context_limit,requests_per_minute,limits) "
+                    "VALUES (?,?,?,?,0,?,?,?,?,?,?,?,?,?)",
                     (record_id, name, model_id, json.dumps(caps), secret_ref,
-                     kind, url, int(accepts_images), int(supports_tools), json.dumps(prices), context),
+                     kind, url, int(accepts_images), int(supports_tools), json.dumps(prices), context,
+                     rate, json.dumps(own_limits)),
                 )
                 row = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
                 db.commit()
@@ -276,6 +303,8 @@ class Registry:
         supports_tools: bool | None = None,
         pricing: dict[str, Any] | None = None,
         context_limit: int | None = None,
+        requests_per_minute: int | None = None,
+        limits: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         if name is not None:
             name = self._text(name, "name", _MAX_NAME)
@@ -283,9 +312,11 @@ class Registry:
         url = self._base_url(base_url)
         prices = None if pricing is None else self._pricing(pricing)
         context = self._context_limit(context_limit)
+        rate = self._rate(requests_per_minute)
+        own_limits = self._limits(limits)
         if any(flag is not None and type(flag) is not bool for flag in (accepts_images, supports_tools)):
             raise RegistryError("invalid model flags")
-        provider_change = any(v is not None for v in (base_url, accepts_images, supports_tools, pricing, context))
+        provider_change = any(v is not None for v in (base_url, accepts_images, supports_tools, pricing, context, rate, own_limits))
         key = self._api_key(api_key)
         new_ref = self._write_secret(key) if key is not None else None
         old_ref: str | None = None
@@ -303,12 +334,15 @@ class Registry:
                 next_ref = new_ref if key is not None else old_ref
                 db.execute(
                     "UPDATE models SET name=?, capabilities=?, secret_ref=?, base_url=?, "
-                    "accepts_images=?, supports_tools=?, pricing=?, context_limit=? WHERE id=?",
+                    "accepts_images=?, supports_tools=?, pricing=?, context_limit=?, "
+                    "requests_per_minute=?, limits=? WHERE id=?",
                     (next_name, next_caps, next_ref, url if url is not None else row["base_url"],
                      int(accepts_images) if accepts_images is not None else row["accepts_images"],
                      int(supports_tools) if supports_tools is not None else row["supports_tools"],
                      json.dumps(prices) if prices is not None else row["pricing"],
-                     context if context is not None else row["context_limit"], record_id),
+                     context if context is not None else row["context_limit"],
+                     row["requests_per_minute"] if rate is None else rate or None,
+                     json.dumps(own_limits) if own_limits is not None else row["limits"], record_id),
                 )
                 result = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
                 db.commit()

@@ -47,7 +47,7 @@ class RegistryTests(unittest.TestCase):
         for model in models:
             self.assertEqual(set(model), {
                 "id", "name", "model_id", "capabilities", "kind", "base_url", "accepts_images",
-                "supports_tools", "pricing", "context_limit", "role_ready", "priced", "has_key", "credential_source",
+                "supports_tools", "pricing", "context_limit", "requests_per_minute", "limits", "role_ready", "priced", "has_key", "credential_source",
             })
             self.assertNotIn("secret", json.dumps(model).lower())
             self.assertEqual(model["base_url"], "https://api.meta.ai/v1")
@@ -225,6 +225,22 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(profile.endpoint, "https://openrouter.ai/api/v1/chat/completions")
         with self.assertRaises(RegistryError):
             self.registry.update(free["id"], context_limit=10)
+
+    def test_an_entry_holds_a_rate_and_its_own_limits(self):
+        entry = self.registry.create("Paced", "muse/paced", ["General"], base_url="https://openrouter.ai/api/v1",
+                                     requests_per_minute=40, limits={"call_seconds": 120})
+        self.assertEqual((entry["requests_per_minute"], entry["limits"]), (40, {"call_seconds": 120}))
+        kept = self.registry.update(entry["id"], name="Renamed")
+        self.assertEqual((kept["requests_per_minute"], kept["limits"]), (40, {"call_seconds": 120}))
+        cleared = self.registry.update(entry["id"], requests_per_minute=0, limits={})
+        self.assertEqual((cleared["requests_per_minute"], cleared["limits"]), (None, {}))
+        for bad in ({"requests_per_minute": -1}, {"requests_per_minute": 1.5}, {"limits": {"call_seconds": 1}}, {"limits": {"nope": 5}}):
+            with self.subTest(bad), self.assertRaises(RegistryError):
+                self.registry.update(entry["id"], **bad)
+
+    def test_a_catalog_entry_takes_no_rate(self):
+        with self.assertRaises(RegistryError):
+            self.registry.update("sam-catalog", requests_per_minute=10)
 
     def keyed(self, keychain):
         return Registry(self.db_path, self.secrets_dir, keychain)

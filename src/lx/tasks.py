@@ -25,14 +25,13 @@ TEXT_FIELDS = ("name", "work", "domain_word", "yardstick", "deliverable_word", "
 MAX_TEXT = 8000
 MAX_CHECK = 20_000
 MAX_SAMPLE_BYTES = 200 * 1024 ** 2
-DEFAULT_RUN_SECONDS = 4 * 3600
 PREVIEW_SEED = 20261029
 
 
 def validate_task(task):
     if type(task) is not dict or task.get("template") != TEMPLATE:
         raise ValueError(f"A task needs the {TEMPLATE} template")
-    known = {"template", "truth_schema", "stream_samples", "run_seconds", *TEXT_FIELDS}
+    known = {"template", "truth_schema", "stream_samples", *TEXT_FIELDS}
     if set(task) - known or any(field not in task for field in TEXT_FIELDS):
         raise ValueError("A task needs exactly the template fields")
     if any(type(task[field]) is not str or not task[field].strip() or len(task[field]) > MAX_TEXT for field in TEXT_FIELDS):
@@ -43,8 +42,6 @@ def validate_task(task):
         raise ValueError("Unknown truth schema")
     if type(task.get("stream_samples")) is not int or not 1 <= task["stream_samples"] <= 20:
         raise ValueError("The loop needs 1 to 20 samples")
-    if type(task.get("run_seconds", DEFAULT_RUN_SECONDS)) is not int or not 60 <= task.get("run_seconds", DEFAULT_RUN_SECONDS) <= 6*3600:
-        raise ValueError("A run's time limit must be 1 minute to 6 hours")
     return task
 
 
@@ -61,7 +58,7 @@ def source_hash(source):
 def inventory_task():
     """The inventory task as a spec. D-013: a user provides 6 samples."""
     return {"template": TEMPLATE, "name": "lx_inventory", "truth_schema": "inventory", "stream_samples": 6,
-            "run_seconds": DEFAULT_RUN_SECONDS, "base_prompt": BASE_PROMPT, "contract": CONTRACT,
+            "base_prompt": BASE_PROMPT, "contract": CONTRACT,
             "work": "answer spoken inventory requests about several photos, calling the available model tools.",
             "domain_word": "spoken photo inventory", "yardstick": CONTRACT, "deliverable_word": "inventory JSON",
             "selection_checks": "Check that the request was heard, every photo was examined, the right kinds and "

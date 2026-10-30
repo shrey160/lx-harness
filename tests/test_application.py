@@ -250,12 +250,96 @@ class ApplicationFlowTests(unittest.TestCase):
                 self.assertNotIn(b"dummy-key-",path.read_bytes(),path)
         self.assertEqual(sorted(self.keychain.values.values()),["dummy-key-gilmer","dummy-key-vision"])
 
-    def test_other_providers_get_the_larger_reply_cap_and_spark_keeps_its_own(self):
-        roles = {"orchestrator":"spark-contributor","improver":self.entry("reasoning")["id"],"worker":self.entry("vision")["id"]}
-        p = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})
+    def test_reply_length_follows_the_spec_and_a_mix_of_providers_takes_the_longest(self):
+        p = self.project()
         clients = self.app.build_clients(self.workspace(p),p["draft"],"scope",1)
-        self.assertEqual({role:client.max_tokens for role,client in clients.items()},
-                         {"orchestrator":4096,"improver":8192,"worker":8192})
+        self.assertEqual({client.max_tokens for client in clients.values()},{4096})
+        roles = {"orchestrator":"spark-contributor","improver":self.entry("reasoning")["id"],"worker":self.entry("vision")["id"]}
+        p = self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"roles":roles})
+        clients = self.app.build_clients(self.workspace(p),p["draft"],"scope",1)
+        self.assertEqual({client.max_tokens for client in clients.values()},{8192})
+        p = self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"limits":{"reply_tokens":16000,"call_seconds":120}})
+        clients = self.app.build_clients(self.workspace(p),p["draft"],"scope",1)
+        self.assertEqual({(c.max_tokens,c.call_seconds) for c in clients.values()},{(16000,120)})
+
+    def test_limits_are_in_the_spec_and_a_change_is_a_new_version_needing_approval(self):
+        p = self.approve(self.project())
+        self.assertEqual(p["draft"]["limits"]["improver_turns"],12)
+        self.assertEqual(p["draft"]["limits_set"],{})
+        saved = self.workspace(p).spec(p["draft"]["version"])
+        self.assertEqual(saved["limits"]["run_seconds"],900)
+        changed = self.app.edit_spec(p["id"],{"goal":p["draft"]["goal"],"budget_usd":1,"limits":{"improver_turns":20}})
+        self.assertEqual(changed["draft"]["version"],p["draft"]["version"]+1)
+        self.assertIsNone(changed["approved"])
+        self.assertEqual(changed["draft"]["limits"]["improver_turns"],20)
+        self.assertEqual(changed["draft"]["limits_set"],{"improver_turns":20})
+        kept = self.app.edit_spec(p["id"],{"goal":"another goal","budget_usd":1})
+        self.assertEqual(kept["draft"]["limits"]["improver_turns"],20)
+        self.assertEqual(self.app.state()["limit_fields"][0]["name"],"agent_turns_per_photo")
+
+    def test_a_limit_outside_its_bounds_makes_no_new_version(self):
+        p = self.project()
+        for bad in ({"improver_turns":0},{"nope":3},{"run_seconds":1}):
+            with self.subTest(bad),self.assertRaises(ValueError):
+                self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"limits":bad})
+        self.assertEqual(self.app.project(p["id"])["draft"]["version"],p["draft"]["version"])
+
+    def test_changing_a_provider_moves_defaults_but_keeps_the_users_own_values(self):
+        p = self.project()
+        p = self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"limits":{"chat_calls":150}})
+        roles = {r:self.entry("new-"+r)["id"] for r in ("orchestrator","improver","worker")}
+        p = self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"roles":roles})
+        self.assertEqual(p["draft"]["limits"]["improver_turns"],30)
+        self.assertEqual(p["draft"]["limits"]["chat_calls"],150)
+        self.assertEqual(p["limit_defaults"]["chat_calls"],200)
+
+    def test_a_provider_entrys_limits_become_the_defaults(self):
+        roles = {r:self.entry("own-"+r,limits={"improver_turns":45,"call_seconds":120})["id"] for r in ("orchestrator","improver","worker")}
+        p = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})
+        self.assertEqual((p["draft"]["limits"]["improver_turns"],p["draft"]["limits"]["call_seconds"]),(45,120))
+        self.assertEqual(p["draft"]["limits_set"],{})
+
+    def test_a_raised_limit_reaches_a_new_run_and_not_a_resumed_one(self):
+        p = self.approve(self.project())
+        job = self.app.start(p["id"],launch=False)
+        self.workspace(p).update_run(job["id"],status="failed",launch_pending=False)
+        self.app.edit_spec(p["id"],{"goal":p["draft"]["goal"],"budget_usd":1,"limits":{"run_seconds":1800}})
+        with self.assertRaisesRegex(ValueError,"approve and start a new run"):
+            self.app.resume(p["id"],job["id"])
+
+    def test_a_spec_from_before_limits_runs_on_the_defaults(self):
+        p = self.project()
+        draft = {k:v for k,v in self.workspace(p).spec(p["draft"]["version"]).items() if k not in {"limits","limits_set"}}
+        self.assertEqual(self.app.limits_of(draft),p["draft"]["limits"])
+
+    def test_a_run_takes_its_time_limit_from_the_spec(self):
+        from unittest.mock import patch
+        from lx import worker
+        p = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"limits":{"run_seconds":1234}})
+        p = self.approve(p)
+        job = self.app.start(p["id"],launch=False)
+        argv = ["worker","--root",str(self.app.root),"--workspace",p["path"],"--job",job["id"]]
+        with patch("sys.argv",argv),patch("h2portable.jobs.run_job",return_value={"status":"completed"}) as run_job:
+            self.assertEqual(worker.main(),0)
+        self.assertEqual(run_job.call_args.args[4],1234)
+
+    def test_a_changed_rate_stops_the_approved_run_and_the_transport_gets_it(self):
+        from unittest.mock import patch
+        entry = self.entry("paced",requests_per_minute=40)["id"]
+        roles = {r:entry for r in ("orchestrator","improver","worker")}
+        p = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"mode":"live","roles":roles})
+        self.assertEqual(p["draft"]["providers"]["worker"]["requests_per_minute"],40)
+        self.app.live_enabled = True
+        with patch("lx.engine.LiveMetaTransport") as transport:
+            self.app.build_clients(self.workspace(p),p["draft"],"scope",1)
+        self.assertEqual(transport.call_count,1)
+        fields = transport.call_args.kwargs
+        self.assertEqual((fields["requests_per_minute"],fields["max_call_seconds"],fields["call_limit"]),(40,300,200))
+        self.app.live_enabled = False
+        p = self.app.approve(p["id"],{"version":p["draft"]["version"],"data_approved":True,"notice_accepted":True})
+        self.app.registry.update(entry,requests_per_minute=20)
+        with self.assertRaisesRegex(ValueError,"provider changed"):
+            self.app.start(p["id"],launch=False)
 
     def test_a_run_keeps_the_reason_it_failed_and_its_limit_follows_the_provider(self):
         from unittest.mock import patch

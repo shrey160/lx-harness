@@ -31,7 +31,7 @@ import zipfile
 
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
-from . import checks, tasks
+from . import checks, limits as run_limits, tasks
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveMetaTransport
@@ -52,8 +52,6 @@ SAMPLES = "samples"
 ROLES = ("orchestrator","improver","worker")
 DEFAULT_ROLE_ENTRY = "spark-contributor"
 DEFAULT_WORKSPACE_BUDGET = 5
-# A task run: about 4 agent runs and 3-4 improver sessions per sample, as measured on the inventory stream.
-TASK_LIMITS = {"chat": 1400, "segment": 600, "transcribe": 60}
 
 
 def fingerprint(value):
@@ -80,18 +78,26 @@ class Engine:
             return self._live_transport_factory(truth_hint)
         return LiveMetaTransport(lambda: self.registry.credential("spark-contributor"), call_limit=call_limit)
 
-    def _transport(self, entry, profile, call_limit, truth, contract=None):
+    def _transport(self, entry, profile, call_limit, truth, *, limits, rate, contract=None):
         if self._live_transport_factory is not None:
             return self._live_transport_factory(truth)
         if not self.live_enabled:
             raise ValueError("Live runs are unavailable here; use the local app workspace")
-        if entry == DEFAULT_ROLE_ENTRY and contract is None:
-            return self.make_live_transport(call_limit, truth)
         keyed = entry == DEFAULT_ROLE_ENTRY or any(m["id"] == entry and m["has_key"] for m in self.registry.list_models())
-        return LiveMetaTransport((lambda: self.registry.credential(entry)) if keyed else None,
-                                 call_limit=call_limit, profile=profile, **(contract or {}))
+        return LiveMetaTransport((lambda: self.registry.credential(entry)) if keyed else None, call_limit=call_limit,
+                                 call_ceiling=call_limit, profile=profile, max_call_seconds=limits["call_seconds"],
+                                 requests_per_minute=rate, **(contract or {}))
 
-    def build_perception(self, workspace, scope_id, cap_usd, cache):
+    def limits_of(self, spec):
+        """A spec's limits; one written before limits existed runs on the defaults."""
+        return spec.get("limits") or self._limit_defaults(spec["providers"], spec.get("task"))
+
+    @staticmethod
+    def _limit_defaults(providers, task):
+        return run_limits.defaults({role:(p["id"] == DEFAULT_ROLE_ENTRY, p.get("limits") or {}) for role,p in providers.items()},
+                                   task=bool(task))
+
+    def build_perception(self, workspace, scope_id, cap_usd, cache, limits):
         """Live SAM and Transcribe for a task's agent; their cost is on the workspace ledger."""
         scope = BudgetScope(self._ledger(workspace), scope_id, cap_usd)
         if self._live_perception_factory is not None:
@@ -100,11 +106,11 @@ class Engine:
             raise ValueError("Live runs are unavailable here; use the local app workspace")
         else:
             key = lambda: self.registry.credential("sam-catalog")
-            segment = MetaToolTransport(SAM, key, call_limit=TASK_LIMITS["segment"])
-            transcribe = MetaToolTransport(TRANSCRIBE, key, call_limit=TASK_LIMITS["transcribe"])
+            segment = MetaToolTransport(SAM, key, call_limit=limits["segment_calls"])
+            transcribe = MetaToolTransport(TRANSCRIBE, key, call_limit=limits["transcribe_calls"])
         return PerceptionClient(segment, transcribe, scope, PerceptionCache(cache))
 
-    def build_clients(self, workspace, spec, scope_id, cap_usd, *, call_limit=RUN_CALL_LIMIT, truth=None):
+    def build_clients(self, workspace, spec, scope_id, cap_usd, *, call_limit=None, truth=None):
         """One client per role. Live spends from the workspace ledger; preview never does.
 
         Roles sharing an entry share a transport, so its call limit covers the run."""
@@ -113,22 +119,22 @@ class Engine:
             raise ValueError("Unknown run mode")
         truth = truth if truth is not None else self.demo.controller_truth
         ledger = self._ledger(workspace) if mode == "live" else workspace.preview_ledger
+        limits = self.limits_of(spec)
+        call_limit = call_limit or limits["chat_calls"]
         contract = None
         if spec.get("task"):
             from .inventory_probe import KEEP_IMAGES, MAX_VIEW_BYTES, TOOLS
-            call_limit = TASK_LIMITS["chat"]
-            contract = {"agent_tools":TOOLS,"image_types":("jpeg",),"max_image_bytes":MAX_VIEW_BYTES,
-                        "max_images":KEEP_IMAGES,"call_ceiling":call_limit}
+            contract = {"agent_tools":TOOLS,"image_types":("jpeg",),"max_image_bytes":MAX_VIEW_BYTES,"max_images":KEEP_IMAGES}
         transports, clients = {}, {}
         for role in ROLES:
             entry = spec["roles"][role]
             profile = self.registry.profile(entry)
             if entry not in transports:
-                transports[entry] = (self._transport(entry, profile, call_limit, truth, contract) if mode == "live"
+                transports[entry] = (self._transport(entry, profile, call_limit, truth, limits=limits, contract=contract,
+                                                     rate=spec["providers"][role].get("requests_per_minute")) if mode == "live"
                                      else InventoryPreviewTransport() if spec.get("task") else PreviewTransport(truth))
-            # Reasoning models spend the reply cap before answering; Spark keeps its original cap.
             clients[role] = SparkClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile,
-                                        max_tokens=4096 if profile is SPARK else 8192)
+                                        max_tokens=limits["reply_tokens"], call_seconds=limits["call_seconds"])
         return clients
 
     def _ledger(self, workspace):
@@ -154,7 +160,8 @@ class Engine:
         model = next((m for m in self.registry.list_models() if m["id"] == entry), None)
         if model is None or not model["role_ready"]:
             raise ValueError("Each role needs a chat provider entry with an endpoint")
-        return {key:model[key] for key in ("id","name","model_id","base_url","pricing","context_limit","accepts_images","supports_tools","priced")}
+        return {key:model[key] for key in ("id","name","model_id","base_url","pricing","context_limit","accepts_images","supports_tools","priced",
+                                           "requests_per_minute","limits")}
 
     def data_notice(self, draft):
         """Who receives what in a live run, for the owner to accept (D-015(8))."""
@@ -205,9 +212,11 @@ class Engine:
 
     def _view(self, workspace):
         record = workspace.project()
-        return {**record, "path": str(workspace.folder), "draft": workspace.spec(record["spec_version"]),
+        draft = workspace.spec(record["spec_version"])
+        return {**record, "path": str(workspace.folder), "draft": {**draft, "limits": self.limits_of(draft)},
+                "limit_defaults": self._limit_defaults(draft["providers"], draft.get("task")),
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
-                "notice": self.data_notice(workspace.spec(record["spec_version"])),
+                "notice": self.data_notice(draft),
                 "notice_accepted": self._notice_hosts(record["id"]),
                 "budget": {key:value for key,value in self._ledger(workspace).summary().items()
                            if key in {"cap_usd","spent_usd","reserved_usd","remaining_usd"}}}
@@ -290,8 +299,11 @@ class Engine:
         except ValueError:
             return None
 
-    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None):
-        """Write the next spec version; any new version clears approval."""
+    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None, limits=None):
+        """Write the next spec version; any new version clears approval.
+
+        `limits` is the user's own values, replacing any earlier ones. Everything
+        else follows the providers' defaults, so changing a provider moves those."""
         if isinstance(budget, bool) or not isinstance(budget, (int,float)) or not math.isfinite(budget) or not 0.11 <= budget <= 20:
             raise ValueError("Budget must be between $0.11 and $20")
         previous = workspace.spec(record["spec_version"]) if record["spec_version"] else {}
@@ -304,6 +316,8 @@ class Engine:
             raise ValueError("Assign a provider to the orchestrator, improver and worker")
         task = task if task is not None else previous.get("task")
         providers = self._assign(roles, mode, task)
+        resolved, own = run_limits.resolve(self._limit_defaults(providers, task),
+                                           limits if limits is not None else previous.get("limits_set", {}))
         goal = goal if goal is not None else record["goal"]
         if not isinstance(goal, str) or not goal.strip() or len(goal) > 4000:
             raise ValueError("Enter a goal of at most 4000 characters")
@@ -316,7 +330,7 @@ class Engine:
             reference = {"version":version,"sha256":tasks.source_hash(check)}
         spec = {"version": version, "goal": goal.strip(), "budget_usd": budget,
                 "roles": {r:roles[r] for r in ROLES}, "providers": providers,
-                "mode": mode}
+                "mode": mode, "limits": resolved, "limits_set": own}
         spec.update({"task":task,"check":reference} if task is not None else {
                 "domain": "images-and-supplied-transcripts", "output": {"objects": [{"label":"color_shape", "box":["x1","y1","x2","y2"]}], "text":"exact supplied transcript"},
                 "box_edge_tolerance_px": 1})
@@ -366,7 +380,7 @@ class Engine:
         project = self._view(workspace)
         mode = mode or project["draft"].get("mode", "controlled_preview")
         client = self.build_clients(workspace, {**project["draft"],"mode":mode}, "discussion-"+identifier, project["draft"]["budget_usd"],
-                                    call_limit=DISCUSSION_CALL_LIMIT if mode == "live" else RUN_CALL_LIMIT)["orchestrator"]
+                                    call_limit=DISCUSSION_CALL_LIMIT)["orchestrator"]
         history = [{"role":"developer","content":"LX_DISCUSSION\nUse inventory metadata first; ask only consequential questions."},
             {"role":"user","content":json.dumps({"goal":project["goal"],"inventory":project["inventory"],"message":text})}]
         reply,_ = client.chat(history, role="orchestrator",phase="discussion",candidate=identifier)
@@ -382,7 +396,8 @@ class Engine:
         with workspace.lock():
             if any(j["status"] in {"queued","running"} for j in workspace.runs()):
                 raise ValueError("Stop the active run before editing its spec")
-            self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"), data.get("roles"))
+            self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"), data.get("roles"),
+                        limits=data.get("limits"))
         return self._view(workspace)
 
     def approve(self, identifier, data):
@@ -493,6 +508,7 @@ class Engine:
         return workspace.update_run(job_id,status=state["status"],phase="stopped",launch_pending=False)
 
     def resume(self, identifier, job_id):
+        """A run keeps the limits it was approved with; raised limits are a new version and a new run."""
         workspace = self.workspace(identifier)
         self._jobs(workspace)
         with workspace.lock():
@@ -544,7 +560,8 @@ class Engine:
             rows.extend(usage_rows(workspace.preview_ledger))
             spent.extend(usage_rows(self._ledger(workspace)))
         return {"mode": "controlled_preview", "live_application_enabled": True, "live_flow": "approval_gated_any_provider",
-                "models": self.registry.list_models(), "projects": projects, "missing_workspaces": missing,
+                "models": self.registry.list_models(), "limit_fields": run_limits.field_list(),
+                "projects": projects, "missing_workspaces": missing,
                 "jobs": jobs, "preview_usage": summarize(rows),
                 "usage_events": (rows + spent)[-80:],
                 "live_usage": self.live_ledger.summary() if self.live_ledger else None}

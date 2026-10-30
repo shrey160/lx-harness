@@ -47,8 +47,9 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check):
     task = spec["task"]
     run_dir = workspace.run_dir(identifier)
     stream, truth, requests = build_dataset(snapshot, run_dir/"dataset", task, preview=not live)
+    limits = engine.limits_of(spec)
     if live:
-        perception = engine.build_perception(workspace, identifier, spec["budget_usd"], run_dir/"perception-cache")
+        perception = engine.build_perception(workspace, identifier, spec["budget_usd"], run_dir/"perception-cache", limits)
     else:
         from .inventory import FakeShapeSegmentation
         from .perception import PerceptionCache, PerceptionClient
@@ -59,8 +60,9 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check):
                                       PerceptionCache(run_dir/"perception-cache"))
     output = run_dir/"outputs"
     adapter = InventoryAdapter(run_dir/"dataset"/"worker_inputs", output, clients["worker"], truth, perception=perception,
-                               catalog=CATALOG, mode="live" if live else "offline_preview", domain=TaskDomain(task, check))
-    report = run_stream(adapter, output, clients["improver"], tasks=stream)
+                               catalog=CATALOG, mode="live" if live else "offline_preview", domain=TaskDomain(task, check),
+                               limits=limits)
+    report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits)
     gains, chosen = _package(adapter, report, output, spec)
     return summarize_report(task, report, gains, chosen, live)
 
@@ -75,7 +77,7 @@ def regrade(engine, workspace, job, *, live):
     client = SimpleNamespace(profile=engine.registry.profile(spec["roles"]["worker"]))
     adapter = InventoryAdapter(run_dir/"dataset"/"worker_inputs", output, client, truth, perception=None, catalog=CATALOG,
                                mode="live" if live else "offline_preview",
-                               domain=TaskDomain(task, workspace.check_source(spec["check"])))
+                               domain=TaskDomain(task, workspace.check_source(spec["check"])), limits=engine.limits_of(spec))
     report = grade_stream(adapter, output, stream, {"regraded": True})
     gains, chosen = _package(adapter, report, output, spec)
     return summarize_report(task, report, gains, chosen, live)
