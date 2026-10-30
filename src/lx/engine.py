@@ -278,7 +278,8 @@ class Engine:
         except IntakeError as exc:
             raise ValueError(f"{exc}. Put your samples in a '{SAMPLES}' folder inside the workspace") from exc
         workspace = Workspace.create(folder, name=str(data.get("name") or folder.name or "Workspace")[:120],
-            goal=data.get("goal") or ("Answer spoken inventory requests about photos." if task else
+            goal=data.get("goal") or ("Normalize noisy order records into strict JSON." if tasks.is_text(task) else
+                                      "Answer spoken inventory requests about photos." if task else
                                       "Find colored shapes, give pixel boxes, and preserve each transcript."),
             samples_dir=samples, inventory=inventory, compatible_demo=task is None and self._matches_demo(location))
         with workspace.lock():

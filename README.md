@@ -186,8 +186,8 @@ samples/
     ...
 ```
 
-- **Samples:** 6 by default, in folders named `sample-*`. Only the first 6 in sorted
-  order run in the loop.
+- **Samples:** 6 by default, in folders named `sample-*`. With more, a fixed shuffle
+  picks which 6 run in the loop, so folder order cannot bias the choice.
 - **Photos:** 3 to 7, numbered from 1, as `.jpg`, `.jpeg` or `.png`. Intake applies
   the EXIF orientation, drops all metadata, and resizes the longest side to 1024.
 - **Request:** `request.wav`, mono 16-bit PCM at 16 or 24 kHz. A live run needs it in

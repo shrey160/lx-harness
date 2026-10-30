@@ -51,6 +51,7 @@ class SpecTests(Base):
         folder = Path(project["path"])/"samples"
         self.assertEqual(len(tasks.sample_folders(folder)), 6)
         self.assertEqual({p.name for p in (folder/"sample-01").iterdir()}, {"request.txt", "truth.json"})
+        self.assertNotIn("photo", project["goal"])
 
     def test_bad_samples_are_named(self):
         folder = Path(self.folder())
