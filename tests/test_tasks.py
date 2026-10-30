@@ -267,9 +267,9 @@ class MetaKeyTests(Base):
     def test_a_live_inventory_on_another_provider_still_needs_the_meta_key(self):
         entry, p = self.entry("glimmer"), self.inventory()
         with patch.object(self.app.registry, "meta_key_source", return_value=None):
-            self.assertIsNone(self.app.project(p["id"])["live_blocked"])  # a preview needs none
+            self.assertIsNone(self.app.project(p["id"])["blocked"])  # a preview needs none
             p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live", "roles": self.roles(entry)})
-            self.assertRegex(p["live_blocked"], "Meta key for SAM and Transcribe")
+            self.assertRegex(p["blocked"], "Meta key for SAM and Transcribe")
             with self.assertRaisesRegex(ValueError, "Meta key"):
                 self.approve(p, notice_accepted=True)
 
@@ -277,17 +277,17 @@ class MetaKeyTests(Base):
         p = self.app.create_project({"source": "demo", "path": self.folder()})
         with patch.object(self.app.registry, "meta_key_source", return_value=None):
             p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live"})
-            self.assertRegex(p["live_blocked"], "Meta key for Spark\\.")
+            self.assertRegex(p["blocked"], "Meta key for Spark\\.")
             p = self.inventory()
             p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live"})
-            self.assertRegex(p["live_blocked"], "Meta key for Spark, SAM and Transcribe")
+            self.assertRegex(p["blocked"], "Meta key for Spark, SAM and Transcribe")
 
     def test_a_task_with_no_meta_model_needs_no_key(self):
         entry = self.entry("glimmer")
         p = self.app.create_project({"source": "demo", "task": "records", "path": self.folder()})
         with patch.object(self.app.registry, "meta_key_source", return_value=None) as source:
             p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live", "roles": self.roles(entry)})
-        self.assertIsNone(p["live_blocked"])
+        self.assertIsNone(p["blocked"])
         source.assert_not_called()
 
     def test_a_key_that_goes_after_approval_stops_the_start(self):

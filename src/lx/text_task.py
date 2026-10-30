@@ -14,7 +14,7 @@ import random
 import re
 
 from .checks import run_check
-from .components import COMPONENT_TOOLS, ComponentTools, compose_prompt
+from .components import COMPONENT_TOOLS, LOAD_SKILL, ComponentTools, compose_prompt
 from .inventory_workflow import (ADAPTER_SPLITS, COMPONENT_NOTE, SKILLS_ONLY_NOTE, InventoryAdapter, InventoryDomain,
                                  InventoryPreviewTransport, media_path)
 from .records import _make_record, _split_rng
@@ -177,7 +177,7 @@ class TextAdapter(InventoryAdapter):
                          limits=limits, health=health)
 
     def _agent_tools(self, catalog):
-        return []
+        return COMPONENT_TOOLS if self.scripts_enabled else [LOAD_SKILL]
 
     def _caps(self, task):
         limits = self.limits or {}

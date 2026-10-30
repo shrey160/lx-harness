@@ -18,8 +18,8 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
-from .agent import PhotoSetTools, photo_tools, render_trace, run_agent, tool_identity
-from .components import COMPONENT_TOOLS, LOAD_SKILL, ComponentTools, compose_prompt, scripts, validate_components
+from .agent import PhotoSetTools, render_trace, run_agent, tool_identity
+from .components import ComponentTools, compose_prompt, scripts, task_tools, validate_components
 from .inventory import (COLOURS, CONTRACT, SHAPES, WORDING, caps, canonical_colour, singular, verify_inventory)
 from .perception import FakeTranscription, media_hash
 from .spike import wire_reply
@@ -28,6 +28,8 @@ from .workflow import ImagesAdapter
 BASE_PROMPT = "Answer the spoken request about the photos and return JSON."
 ADAPTER_SPLITS = {"stream": "dev", "check": "check", "heldout": "heldout", "calibration": "calibration"}
 WORKER_MARKER = "LX_INVENTORY_AGENT"
+PHOTOS_NOTE = "not attached; use view to look and segment to find instances"
+VIEW_NOTE = "not attached; use view to look"
 COMPONENT_NOTE = (
     "The harness may also contain skills/<name>/SKILL.md (frontmatter name and description; the agent "
     "reads one with load_skill) and scripts/<name>.py (Python 3 with Pillow; reads one JSON object on "
@@ -59,6 +61,7 @@ class InventoryDomain:
     name = "lx_inventory"
     base_prompt = BASE_PROMPT
     task_prompt = CONTRACT
+    photos_note = PHOTOS_NOTE
     verify = staticmethod(verify_inventory)
 
     def __init__(self, scripts_enabled=True):
@@ -103,7 +106,7 @@ class InventoryDomain:
     def messages(self, sample, prompt, sizes):
         text = json.dumps({"sample_id": sample["sample_id"],
                            "photos": [{"photo": k, "width": w, "height": h} for k, (w, h) in enumerate(sizes, 1)],
-                           "photos_note": "not attached; use view to look and segment to find instances",
+                           "photos_note": self.photos_note,
                            "spoken_request": "audio only; use transcribe"})
         return [{"role": "developer", "content": WORKER_MARKER+"\n"+prompt+"\n\nTask contract:\n"+self.task_prompt},
                 {"role": "user", "content": text}]
@@ -131,11 +134,12 @@ class InventoryAdapter(ImagesAdapter):
         if domain is not None:
             self.verifier_identity = hashlib.sha256(domain.check.encode()).hexdigest()
         self.perception = perception
-        self.tools = self._agent_tools(catalog) + (COMPONENT_TOOLS if self.scripts_enabled else [LOAD_SKILL])
+        self.tools = self._agent_tools(catalog)
+        self.segmentation = any(tool["function"]["name"] == "segment" for tool in self.tools)
         self.script_runner = script_runner
 
     def _agent_tools(self, catalog):
-        return photo_tools(catalog)
+        return task_tools(catalog, self.scripts_enabled)
 
     def validate_tree(self, value):
         if not value.get("systemprompt.md", "").strip():
@@ -161,7 +165,8 @@ class InventoryAdapter(ImagesAdapter):
     def _conversation(self, task, surface, harness, run_id):
         photos = self._photos(task)
         messages = self.domain.messages(self.by_id[task], compose_prompt(surface, harness), [_size(p) for p in photos])
-        handler = ComponentTools(PhotoSetTools(self.perception, photos=photos, audio=self._audio(task), candidate=run_id),
+        handler = ComponentTools(PhotoSetTools(self.perception, photos=photos, audio=self._audio(task), candidate=run_id,
+                                               segmentation=self.segmentation),
                                  harness, runner=self.script_runner)
         return messages, handler
 
@@ -337,9 +342,9 @@ class InventoryPreviewTransport:
     cue = "spoken photo inventory"
     lesson = "Check every photo and drop low-confidence boxes; a script sums per-photo counts."
 
-    def __init__(self, scripts=True):
+    def __init__(self, scripts=True, segmentation=True):
         self.calls = {"worker": 0, "reflection": 0, "improver": 0}
-        self.scripts = scripts
+        self.scripts, self.segmentation = scripts, segmentation
 
     def __call__(self, body, timeout):
         messages = body["messages"]
@@ -349,7 +354,7 @@ class InventoryPreviewTransport:
             return wire_reply("Controlled preview: this task runs from its spec and check file; nothing was sent to a model.")
         if messages[0]["content"].startswith(self.marker):
             self.calls["worker"] += 1
-            return self._agent(messages)
+            return self._agent(messages) if self.segmentation else self._view_only(messages)
         names = messages[1]["content"].split("Available files:\n", 1)[-1].splitlines()
         if "adoption.json" in names:
             self.calls["reflection"] += 1
@@ -411,6 +416,24 @@ class InventoryPreviewTransport:
                   for k, c in enumerate(counts, 1)]
         return wire_reply(json.dumps({"request": {"type": request_type, "kind": kind, "colour": colour},
                                       "photos": photos, "answer": sum(counts)}))
+
+
+    @staticmethod
+    def _view_only(messages):
+        """Segmentation is off: hear the request, view every photo, and answer with nothing counted."""
+        tool_results = [json.loads(m["content"]) for m in messages if m["role"] == "tool"]
+        step, n_photos = len(tool_results), len(json.loads(messages[1]["content"])["photos"])
+
+        def call(name, arguments):
+            return wire_reply(calls=[{"id": f"step-{step}", "type": "function",
+                                      "function": {"name": name, "arguments": json.dumps(arguments)}}])
+        if step == 0:
+            return call("transcribe", {})
+        if step <= n_photos:
+            return call("view", {"photo": step})
+        request_type, kind, colour = parse_request(tool_results[0]["result"]["transcript"])
+        return wire_reply(json.dumps({"request": {"type": request_type, "kind": kind, "colour": colour},
+                                      "photos": [{"photo": k, "items": []} for k in range(1, n_photos+1)], "answer": 0}))
 
 
 def preview_transcription(dataset_root, requests):

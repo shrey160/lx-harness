@@ -7,13 +7,13 @@ export function SpecTab({state,project,ui,setTab}){
   const {draft}=project;
   const [goal,setGoal]=useState(draft.goal),[mode,setMode]=useState(draft.mode||'controlled_preview'),[roles,setRoles]=useState(draft.roles);
   const [budget,setBudget]=useState(String(draft.budget_usd)),[workspaceBudget,setWorkspaceBudget]=useState(String(project.budget.cap_usd));
-  const [limits,setLimits]=useState(draft.limits),[reviewing,setReviewing]=useState(false),[checkResult,setCheckResult]=useState(null);
-  const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||Number(budget)!==Number(draft.budget_usd);
+  const [limits,setLimits]=useState(draft.limits),[tools,setTools]=useState(draft.tools),[reviewing,setReviewing]=useState(false),[checkResult,setCheckResult]=useState(null);
+  const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||JSON.stringify(tools)!==JSON.stringify(draft.tools)||Number(budget)!==Number(draft.budget_usd);
   const budgetDirty=Number(workspaceBudget)!==project.budget.cap_usd;
   const ownLimits=()=>({...(draft.limits_set||{}),...Object.fromEntries(Object.entries(limits).filter(([name,value])=>value!==draft.limits[name]))});
   const save=()=>ui.act(async()=>{
     if(budgetDirty)await api(`projects/${project.id}/budget`,{cap_usd:Number(workspaceBudget)});
-    if(specDirty)await api(`projects/${project.id}/spec`,{goal,budget_usd:Number(budget),mode,roles,limits:ownLimits()});
+    if(specDirty)await api(`projects/${project.id}/spec`,{goal,budget_usd:Number(budget),mode,roles,limits:ownLimits(),...(tools?{tools}:{})});
     ui.notify(specDirty?'Saved as a new version.':'Workspace budget saved.');
   });
   const testCheck=()=>ui.act(async()=>{setCheckResult(null);setCheckResult(await api(`projects/${project.id}/check-test`,{}));});
@@ -36,7 +36,12 @@ export function SpecTab({state,project,ui,setTab}){
       <select aria-label={role+' provider'} value={roles[role]||''} onChange={e=>setRoles({...roles,[role]:e.target.value})}>{state.models.filter(m=>m.role_ready).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select>
       <small className="muted">{hosts[i]}</small></label>)}</div>
     {mode==='live'&&project.free_providers.length>0&&<p className="callout warn" role="status">No spending limit on {project.free_providers.join(', ')}: its prices are $0, so only the call limits apply. Enter its real prices if it bills you.</p>}
-    {!specDirty&&project.live_blocked&&<p className="callout bad" role="status">{project.live_blocked}</p>}
+    {!specDirty&&project.blocked&&<p className="callout bad" role="status">{project.blocked}</p>}
+
+    {project.tool_choices.length>0&&<>
+      <h2>Model tools</h2>
+      <div className="checks">{project.tool_choices.map(tool=><label className="check" key={tool.id}><input type="checkbox" checked={(tools||[]).includes(tool.id)} disabled={tool.required||!tool.enabled} onChange={e=>setTools(project.tool_choices.map(c=>c.id).filter(id=>id===tool.id?e.target.checked:(tools||[]).includes(id)))}/>{tool.name}{tool.required?' (this task needs it)':tool.enabled?'':' (off in Settings)'}</label>)}</div>
+    </>}
 
     <h2>Budget</h2>
     <div className="three two-up">
@@ -80,7 +85,7 @@ function Review({project,ui,close,done}){
     </dl>
     {live&&<><h3>Who receives what</h3><ul className="plain">{project.notice.map(entry=><li key={entry.who}><strong>{entry.who}</strong> ({entry.host}): {entry.gets}</li>)}</ul></>}
     {usesSpark&&live&&<p className="callout warn">Spark Contributor may use approved content for training.</p>}
-    {project.live_blocked&&<p className="callout bad" role="alert">{project.live_blocked}</p>}
-    <div className="actions end"><button className="button" onClick={close}>Cancel</button><button className="button primary" disabled={ui.busy||Boolean(project.live_blocked)} onClick={approve}>{live?'Approve and accept':'Approve'}</button></div>
+    {project.blocked&&<p className="callout bad" role="alert">{project.blocked}</p>}
+    <div className="actions end"><button className="button" onClick={close}>Cancel</button><button className="button primary" disabled={ui.busy||Boolean(project.blocked)} onClick={approve}>{live?'Approve and accept':'Approve'}</button></div>
   </dialog>;
 }

@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import re
 
-from .agent import _tool
+from .agent import _tool, photo_tools
 
 MAX_SKILLS, MAX_SCRIPTS = 8, 8
 MAX_SKILL_CHARS = 8_000
@@ -42,6 +42,22 @@ RUN_SCRIPT = _tool(
      "input": {"type": "object", "description": "JSON object passed to the script as input."}},
     ["name", "input"])
 COMPONENT_TOOLS = [LOAD_SKILL, RUN_SCRIPT]
+# Tool text that only holds while segmentation is on.
+_SEGMENT_TEXT = ((" (pixel corners of that photo, e.g. from segment)", " (pixel corners of that photo)"),
+                 ("photos and earlier segment boxes", "photos"))
+
+
+def task_tools(catalog, scripts=True):
+    """The agent's tools on a photo task, the one list the run sends and the live contract allows.
+
+    With segmentation off, nothing in it names segment, so the agent is not sent looking for it."""
+    tools = photo_tools(catalog) + (COMPONENT_TOOLS if scripts else [LOAD_SKILL])
+    if any(tool["function"]["name"] == "segment" for tool in tools):
+        return tools
+    text = json.dumps(tools)
+    for old, new in _SEGMENT_TEXT:
+        text = text.replace(old, new)
+    return json.loads(text)
 
 
 def _frontmatter(text, key):

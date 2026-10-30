@@ -9,19 +9,19 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from .inventory_probe import CATALOG
 from .inventory_workflow import InventoryAdapter, grade_stream, preview_transcription, run_stream
-from .tasks import TaskDomain, build_dataset, is_text, preview_scenes
+from .tasks import SEGMENTATION, TaskDomain, build_dataset, is_text, preview_scenes, spec_tools, tool_catalog
 from .text_task import TextAdapter, TextDomain
 
 
-def _adapter(task, run_dir, output, client, truth, check, *, live, limits, perception=None, health=None):
+def _adapter(task, run_dir, output, client, truth, check, *, live, limits, tools, perception=None, health=None):
     mode = "live" if live else "offline_preview"
     if is_text(task):
         return TextAdapter(run_dir/"dataset"/"worker_inputs", output, client, truth, domain=TextDomain(task, check),
                            mode=mode, limits=limits, health=health)
-    return InventoryAdapter(run_dir/"dataset"/"worker_inputs", output, client, truth, perception=perception, catalog=CATALOG,
-                            mode=mode, domain=TaskDomain(task, check), limits=limits, health=health)
+    return InventoryAdapter(run_dir/"dataset"/"worker_inputs", output, client, truth, perception=perception,
+                            catalog=tool_catalog(tools), mode=mode, limits=limits, health=health,
+                            domain=TaskDomain(task, check, segmentation=SEGMENTATION in tools))
 
 
 def limitations(spec, report, chosen, live):
@@ -78,13 +78,13 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     task = spec["task"]
     run_dir = workspace.run_dir(identifier)
     stream, truth, requests = build_dataset(snapshot, run_dir/"dataset", task, preview=not live)
-    limits = engine.limits_of(spec)
+    limits, tools = engine.limits_of(spec), spec_tools(spec)
     if is_text(task):
         perception = None
         if not live:
             clients["worker"].transport.truth = truth
     elif live:
-        perception = engine.build_perception(workspace, identifier, spec["budget_usd"], run_dir/"perception-cache", limits)
+        perception = engine.build_perception(workspace, identifier, spec["budget_usd"], run_dir/"perception-cache", limits, tools)
     else:
         from .inventory import FakeShapeSegmentation
         from .perception import PerceptionCache, PerceptionClient
@@ -94,7 +94,7 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
                                       BudgetScope(workspace.preview_ledger, identifier, spec["budget_usd"]),
                                       PerceptionCache(run_dir/"perception-cache"))
     output = run_dir/"outputs"
-    adapter = _adapter(task, run_dir, output, clients["worker"], truth, check, live=live, limits=limits,
+    adapter = _adapter(task, run_dir, output, clients["worker"], truth, check, live=live, limits=limits, tools=tools,
                        perception=perception, health=health)
     report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health)
     gains, chosen = _package(adapter, report, output, spec, live=live, check=check)
@@ -110,7 +110,7 @@ def regrade(engine, workspace, job, *, live):
     stream, truth, _ = build_dataset(run_dir/"snapshot", run_dir/"dataset", task, preview=not live)
     client = SimpleNamespace(profile=engine.registry.profile(spec["roles"]["worker"]))
     check = workspace.check_source(spec["check"])
-    adapter = _adapter(task, run_dir, output, client, truth, check, live=live, limits=engine.limits_of(spec))
+    adapter = _adapter(task, run_dir, output, client, truth, check, live=live, limits=engine.limits_of(spec), tools=spec_tools(spec))
     report = grade_stream(adapter, output, stream, {"regraded": True})
     gains, chosen = _package(adapter, report, output, spec, live=live, check=check)
     return summarize_report(task, report, gains, chosen, live)

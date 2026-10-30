@@ -33,6 +33,8 @@ function MetaKey({system,ui,refresh}){
 
 function Tools({state,system,ui,refresh}){
   const model=state.models.filter(m=>m.kind!=='chat');
+  const toggle=(m,enabled)=>ui.act(async()=>{await api(`models/${m.id}/enabled`,{enabled});await refresh();});
+  const status=m=>!m.enabled?['','Off']:!system?null:system.meta_key?['ok','Ready']:['warn','Needs Meta key'];
   const sandbox={docker:'Docker',['linux-namespace']:'Linux namespaces'}[system?.sandbox];
   return <section>
     <h2>Tools</h2>
@@ -41,7 +43,8 @@ function Tools({state,system,ui,refresh}){
     {!system?<p className="muted">Checking…</p>:sandbox?<p><span className="dot ok"/>Ready, using {sandbox}. Scoring checks and helper scripts run here.</p>:<p className="callout warn">No sandbox found, so scoring checks and helper scripts cannot run. On Windows, start Docker Desktop and run <code>scripts/build_sandbox_image.py</code>.</p>}
     <MetaKey system={system} ui={ui} refresh={refresh}/>
     <h3>Model tools</h3>
-    <ul className="list">{model.map(m=><li key={m.id}><div className="provider-row"><div><strong>{m.name}</strong><span className="muted">{m.capabilities.join(' · ')}</span></div>{system&&<span className={'chip '+(system.meta_key?'ok':'warn')}>{system.meta_key?'Ready':'Needs Meta key'}</span>}</div></li>)}</ul>
+    <ul className="list">{model.map(m=><li key={m.id}><div className="provider-row"><div><strong>{m.name}</strong><span className="muted">{m.capabilities.join(' · ')}</span></div>{status(m)&&<span className={'chip '+status(m)[0]}>{status(m)[1]}</span>}<label className="check"><input type="checkbox" aria-label={m.name+' on'} checked={m.enabled} disabled={ui.busy} onChange={e=>toggle(m,e.target.checked)}/>On</label></div></li>)}</ul>
+    <p className="muted">Off stops every workspace from using a tool and blocks approved runs that include it. Photo tasks need a transcription tool, because their requests are audio.</p>
     <h3>Agent tools</h3>
     <ul className="list">{system?.agent_tools.map(tool=><li key={tool.name}><code>{tool.name}</code><span className="muted">{tool.description}</span></li>)}</ul>
   </section>;

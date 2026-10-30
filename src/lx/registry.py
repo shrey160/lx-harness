@@ -49,7 +49,8 @@ _META_KEY_ENTRY = "spark-contributor"
 _COLUMNS = {"kind": "TEXT NOT NULL DEFAULT 'chat'", "base_url": "TEXT",
             "accepts_images": "INTEGER NOT NULL DEFAULT 0", "supports_tools": "INTEGER NOT NULL DEFAULT 0",
             "pricing": "TEXT NOT NULL DEFAULT '{}'", "context_limit": "INTEGER",
-            "requests_per_minute": "INTEGER", "limits": "TEXT NOT NULL DEFAULT '{}'"}
+            "requests_per_minute": "INTEGER", "limits": "TEXT NOT NULL DEFAULT '{}'",
+            "enabled": "INTEGER NOT NULL DEFAULT 1"}
 _PRICE_FIELDS = ("input_per_million", "output_per_million")
 _MAX_NAME = 120
 _MAX_MODEL_ID = 200
@@ -219,6 +220,7 @@ class Registry:
             "context_limit": row["context_limit"],
             "requests_per_minute": row["requests_per_minute"],
             "limits": json.loads(row["limits"]),
+            "enabled": bool(row["enabled"]),
             # Any chat entry with an endpoint can fill any role; live spending also needs prices.
             "role_ready": row["kind"] == "chat" and bool(row["base_url"]),
             "priced": bool(row["builtin"]) or set(prices) == set(_PRICE_FIELDS),
@@ -353,6 +355,24 @@ class Registry:
             raise
         if key is not None and old_ref:
             self._remove_secret(old_ref)
+        return self._public(result)
+
+    def set_enabled(self, record_id: str, enabled: bool) -> dict[str, Any]:
+        """A model tool's switch in Settings. Startup seeding leaves it alone (D-019)."""
+        if type(enabled) is not bool:
+            raise RegistryError("invalid switch value")
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT kind FROM models WHERE id=?", (record_id,)).fetchone()
+            if row is None:
+                db.rollback()
+                raise RegistryError("unknown model id")
+            if row["kind"] == "chat":
+                db.rollback()
+                raise RegistryError("only a model tool can be switched off")
+            db.execute("UPDATE models SET enabled=? WHERE id=?", (int(enabled), record_id))
+            result = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
+            db.commit()
         return self._public(result)
 
     def delete(self, record_id: str) -> None:

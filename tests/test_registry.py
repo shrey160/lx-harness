@@ -47,7 +47,7 @@ class RegistryTests(unittest.TestCase):
         for model in models:
             self.assertEqual(set(model), {
                 "id", "name", "model_id", "capabilities", "kind", "base_url", "accepts_images",
-                "supports_tools", "pricing", "context_limit", "requests_per_minute", "limits", "role_ready", "priced", "has_key", "credential_source",
+                "supports_tools", "pricing", "context_limit", "requests_per_minute", "limits", "enabled", "role_ready", "priced", "has_key", "credential_source",
             })
             self.assertNotIn("secret", json.dumps(model).lower())
             self.assertEqual(model["base_url"], "https://api.meta.ai/v1")

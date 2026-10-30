@@ -110,6 +110,7 @@ def server_for(app, port=8765):
                         supports_tools=data.get("supports_tools"),pricing=data.get("pricing"),context_limit=data.get("context_limit"),
                         requests_per_minute=data.get("requests_per_minute"),limits=data.get("limits"))
                     elif route[3]=="test": result = app.test_provider(route[2])
+                    elif route[3]=="enabled": result = app.registry.set_enabled(route[2],data.get("enabled"))
                     elif route[3]=="delete": app.registry.delete(route[2]); result={"deleted":True}
                     else: raise ValueError("Unknown model action")
                 elif len(route)==4 and route[:2]==["api","projects"]:

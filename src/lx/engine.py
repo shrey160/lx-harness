@@ -45,7 +45,7 @@ from .spark import IncompleteResponse, ModelError, ChatClient
 from .store import Store
 from .usage import BudgetScope, usage_rows, summarize
 from .inventory import write_synthetic
-from .components import COMPONENT_TOOLS
+from .components import COMPONENT_TOOLS, LOAD_SKILL, task_tools
 from .inventory_workflow import InventoryPreviewTransport
 from .workflow import ImagesAdapter, PreviewTransport, samples_from, sample_path
 from .text_task import TextPreviewTransport
@@ -56,6 +56,7 @@ DEFAULT_ROOT = Path.home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT
 SAMPLES = "samples"
 ROLES = ("orchestrator","improver","worker")
 DEFAULT_ROLE_ENTRY = "spark-contributor"
+SHORT_NAMES = {tasks.SEGMENTATION:"SAM",tasks.TRANSCRIPTION:"Transcribe"}
 DEFAULT_WORKSPACE_BUDGET = 5
 PROVIDER_TEST_CAP = 1
 PROVIDER_TEST_SECONDS = 60
@@ -104,8 +105,8 @@ class Engine:
         return run_limits.defaults({role:(p["id"] == DEFAULT_ROLE_ENTRY, p.get("limits") or {}) for role,p in providers.items()},
                                    task=bool(task))
 
-    def build_perception(self, workspace, scope_id, cap_usd, cache, limits):
-        """Live SAM and Transcribe for a task's agent; their cost is on the workspace ledger."""
+    def build_perception(self, workspace, scope_id, cap_usd, cache, limits, tools=tasks.MODEL_TOOLS):
+        """Live SAM and Transcribe for a task's agent; their cost is on the workspace ledger. A tool that is off stays unbuilt."""
         scope = BudgetScope(self._ledger(workspace), scope_id, cap_usd)
         if self._live_perception_factory is not None:
             segment, transcribe = self._live_perception_factory()
@@ -113,9 +114,17 @@ class Engine:
             raise ValueError("Live runs are unavailable here; use the local app workspace")
         else:
             key = lambda: self.registry.credential("sam-catalog")
-            segment = MetaToolTransport(SAM, key, call_limit=limits["segment_calls"])
-            transcribe = MetaToolTransport(TRANSCRIBE, key, call_limit=limits["transcribe_calls"])
+            segment = MetaToolTransport(SAM, key, call_limit=limits["segment_calls"]) if tasks.SEGMENTATION in tools else None
+            transcribe = MetaToolTransport(TRANSCRIBE, key, call_limit=limits["transcribe_calls"]) if tasks.TRANSCRIPTION in tools else None
         return PerceptionClient(segment, transcribe, scope, PerceptionCache(cache))
+
+    @staticmethod
+    def _agent_tools(spec):
+        """Exactly what the run's adapter sends; the live transport refuses any other list."""
+        scripts = sandbox.available()
+        if tasks.uses_tools(spec.get("task")):
+            return task_tools(tasks.tool_catalog(tasks.spec_tools(spec)), scripts)
+        return COMPONENT_TOOLS if scripts else [LOAD_SKILL]
 
     def build_clients(self, workspace, spec, scope_id, cap_usd, *, call_limit=None, truth=None):
         """One client per role. Live spends from the workspace ledger; preview never does.
@@ -130,10 +139,10 @@ class Engine:
         call_limit = call_limit or limits["chat_calls"]
         contract = None
         if tasks.is_text(spec.get("task")):
-            contract = {"agent_tools":COMPONENT_TOOLS}
+            contract = {"agent_tools":self._agent_tools(spec)}
         elif spec.get("task"):
-            from .inventory_probe import KEEP_IMAGES, MAX_VIEW_BYTES, TOOLS
-            contract = {"agent_tools":TOOLS,"image_types":("jpeg",),"max_image_bytes":MAX_VIEW_BYTES,"max_images":KEEP_IMAGES}
+            from .inventory_probe import KEEP_IMAGES, MAX_VIEW_BYTES
+            contract = {"agent_tools":self._agent_tools(spec),"image_types":("jpeg",),"max_image_bytes":MAX_VIEW_BYTES,"max_images":KEEP_IMAGES}
         transports, clients = {}, {}
         for role in ROLES:
             entry = spec["roles"][role]
@@ -142,7 +151,8 @@ class Engine:
                 transports[entry] = (self._transport(entry, profile, call_limit, truth, limits=limits, contract=contract,
                                                      rate=spec["providers"][role].get("requests_per_minute")) if mode == "live"
                                      else TextPreviewTransport() if tasks.is_text(spec.get("task"))
-                                     else InventoryPreviewTransport() if spec.get("task") else PreviewTransport(truth))
+                                     else InventoryPreviewTransport(segmentation=tasks.SEGMENTATION in tasks.spec_tools(spec)) if spec.get("task")
+                                     else PreviewTransport(truth))
             clients[role] = ChatClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile,
                                         max_tokens=limits["reply_tokens"], call_seconds=limits["call_seconds"])
         return clients
@@ -181,9 +191,9 @@ class Engine:
                 "improver":"run traces and answers, including text from the samples",
                 "worker":"the sample requests" if tasks.is_text(task) else "the sample photos and transcribed requests" if task else "the sample images and transcripts"}
         notice = [{"who":role,"host":host(draft["providers"][role]["base_url"]),"gets":gets[role]} for role in ROLES]
-        if task and not tasks.is_text(task):
-            notice += [{"who":"SAM 3.1","host":host(META_API),"gets":"the sample photos"},
-                       {"who":"Muse Voice Transcribe","host":host(META_API),"gets":"the sample audio"}]
+        tools = tasks.spec_tools(draft)
+        notice += [{"who":"SAM 3.1","host":host(META_API),"gets":"the sample photos"}] if tasks.SEGMENTATION in tools else []
+        notice += [{"who":"Muse Voice Transcribe","host":host(META_API),"gets":"the sample audio"}] if tasks.TRANSCRIPTION in tools else []
         return notice
 
     def _assign(self, roles, mode, task=None):
@@ -205,20 +215,39 @@ class Engine:
         current = {role:self._provider(spec["roles"][role]) for role in ROLES}
         if spec.get("providers") != current:
             raise ValueError("A provider changed since approval; approve again")
-        blocked = self._live_blocked(spec)
+        blocked = self._blocked(spec)
         if blocked:
             raise ValueError(blocked)
 
-    def _live_blocked(self, spec):
-        """Why a live spec cannot call Meta, found here and not partway into its run. Previews need no key."""
+    def _blocked(self, spec):
+        """Why this spec cannot run, found here and not partway into its run."""
+        tools = tasks.spec_tools(spec)
+        models = {m["id"]:m for m in self.registry.list_models()}
+        off = [models[tool]["name"] for tool in tools if not models[tool]["enabled"]]
+        if off:
+            needed = [models[tool]["name"] for tool in tasks.required_tools(spec.get("task")) if not models[tool]["enabled"]]
+            return (f"This task needs {needed[0]}, which is off in Settings, under Tools." if needed else
+                    f"{off[0]} is off in Settings, under Tools. Turn it on, or take it out of this spec.")
         if spec.get("mode") != "live" or self._live_transport_factory is not None:
+            return None  # previews need no key
+        users = (["Spark"] if DEFAULT_ROLE_ENTRY in spec["roles"].values() else []) + [SHORT_NAMES[tool] for tool in tools]
+        if not users or self.registry.meta_key_source():
             return None
-        task = spec.get("task")
-        spark, tools = DEFAULT_ROLE_ENTRY in spec["roles"].values(), bool(task) and not tasks.is_text(task)
-        if not (spark or tools) or self.registry.meta_key_source():
-            return None
-        who = "Spark, SAM and Transcribe" if spark and tools else "Spark" if spark else "SAM and Transcribe"
+        who = ", ".join(users[:-1])+" and "+users[-1] if len(users) > 1 else users[0]
         return f"A live run needs a Meta key for {who}. Add it in Settings, under Tools."
+
+    def _tool_choices(self, draft):
+        """What the Spec tab lists: this task's model tools, and which of them it may leave out."""
+        needed = tasks.required_tools(draft.get("task"))
+        return [{"id":m["id"],"name":m["name"],"enabled":m["enabled"],"required":m["id"] in needed}
+                for tool in (tasks.MODEL_TOOLS if tasks.uses_tools(draft.get("task")) else ())
+                for m in self.registry.list_models() if m["id"] == tool]
+
+    def _hidden_limits(self, draft):
+        """Limits that do nothing for this spec."""
+        if not tasks.uses_tools(draft.get("task")):
+            return list(run_limits.PHOTO_ONLY) if tasks.is_text(draft.get("task")) else []
+        return [] if tasks.SEGMENTATION in tasks.spec_tools(draft) else ["segment_calls"]
 
     # Workspaces
 
@@ -239,13 +268,14 @@ class Engine:
         draft = workspace.spec(record["spec_version"])
         return {**record, "path": str(workspace.folder), "draft": {**draft, "limits": self.limits_of(draft)},
                 "limit_defaults": self._limit_defaults(draft["providers"], draft.get("task")),
-                "hidden_limits": list(run_limits.PHOTO_ONLY) if tasks.is_text(draft.get("task")) else [],
+                "hidden_limits": self._hidden_limits(draft),
+                "tool_choices": self._tool_choices(draft),
                 "free_providers": sorted({p["name"] for p in draft["providers"].values()
                                           if p["pricing"] and not any(float(price) for price in p["pricing"].values())}),
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
                 "notice": self.data_notice(draft),
                 "notice_accepted": self._notice_hosts(record["id"]),
-                "live_blocked": self._live_blocked(draft),
+                "blocked": self._blocked(draft),
                 "budget": {key:value for key,value in self._ledger(workspace).summary().items()
                            if key in {"cap_usd","spent_usd","reserved_usd","remaining_usd"}}}
 
@@ -333,7 +363,7 @@ class Engine:
         except ValueError:
             return None
 
-    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None, limits=None):
+    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None, limits=None, tools=None):
         """Write the next spec version; any new version clears approval.
 
         `limits` is the user's own values, replacing any earlier ones. Everything
@@ -365,6 +395,11 @@ class Engine:
         spec = {"version": version, "goal": goal.strip(), "budget_usd": budget,
                 "roles": {r:roles[r] for r in ROLES}, "providers": providers,
                 "mode": mode, "limits": resolved, "limits_set": own}
+        if tasks.uses_tools(task):
+            if tools is None:
+                on = [m["id"] for m in self.registry.list_models() if m["enabled"] and m["id"] in tasks.MODEL_TOOLS]
+                tools = previous.get("tools", list(tasks.MODEL_TOOLS) if previous else on+list(tasks.required_tools(task)))
+            spec["tools"] = tasks.check_tools(task, tools)
         spec.update({"task":task,"check":reference} if task is not None else {
                 "domain": "images-and-supplied-transcripts", "output": {"objects": [{"label":"color_shape", "box":["x1","y1","x2","y2"]}], "text":"exact supplied transcript"},
                 "box_edge_tolerance_px": 1})
@@ -431,7 +466,7 @@ class Engine:
             if any(j["status"] in {"queued","running"} for j in workspace.runs()):
                 raise ValueError("Stop the active run before editing its spec")
             self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"), data.get("roles"),
-                        limits=data.get("limits"))
+                        limits=data.get("limits"), tools=data.get("tools"))
         return self._view(workspace)
 
     def approve(self, identifier, data):
@@ -702,8 +737,8 @@ class Engine:
 
     def system(self):
         """What Settings shows. Apart from state, because finding the sandbox can start Docker's client."""
-        from .inventory_probe import TOOLS
-        calls = [tool.get("function", tool) for tool in TOOLS]
+        enabled = [m["id"] for m in self.registry.list_models() if m["enabled"] and m["id"] in tasks.MODEL_TOOLS]
+        calls = [tool.get("function", tool) for tool in task_tools(tasks.tool_catalog(enabled))]
         return {"version":version("lx-harness"),"state_root":str(self.root),"sandbox":sandbox.backend(),
                 "meta_key":self.registry.meta_key_source(),
                 "agent_tools":[{"name":call["name"],"description":call["description"]} for call in calls]}

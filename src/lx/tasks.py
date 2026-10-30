@@ -18,13 +18,16 @@ from . import text_task
 from .checks import CheckError, run_check
 from .inventory import CONTRACT, GRID, CELL, synthetic_sample
 from .inventory_data import _tone, add_user_samples, check_sample_folder, finalize_inventory, normalize_photo
-from .inventory_workflow import BASE_PROMPT, InventoryDomain
+from .inventory_workflow import BASE_PROMPT, PHOTOS_NOTE, VIEW_NOTE, InventoryDomain
 from .perception import media_hash
 from .text_task import sample_folders
 
 TEMPLATE = "photo-request"
 TEXT_TEMPLATE = text_task.TEMPLATE
 TEXT_FIELDS = ("name", "work", "domain_word", "yardstick", "deliverable_word", "selection_checks", "base_prompt", "contract")
+SEGMENTATION, TRANSCRIPTION = "sam-catalog", "transcribe-catalog"
+MODEL_TOOLS = (SEGMENTATION, TRANSCRIPTION)
+_TOOL_KINDS = {SEGMENTATION: "segmentation", TRANSCRIPTION: "transcription"}
 MAX_TEXT = 8000
 MAX_CHECK = 20_000
 MAX_SAMPLE_BYTES = 200 * 1024 ** 2
@@ -52,6 +55,35 @@ def validate_task(task):
 
 def is_text(task):
     return bool(task) and task.get("template") == TEXT_TEMPLATE
+
+
+def uses_tools(task):
+    return bool(task) and not is_text(task)
+
+
+def required_tools(task):
+    """A photo task's request is audio only, so it cannot run without transcription; `view` can stand in for segmentation."""
+    return (TRANSCRIPTION,) if uses_tools(task) else ()
+
+
+def spec_tools(spec):
+    """The model tools a run may call. A spec from before D-019 has both."""
+    return tuple(spec.get("tools", MODEL_TOOLS)) if uses_tools(spec.get("task")) else ()
+
+
+def check_tools(task, chosen):
+    """A valid tool list for this task, in catalog order, so the agent's tools keep their order."""
+    if type(chosen) is not list or set(chosen) - set(MODEL_TOOLS):
+        raise ValueError("Choose model tools from the list")
+    if set(required_tools(task)) - set(chosen):
+        raise ValueError("This task needs its transcription tool: its requests are audio only")
+    return [tool for tool in MODEL_TOOLS if tool in chosen]
+
+
+def tool_catalog(tools):
+    """The catalog entries of these tools; the agent's tool list is generated from them."""
+    from .inventory_probe import CATALOG
+    return [entry for entry in CATALOG if entry["kind"] in {_TOOL_KINDS[tool] for tool in tools}]
 
 
 def validate_check_source(source):
@@ -82,15 +114,17 @@ def inventory_check_source():
 class TaskDomain(InventoryDomain):
     """A photo-request task defined by its spec; answers are scored by its check file."""
 
-    def __init__(self, task, check, scripts_enabled=True):
+    def __init__(self, task, check, scripts_enabled=True, segmentation=True):
         super().__init__(scripts_enabled)
         self.task, self.check = task, check
         self.name, self.base_prompt, self.task_prompt = task["name"], task["base_prompt"], task["contract"]
+        self.segmentation, self.photos_note = segmentation, PHOTOS_NOTE if segmentation else VIEW_NOTE
 
     def prompts(self):
         from harness2.core.spec import BenchPrompts
         base = super().prompts()
-        return BenchPrompts(work=self.task["work"]+" "+base.work.split("tools. ", 1)[-1],
+        note = base.work.split("tools. ", 1)[-1]
+        return BenchPrompts(work=self.task["work"]+" "+(note if self.segmentation else note.replace("input, photos and segments", "input and photos")),
                             domain_word=self.task["domain_word"], yardstick=self.task["yardstick"],
                             deliverable_word=self.task["deliverable_word"], selection_checks=self.task["selection_checks"])
 

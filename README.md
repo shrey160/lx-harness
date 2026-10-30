@@ -160,6 +160,17 @@ that needs the key and has none cannot be approved or started, and it says why.
 Previews need no key. Spark Contributor may use approved content for training, and
 the app asks you to accept that when Spark has a role.
 
+SAM and Transcribe start on. Two switches control them. In Settings, under Tools,
+Off stops every workspace from using a tool, and any approved run that includes it
+is blocked with the reason, not silently changed. On a workspace's Spec tab, Model
+tools chooses what this task gets; a change is a new spec version to approve. A tool
+that is off is gone from the run: the agent is not told about it, `count_boxes` goes
+with SAM, its call limit is hidden, and it leaves the notice of who receives what.
+
+A photo task can leave out SAM, because the agent can still `view` the photos. It
+cannot leave out Transcribe, because its requests are audio only. Scores from runs
+with different tools are not comparable.
+
 ### Where keys live
 
 Keys go to the operating system's keychain (Windows Credential Manager on Windows)
