@@ -18,6 +18,11 @@ REGIONS = ("whole", "left", "right", "top", "bottom")
 MAX_BOXES_SHOWN = 300
 # A tool result carrying an image for the agent (JPEG bytes); see run_agent.
 IMAGE_KEY = "_image"
+# Guided loop: images held in one request. A sample has at most 7 photos, so all stay, with room for a close-up.
+MAX_WINDOW_IMAGES = 8
+WINDOW_CHARS = 1_400_000  # base64 text; the transport allows 2 MB for the whole request
+NOTE_CHARS = 1_500
+MAX_NUDGES = 2
 
 
 def _tool(name, description, properties, required):
@@ -258,20 +263,49 @@ def render_view(data, box=None, *, max_side=768, margin=0.15, quality=85):
 
 # --- loop -------------------------------------------------------------------
 
+def run_rules(max_turns, max_tool_calls, images=None):
+    """The controller's message to the agent. The improver cannot edit it, so every harness starts from the same facts."""
+    lines = ["Run rules, set by the controller:",
+             f"- You have {max_turns} turns and {max_tool_calls} tool calls on this sample. Each call in a turn counts.",
+             "- Only your written text stays between turns. After each tool result, write down what you found.",
+             "- Reply with the JSON answer before you run out, even if it is incomplete. A run with no answer scores nothing."]
+    if images:
+        lines.insert(2, f"- This conversation holds up to {images} images. Close-ups leave first. "
+                        "Viewing something still held sends no new copy, so look at it above.")
+    return "\n".join(lines)
+
+
+def is_json_answer(text):
+    text = (text or "").strip()
+    if text.startswith("```"):
+        text = "\n".join(text.splitlines()[1:-1])
+    try:
+        json.loads(text)
+    except ValueError:
+        return False
+    return True
+
+
 def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, max_tool_calls=12, timeout=300,
-              keep_images=2):
+              keep_images=2, guided=False):
     """Run the agent until it answers or a cap stops it; never raises for tool errors.
 
     Returns (final_text, trace). A stopped run returns an empty answer, which
     the verifier scores as a failed item. Images returned by tools (IMAGE_KEY)
     follow the turn's tool messages as one user message; only the latest
     `keep_images` stay in the history, older ones become a text note.
+
+    `guided` is for spec-driven tasks; the paused experiments run without it.
+    An image already held is not sent again, close-ups leave the window first,
+    reasoning a provider returns stays in the history as text, the agent is
+    warned before its limits, and a reply that is neither a tool call nor JSON
+    (a provider's tool-call text leaking out) gets another turn, not a score.
     """
     use_tools = tools if client.profile.supports_tools else None
     history = [dict(m) for m in messages]
     trace = [{"type": "tools", "names": [t["function"]["name"] for t in use_tools or []]}]
-    calls = 0
-    for _ in range(max_turns):
+    calls, nudges, warned, exhausted, window = 0, 0, False, False, []
+    for turn in range(max_turns):
         try:
             message, usage = client.chat(history, tools=use_tools, role="worker", phase="execute",
                                          candidate=candidate, timeout=timeout)
@@ -279,28 +313,44 @@ def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, ma
             # Billed and recorded by the client; the item fails but keeps its trace.
             trace.append({"type": "stopped", "reason": "model reply was cut off before it finished"})
             return "", trace
+        notes = message.get("reasoning", "")[:NOTE_CHARS] if guided else ""
         trace.append({"type": "assistant", "content": message["content"],
                       "tool_calls": [{"name": c["name"], "arguments": c["arguments"]} for c in message["tool_calls"]],
-                      "output_tokens": usage["output_tokens"]})
+                      "output_tokens": usage["output_tokens"], **({"reasoning": notes} if notes else {})})
         if not message["tool_calls"]:
-            return (message["content"] or "").strip(), trace
-        history.append({"role": "assistant", "content": message["content"], "tool_calls": [
+            text = (message["content"] or "").strip()
+            if not guided or is_json_answer(text) or nudges >= MAX_NUDGES or turn == max_turns-1:
+                return text, trace
+            nudges += 1
+            trace.append({"type": "nudged", "reason": "reply was neither a tool call nor JSON"})
+            history += [{"role": "assistant", "content": text},
+                        {"role": "user", "content": "That reply was neither a tool call nor the JSON answer. Call tools "
+                                                    "through the tool interface, or reply with only the JSON answer."}]
+            continue
+        # Empty text with reasoning would leave the model nothing of this turn; a provider-neutral note keeps it.
+        written = message["content"] or (f"(my notes) {notes}" if notes else None)
+        history.append({"role": "assistant", "content": written, "tool_calls": [
             {"id": c["id"], "type": "function", "function": {"name": c["name"], "arguments": json.dumps(c["arguments"])}}
             for c in message["tool_calls"]]})
         images = []
         for call in message["tool_calls"]:
             calls += 1
-            if calls > max_tool_calls:
+            if calls > max_tool_calls and not guided:
                 trace.append({"type": "stopped", "reason": f"more than {max_tool_calls} tool calls"})
                 return "", trace
             step = {"type": "tool", "name": call["name"], "arguments": call["arguments"]}
             try:
+                if calls > max_tool_calls:
+                    raise ValueError("no tool calls left; reply with the JSON answer now")
                 result = handler(call["name"], call["arguments"])
                 if isinstance(result, dict) and IMAGE_KEY in result:
                     result = dict(result)
                     image = result.pop(IMAGE_KEY)
-                    images.append((call["arguments"], image))
-                    result["image"] = f"sent in the next message (sha256 {hashlib.sha256(image).hexdigest()[:12]})"
+                    if guided and any(_image_url(image) == held["url"] for held in window):
+                        result["image"] = "already in this conversation; no new copy sent"
+                    else:
+                        images.append((call["arguments"], image))
+                        result["image"] = f"sent in the next message (sha256 {hashlib.sha256(image).hexdigest()[:12]})"
                 step["result"] = result
                 content = json.dumps({"result": step["result"]}, allow_nan=False)
             except ValueError as exc:
@@ -308,18 +358,58 @@ def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, ma
                 content = json.dumps({"error": str(exc)})
             trace.append(step)
             history.append({"role": "tool", "tool_call_id": call["id"], "content": content})
-        if images:
+        if images and guided:
+            _hold_images(history, window, images, keep_images)
+        elif images:
             _attach_images(history, images, keep_images)
+        if guided:
+            left = (max_turns-turn-1, max_tool_calls-calls)
+            if calls > max_tool_calls:
+                if exhausted:  # told once, and it called tools again
+                    trace.append({"type": "stopped", "reason": f"more than {max_tool_calls} tool calls"})
+                    return "", trace
+                exhausted = True
+                history.append({"role": "user", "content": "You have no tool calls left. Reply with the JSON answer now."})
+            elif not warned and (left[0] <= 2 or left[1] <= 3):
+                warned = True
+                history.append({"role": "user", "content": f"{left[0]} turns and {left[1]} tool calls left. "
+                                                           "Finish up and reply with the JSON answer."})
     trace.append({"type": "stopped", "reason": f"no answer within {max_turns} turns"})
     return "", trace
 
 
+def _image_url(data):
+    return "data:image/jpeg;base64," + base64.b64encode(data).decode()
+
+
+def _view_label(args):
+    return f"photo {args.get('photo')}" + (f" box {args['box']}" if "box" in args else "")
+
+
+def _hold_images(history, window, images, keep):
+    """Add this turn's images; earlier ones leave when the window is full: close-ups first, then the oldest."""
+    added = [{"url": _image_url(data), "label": _view_label(args), "zoom": "box" in args} for args, data in images]
+    parts = [{"type": "text", "text": "Images from your view calls, in order: " + "; ".join(i["label"] for i in added)}]
+    history.append({"role": "user", "content": parts+[{"type": "image_url", "image_url": {"url": i["url"]}} for i in added]})
+    earlier, gone = window[:], {}
+    window += added
+    while earlier and (len(window) > keep or sum(len(i["url"]) for i in window) > WINDOW_CHARS):
+        leaving = next((i for i in earlier if i["zoom"]), earlier[0])
+        earlier.remove(leaving)
+        window.remove(leaving)
+        gone[leaving["url"]] = leaving["label"]
+    for message in history:
+        if gone and message["role"] == "user" and isinstance(message.get("content"), list):
+            message["content"] = [{"type": "text", "text": f"[{gone[part['image_url']['url']]}: no longer attached; work from "
+                                                           "what you wrote down, or view it again if you must]"}
+                                  if part["type"] == "image_url" and part["image_url"]["url"] in gone else part
+                                  for part in message["content"]]
+
+
 def _attach_images(history, images, keep):
-    note = "; ".join(f"photo {args.get('photo')}" + (f" box {args['box']}" if "box" in args else "")
-                     for args, _ in images)
+    note = "; ".join(_view_label(args) for args, _ in images)
     parts = [{"type": "text", "text": "Images from your view calls, in order: " + note}]
-    parts += [{"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(data).decode()}}
-              for _, data in images]
+    parts += [{"type": "image_url", "image_url": {"url": _image_url(data)}} for _, data in images]
     history.append({"role": "user", "content": parts})
     budget = keep
     for message in reversed(history):
@@ -350,6 +440,8 @@ def render_trace(trace, answer, *, obs_trunc=50_000):
         elif step["type"] == "assistant":
             if step["content"]:
                 lines.append("[AGENT]\n" + step["content"].strip())
+            if step.get("reasoning"):
+                lines.append("[REASONING]\n" + step["reasoning"].strip())
             for call in step["tool_calls"]:
                 lines.append(f"[CALL] {call['name']} {json.dumps(call['arguments'], sort_keys=True)}")
         elif step["type"] == "tool":
@@ -357,7 +449,7 @@ def render_trace(trace, answer, *, obs_trunc=50_000):
             if len(body) > obs_trunc:
                 body = body[:obs_trunc] + f" ... [{len(body) - obs_trunc} characters truncated]"
             lines.append(f"[RESULT] {step['name']}\n{body}")
-        elif step["type"] == "stopped":
-            lines.append("[STOPPED] " + step["reason"])
+        elif step["type"] in {"stopped", "nudged"}:
+            lines.append(f"[{step['type'].upper()}] " + step["reason"])
     lines.append("[FINAL ANSWER]\n" + (answer or "(none)"))
     return "\n".join(lines)

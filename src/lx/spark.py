@@ -119,7 +119,12 @@ def normalize(raw: dict, *, max_tokens: int, profile=SPARK) -> tuple[dict, dict]
         normalized.append({"id": identifier, "name": name, "arguments": arguments})
     if not normalized and (not content or not content.strip()):
         raise ModelError("provider returned no usable content")
-    return {"content": content, "tool_calls": normalized}, computed
+    result = {"content": content, "tool_calls": normalized}
+    # Providers name this differently, and some return none. It is kept as plain text, never replayed as their format.
+    reasoning = message.get("reasoning") or message.get("reasoning_content")
+    if isinstance(reasoning, str) and reasoning.strip():
+        result["reasoning"] = reasoning
+    return result, computed
 
 
 class ChatClient:

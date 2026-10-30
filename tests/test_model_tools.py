@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from lx import sandbox, tasks
-from lx.agent import PhotoSetTools, photo_tools, tool_identity
+from lx.agent import PhotoSetTools, photo_tools, run_agent, tool_identity
 from lx.components import COMPONENT_TOOLS, task_tools
 from lx.engine import Engine
 from lx.inventory_probe import CATALOG, TOOLS
@@ -36,6 +36,10 @@ class BothOnChangesNothing(Base):
         self.assertEqual(tool_identity(photo_tools(tasks.tool_catalog(tasks.MODEL_TOOLS))+COMPONENT_TOOLS), FULL_HASH)
         self.assertEqual(tool_identity(task_tools(tasks.tool_catalog(tasks.MODEL_TOOLS))), FULL_HASH)
         self.assertEqual(tool_identity(TOOLS), FULL_HASH)
+
+    def test_the_paused_experiments_keep_their_loop(self):
+        self.assertFalse(InventoryDomain.guided)
+        self.assertTrue(tasks.TaskDomain.guided)
 
     def test_the_first_message_is_byte_identical(self):
         task = tasks.inventory_task()
@@ -187,7 +191,12 @@ class SpecList(Base):
         p = self.approve(self.without_sam())
         job = self.app.start(p["id"], launch=False)
         workspace = self.app.workspace(p["id"])
-        execute(self.app, workspace, job["id"], workspace.run_dir(job["id"])/"snapshot")
+        with patch("lx.inventory_workflow.run_agent", wraps=run_agent) as loop:
+            execute(self.app, workspace, job["id"], workspace.run_dir(job["id"])/"snapshot")
+        first = loop.call_args_list[0]
+        self.assertTrue(first.kwargs["guided"])
+        self.assertGreaterEqual(first.kwargs["keep_images"], 5)
+        self.assertIn("Run rules, set by the controller", first.args[1][0]["content"])
         traces = list(workspace.run_dir(job["id"]).glob("outputs/runs/executions/**/trace.json"))
         self.assertTrue(traces)
         for path in traces:

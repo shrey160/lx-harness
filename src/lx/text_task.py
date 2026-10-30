@@ -116,6 +116,7 @@ def build_dataset(snapshot, root, task):
 
 class TextDomain(InventoryDomain):
     """A text-request task defined by its spec; answers are scored by its check file."""
+    guided = True
 
     def __init__(self, task, check, scripts_enabled=True):
         super().__init__(scripts_enabled)
@@ -171,6 +172,7 @@ class _NoTools:
 class TextAdapter(InventoryAdapter):
     """Agent executions over text requests; caps count one sample as one unit."""
     protocol = "lx-text-agent-v1"
+    photo_task = False
 
     def __init__(self, snapshot, output, client, truth, *, domain, mode="offline_preview", limits=None, health=None):
         super().__init__(snapshot, output, client, truth, perception=None, catalog=None, mode=mode, domain=domain,
@@ -182,6 +184,9 @@ class TextAdapter(InventoryAdapter):
     def _caps(self, task):
         limits = self.limits or {}
         return {"max_turns": 4 + limits.get("agent_turns_per_photo", 3), "max_tool_calls": 6 + limits.get("agent_tools_per_photo", 6)}
+
+    def _window(self, task):
+        return 2
 
     def _request(self, task):
         return media_path(self.input_root, self.by_id[task]["request"], ".txt").read_text(encoding="utf-8")
