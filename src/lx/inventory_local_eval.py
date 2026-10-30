@@ -11,7 +11,7 @@ reachable).
 
 Retry (30 Oct 2026, reviewed again): the first run (scope
 ``inventory-eval-local-v1``) stopped on 5 model errors that were a 60-second
-client timeout, since fixed in ``SparkClient.chat``. Same request otherwise,
+client timeout, since fixed in ``ChatClient.chat``. Same request otherwise,
 under a new scope; the server must report the model as loaded.
 
 Pre-registered criterion (29 Oct 2026, before any E-C call), the same as E-B:
@@ -31,7 +31,7 @@ from .inventory_eval import APPROVED_DATASET, APPROVED_HARNESS, CRITERION, DATAS
 from .inventory_probe import KEEP_IMAGES, LEDGER, MAX_VIEW_BYTES, TOOLS
 from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
 from .providers import SAM, TRANSCRIBE, ProviderProfile
-from .spark import SparkClient
+from .spark import ChatClient
 from .usage import BudgetScope, summarize, usage_rows
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -103,7 +103,7 @@ def main():
     if LOCAL.model not in models:
         parser.error(f"The local server does not report {LOCAL.model} as loaded")
     from .live import _runtime_key
-    from .live_transport import LiveMetaTransport
+    from .live_transport import LiveChatTransport
     probe, frozen = checked_probe()
     spark = spark_comparison()
     ledger, state = guarded_ledger()
@@ -118,10 +118,10 @@ def main():
     perception = PerceptionClient(MetaToolTransport(SAM, _runtime_key, call_limit=LIMITS["segment"]),
                                   MetaToolTransport(TRANSCRIBE, _runtime_key, call_limit=LIMITS["transcribe"]),
                                   scope, PerceptionCache(ROOT/".lx"/"perception-cache"/"inventory-mix-v1"))
-    transport = LiveMetaTransport(None, profile=LOCAL, agent_tools=TOOLS, image_types=("jpeg",),
+    transport = LiveChatTransport(None, profile=LOCAL, agent_tools=TOOLS, image_types=("jpeg",),
                                   max_image_bytes=MAX_VIEW_BYTES, max_images=KEEP_IMAGES, call_limit=LIMITS["chat"],
                                   call_ceiling=LIMITS["chat"])
-    client = SparkClient(transport, scope, max_tokens=MAX_OUTPUT_TOKENS, retries=0, profile=LOCAL)
+    client = ChatClient(transport, scope, max_tokens=MAX_OUTPUT_TOKENS, retries=0, profile=LOCAL)
     try:
         report = run_eval(probe, output, client, perception, frozen, live=True)
         report["decision"] = decision(report)

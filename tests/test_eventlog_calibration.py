@@ -72,7 +72,7 @@ class CalibrationGuardTests(unittest.TestCase):
     def test_wrong_approval_fails_before_application_or_transport(self):
         with patch.object(sys, "argv", self.arguments("wrong")), \
              patch("lx.engine.Engine") as application, \
-             patch("lx.engine.LiveMetaTransport") as transport:
+             patch("lx.engine.LiveChatTransport") as transport:
             with self.assertRaises(SystemExit) as raised:
                 main()
         self.assertEqual(2, raised.exception.code)
@@ -84,7 +84,7 @@ class CalibrationGuardTests(unittest.TestCase):
              patch.object(sys, "argv", self.arguments()), \
              patch("lx.engine.ROOT", Path(directory)), \
              patch("lx.engine.Engine") as application, \
-             patch("lx.engine.LiveMetaTransport") as transport:
+             patch("lx.engine.LiveChatTransport") as transport:
             with self.assertRaisesRegex(ValueError, "existing shared pilot ledger"):
                 main()
         application.assert_not_called()
@@ -94,7 +94,7 @@ class CalibrationGuardTests(unittest.TestCase):
         ledger_path = root / ".lx" / "live-spike" / "pilot-budget.sqlite3"
         ledger_path.parent.mkdir(parents=True)
         ledger_path.write_bytes(b"temporary test marker")
-        return SimpleNamespace(live_ledger=SimpleNamespace(summary=lambda: state), root=root,
+        return SimpleNamespace(pilot_ledger=SimpleNamespace(summary=lambda: state), root=root,
                                make_live_transport=Mock())
 
     def test_ledger_older_than_records_checkpoint_fails_before_transport(self):
@@ -105,7 +105,7 @@ class CalibrationGuardTests(unittest.TestCase):
                 with patch.object(sys, "argv", self.arguments()), \
                      patch("lx.engine.ROOT", Path(directory)), \
                      patch("lx.engine.Engine", return_value=app), \
-                     patch("lx.engine.LiveMetaTransport") as transport:
+                     patch("lx.engine.LiveChatTransport") as transport:
                     with self.assertRaisesRegex(ValueError, "older than the recorded checkpoint"):
                         main()
                 app.make_live_transport.assert_not_called()

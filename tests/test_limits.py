@@ -4,7 +4,7 @@ import unittest
 
 from lx import limits
 from lx.inventory import caps
-from lx.spark import SparkClient
+from lx.spark import ChatClient
 
 
 class PresetTests(unittest.TestCase):
@@ -86,15 +86,15 @@ class ReachTests(unittest.TestCase):
         def transport(body, timeout):
             seen.append(timeout)
             raise RuntimeError("stop")
-        client = SparkClient(transport, _Ledger(), call_seconds=45)
+        client = ChatClient(transport, _Ledger(), call_seconds=45)
         with self.assertRaises(RuntimeError):
             client.chat([{"role": "user", "content": "x"}], timeout=200)
         self.assertEqual(seen, [45])
 
     def test_the_client_takes_a_reply_length_up_to_the_outer_bound(self):
-        SparkClient(None, _Ledger(), max_tokens=32768)
+        ChatClient(None, _Ledger(), max_tokens=32768)
         with self.assertRaises(ValueError):
-            SparkClient(None, _Ledger(), max_tokens=32769)
+            ChatClient(None, _Ledger(), max_tokens=32769)
 
 
 class _Ledger:

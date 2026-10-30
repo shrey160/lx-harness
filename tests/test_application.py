@@ -105,8 +105,8 @@ class ApplicationFlowTests(unittest.TestCase):
 
     def test_no_improvement_retains_base_and_reports_failed_heldout_checks(self):
         import copy
-        from lx.workflow import PreviewTransport,optimize_preview
-        from lx.spark import SparkClient
+        from lx.workflow import PreviewTransport,optimize_images
+        from lx.spark import ChatClient
         class NoGain(PreviewTransport):
             def __call__(self,body,timeout):
                 body = copy.deepcopy(body)
@@ -116,8 +116,8 @@ class ApplicationFlowTests(unittest.TestCase):
         p = self.project()
         workspace = self.workspace(p)
         snapshot = workspace.samples_path
-        client = SparkClient(NoGain(self.app.demo.controller_truth),BudgetScope(workspace.preview_ledger,"negative",1))
-        report = optimize_preview(snapshot,self.app.root/"negative",client,self.app.demo.controller_truth,p["draft"])
+        client = ChatClient(NoGain(self.app.demo.controller_truth),BudgetScope(workspace.preview_ledger,"negative",1))
+        report = optimize_images(snapshot,self.app.root/"negative",client,self.app.demo.controller_truth,p["draft"])
         self.assertFalse(report["improved"])
         self.assertEqual(report["retained"],"base")
         self.assertFalse(any(report["checks"]["heldout"].values()))
@@ -330,7 +330,7 @@ class ApplicationFlowTests(unittest.TestCase):
         p = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"mode":"live","roles":roles})
         self.assertEqual(p["draft"]["providers"]["worker"]["requests_per_minute"],40)
         self.app.live_enabled = True
-        with patch("lx.engine.LiveMetaTransport") as transport:
+        with patch("lx.engine.LiveChatTransport") as transport:
             self.app.build_clients(self.workspace(p),p["draft"],"scope",1)
         self.assertEqual(transport.call_count,1)
         fields = transport.call_args.kwargs

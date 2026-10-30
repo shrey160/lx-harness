@@ -30,7 +30,7 @@ class ServerBoundaryTests(unittest.TestCase):
         self.addCleanup(self.tempdir.cleanup)
         self.keychain = MemoryKeychain()
         self.app = Engine(Path(self.tempdir.name) / "app-root", keychain=self.keychain)
-        self.assertIsNone(self.app.live_ledger)
+        self.assertIsNone(self.app.pilot_ledger)
         self.server = server_for(self.app, 0)
         self.thread = Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()

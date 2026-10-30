@@ -80,7 +80,7 @@ class FileTools:
         return "written"
 
 
-class SparkProposer:
+class ChatProposer:
     def __init__(self, client, audit_dir, *, role="improver", limits=None, health=None):
         from harness2.core.proposer import Proposer
         from harness2.core.spec import ChannelSpec

@@ -34,7 +34,7 @@ from .inventory_workflow import (BASE_PROMPT, PREVIEW_GUARDRAIL, PREVIEW_SCRIPT,
                                  InventoryDomain, _size)
 from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
 from .providers import SAM, TRANSCRIBE, ProviderProfile
-from .spark import ModelError, SparkClient
+from .spark import ModelError, ChatClient
 from .usage import BudgetScope, summarize, usage_rows
 from .voicecount_probe import Recording, word_error_rate
 
@@ -196,7 +196,7 @@ def main():
     if args.approve_dataset != APPROVED_DATASET or inventory_dataset_hash(DATASET) != APPROVED_DATASET:
         parser.error("Dataset approval does not match this fixed request")
     from .live import _runtime_key
-    from .live_transport import LiveMetaTransport
+    from .live_transport import LiveChatTransport
     limits = PARTS[args.part]
     probe = Probe()
     ledger, state = guarded_ledger(limits["scope"])
@@ -214,10 +214,10 @@ def main():
                 "max_images": KEEP_IMAGES, "call_limit": limits["chat"]}
     try:
         if args.part == "meta":
-            client = SparkClient(LiveMetaTransport(_runtime_key, **contract), scope, retries=0)
+            client = ChatClient(LiveChatTransport(_runtime_key, **contract), scope, retries=0)
             report = run_meta(probe, client, perception, recorders)
         else:
-            client = SparkClient(LiveMetaTransport(None, profile=LOCAL, **contract), scope, retries=0, profile=LOCAL)
+            client = ChatClient(LiveChatTransport(None, profile=LOCAL, **contract), scope, retries=0, profile=LOCAL)
             report = run_local(probe, client, perception, recorders)
     finally:
         usage = summarize(usage_rows(ledger, limits["scope"]+"/"))

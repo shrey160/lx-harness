@@ -9,7 +9,7 @@ from pathlib import Path
 from lx.budget import BudgetLedger
 from lx.eventlog import build_eventlog_dataset
 from lx.eventlog_workflow import EventLogAdapter, EventLogDomain, EventLogPreviewTransport, WORKER_MARKER
-from lx.spark import SparkClient
+from lx.spark import ChatClient
 from lx.trials import experiment_hash, final_test, run_trials
 from lx.usage import BudgetScope
 
@@ -98,7 +98,7 @@ class EventLogCoreIntegrationTests(unittest.TestCase):
 
         def factory(identifier):
             transports[identifier] = EventLogPreviewTransport()
-            return SparkClient(transports[identifier], BudgetScope(ledger, identifier, 1))
+            return ChatClient(transports[identifier], BudgetScope(ledger, identifier, 1))
 
         output = self.root / "experiment"
         result = run_trials(self.dataset, output, factory, trials=2, adaptation_count=2, task="eventlog")

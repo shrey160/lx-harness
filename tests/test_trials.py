@@ -11,7 +11,7 @@ from unittest.mock import patch
 from lx.budget import BudgetLedger
 from lx.records import build_records_dataset, verify_record
 from lx.records_workflow import RecordsAdapter, RecordsDomain, RecordsPreviewTransport
-from lx.spark import SparkClient
+from lx.spark import ChatClient
 from lx.trials import calibrate, criterion_result, run_trials
 from lx.usage import BudgetScope
 
@@ -120,7 +120,7 @@ class RecordsCoreIntegrationTests(unittest.TestCase):
 
         def factory(identifier):
             created.append(identifier)
-            return SparkClient(RecordsPreviewTransport(), BudgetScope(ledger, identifier, 1))
+            return ChatClient(RecordsPreviewTransport(), BudgetScope(ledger, identifier, 1))
 
         output = self.root / "experiment"
         result = run_trials(
@@ -281,7 +281,7 @@ class RecordsCoreIntegrationTests(unittest.TestCase):
         )
         spec = {"test": "partial-score retention"}
 
-        with patch("lx.workflow.SparkProposer", side_effect=lambda *args, **kwargs: object()), \
+        with patch("lx.workflow.ChatProposer", side_effect=lambda *args, **kwargs: object()), \
              patch("harness2.core.schedule.run_domain", side_effect=fake_run_domain):
             from lx.workflow import optimize_adapter
             report = optimize_adapter(adapter, output, client, spec, adaptation_count=1)

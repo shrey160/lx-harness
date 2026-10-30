@@ -14,7 +14,7 @@ from lx.inventory_data import build_synthetic_dataset
 from lx.inventory_probe import Probe
 from lx.inventory_workflow import InventoryPreviewTransport, preview_transcription
 from lx.perception import PerceptionCache, PerceptionClient
-from lx.spark import ModelError, SparkClient
+from lx.spark import ModelError, ChatClient
 
 
 class Failing:
@@ -39,7 +39,7 @@ class CalibrationTests(unittest.TestCase):
         self.items = ["synth-01", "synth-02", "synth-03", "synth-04"]
 
     def test_scores_every_sample_with_the_base_harness(self):
-        client = SparkClient(InventoryPreviewTransport(), self.ledger)
+        client = ChatClient(InventoryPreviewTransport(), self.ledger)
         report = calibration.run_calibration(self.probe, self.root / "out", client, self.perception, items=self.items)
         self.assertEqual(sorted(report["results"]), self.items)
         for result in report["results"].values():
@@ -56,7 +56,7 @@ class CalibrationTests(unittest.TestCase):
 
     def test_repeated_model_errors_stop_the_run(self):
         transport = Failing()
-        report = calibration.run_calibration(self.probe, self.root / "out", SparkClient(transport, self.ledger, retries=0),
+        report = calibration.run_calibration(self.probe, self.root / "out", ChatClient(transport, self.ledger, retries=0),
                                              self.perception, items=self.items)
         self.assertEqual(len(report["errors"]), calibration.MAX_ERRORS)
         self.assertEqual(len(report["results"]), calibration.MAX_ERRORS)
@@ -65,7 +65,7 @@ class CalibrationTests(unittest.TestCase):
 
     def test_defaults_to_the_calibration_split(self):
         self.probe.samples["synth-03"] = dict(self.probe.samples["synth-03"], split="calibration")
-        client = SparkClient(InventoryPreviewTransport(), self.ledger)
+        client = ChatClient(InventoryPreviewTransport(), self.ledger)
         report = calibration.run_calibration(self.probe, self.root / "out", client, self.perception)
         self.assertEqual(report["items"], ["synth-03"])
 

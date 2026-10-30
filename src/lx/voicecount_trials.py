@@ -18,7 +18,7 @@ from pathlib import Path
 
 from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
 from .providers import SAM, TRANSCRIBE
-from .spark import SparkClient
+from .spark import ChatClient
 from .trials import CRITERION, dataset_hash, experiment_hash, run_trials
 from .usage import BudgetScope, summarize, usage_rows
 from .voicecount import load_voicecount_dataset
@@ -46,7 +46,7 @@ def run_live(dataset, output, make_transports, ledger, *, live=True,
     def factory(identifier):
         kind = "final" if identifier.endswith("final-test") else "trial"
         chat, segment, transcribe = make_transports(kind)
-        client = SparkClient(chat, BudgetScope(ledger, SCOPE+"/"+identifier, LIMITS[kind]["cap_usd"]), retries=0)
+        client = ChatClient(chat, BudgetScope(ledger, SCOPE+"/"+identifier, LIMITS[kind]["cap_usd"]), retries=0)
         clients[id(client)] = (segment, transcribe)
         return client
 
@@ -71,7 +71,7 @@ def main():
         parser.error("Dataset approval does not match this fixed request")
     from .agent import agent_tools
     from .live import _runtime_key
-    from .live_transport import LiveMetaTransport
+    from .live_transport import LiveChatTransport
     from .voicecount_probe import guarded_ledger
     dataset = load_voicecount_dataset(DATASET)
     if dataset_hash(dataset) != APPROVED_DATASET:
@@ -94,7 +94,7 @@ def main():
 
     def transports(kind):
         limit = LIMITS[kind]
-        return (LiveMetaTransport(_runtime_key, call_limit=limit["chat"], agent_tools=tools, image_types=("jpeg",),
+        return (LiveChatTransport(_runtime_key, call_limit=limit["chat"], agent_tools=tools, image_types=("jpeg",),
                                   max_image_bytes=1_000_000, call_ceiling=limit["chat"]),
                 MetaToolTransport(SAM, _runtime_key, call_limit=limit["segment"]),
                 MetaToolTransport(TRANSCRIBE, _runtime_key, call_limit=limit["transcribe"]))

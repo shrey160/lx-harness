@@ -25,7 +25,7 @@ from .inventory_probe import KEEP_IMAGES, LEDGER, MAX_VIEW_BYTES, TOOLS
 from .inventory_stream import APPROVED_DATASET, DATASET, run_ea
 from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
 from .providers import SAM, TRANSCRIBE, ProviderProfile, chat_endpoint
-from .spark import ModelError, SparkClient
+from .spark import ModelError, ChatClient
 from .usage import BudgetScope, summarize, usage_rows
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -107,11 +107,11 @@ def agent_settings(args):
 
 def agent_client(profile, loader, scope, limit, max_tokens=MAX_OUTPUT_TOKENS):
     """The agent provider accepts exactly the agent tools, with the stated reply cap."""
-    from .live_transport import LiveMetaTransport
-    transport = LiveMetaTransport(loader, profile=profile, agent_tools=TOOLS, image_types=("jpeg",),
+    from .live_transport import LiveChatTransport
+    transport = LiveChatTransport(loader, profile=profile, agent_tools=TOOLS, image_types=("jpeg",),
                                   max_image_bytes=MAX_VIEW_BYTES, max_images=KEEP_IMAGES, call_limit=limit,
                                   call_ceiling=limit)
-    return SparkClient(transport, scope, max_tokens=max_tokens, retries=0, profile=profile)
+    return ChatClient(transport, scope, max_tokens=max_tokens, retries=0, profile=profile)
 
 
 def guarded_ledger(scope=SCOPE, cap=RUN_CAP_USD):
@@ -142,7 +142,7 @@ def main():
         parser.error("The script sandbox is required (run from WSL)")
     profile, loader = checked_agent(parser, args)
     from .live import _runtime_key
-    from .live_transport import LiveMetaTransport
+    from .live_transport import LiveChatTransport
     ledger, state = guarded_ledger()
     output = ROOT/".lx"/SCOPE
     output.mkdir(parents=True, exist_ok=True)
@@ -156,7 +156,7 @@ def main():
                                   scope, PerceptionCache(ROOT/".lx"/"perception-cache"/"inventory-mix-v1"))
     agent = agent_client(profile, loader, scope, LIMITS["agent_chat"], args.agent_max_tokens)
     # Spark accepts only the improver file tools.
-    improver = SparkClient(LiveMetaTransport(_runtime_key, image_types=("jpeg",), max_image_bytes=MAX_VIEW_BYTES,
+    improver = ChatClient(LiveChatTransport(_runtime_key, image_types=("jpeg",), max_image_bytes=MAX_VIEW_BYTES,
                                              max_images=KEEP_IMAGES, call_limit=LIMITS["improver_chat"],
                                              call_ceiling=LIMITS["improver_chat"]), scope, retries=0)
     try:

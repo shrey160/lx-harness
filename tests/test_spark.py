@@ -6,7 +6,7 @@ from pathlib import Path
 
 from lx.budget import BudgetExceeded, BudgetLedger
 from lx.proposer import FileTools
-from lx.spark import ModelError, RateLimited, SparkClient, normalize
+from lx.spark import ModelError, RateLimited, ChatClient, normalize
 from lx.spike import wire_reply
 
 
@@ -25,7 +25,7 @@ class ProtocolTests(unittest.TestCase):
                 return wire_reply(calls=[{"id": "abc", "type": "function", "function": {
                     "name": "read_file", "arguments": '{"path":"source.txt"}'}}])
             return wire_reply("finished")
-        client = SparkClient(transport, self.ledger)
+        client = ChatClient(transport, self.ledger)
         text, _ = client.session([{"role": "user", "content": "work"}], lambda n,a: "source", [])
         self.assertEqual(text, "finished")
         history = seen[1]["messages"]
@@ -39,7 +39,7 @@ class ProtocolTests(unittest.TestCase):
 
     def test_spark_wire_body_is_unchanged(self):
         seen = []
-        SparkClient(lambda body, timeout: seen.append(body) or wire_reply("ok"), self.ledger).chat(
+        ChatClient(lambda body, timeout: seen.append(body) or wire_reply("ok"), self.ledger).chat(
             [{"role": "user", "content": "hi"}])
         self.assertEqual(json.dumps(seen[0]), json.dumps({
             "model": "muse-spark-1.3-contributor", "messages": [{"role": "user", "content": "hi"}],
@@ -50,7 +50,7 @@ class ProtocolTests(unittest.TestCase):
         local = ProviderProfile(kind="chat", endpoint="http://127.0.0.1:8888/v1/chat/completions",
                                 model="gemma-4-E4B-it-GGUF", token_param="max_tokens")
         seen = []
-        client = SparkClient(lambda body, timeout: seen.append(body) or wire_reply("ok"), self.ledger,
+        client = ChatClient(lambda body, timeout: seen.append(body) or wire_reply("ok"), self.ledger,
                              max_tokens=2048, profile=local)
         message, usage = client.chat([{"role": "user", "content": "hi"}], role="worker")
         self.assertEqual(message["content"], "ok")
@@ -60,7 +60,7 @@ class ProtocolTests(unittest.TestCase):
         worker = self.ledger.summary()["per_role"]["worker"]
         self.assertEqual((worker["settled_calls"], worker["spent_usd"]), (1, 0))
         with self.assertRaises(ValueError):
-            SparkClient(lambda *a: None, self.ledger, profile=__import__("lx.providers").providers.SAM)
+            ChatClient(lambda *a: None, self.ledger, profile=__import__("lx.providers").providers.SAM)
 
     def test_per_call_timeout_is_60s_for_spark_only(self):
         from lx.providers import ProviderProfile
@@ -68,7 +68,7 @@ class ProtocolTests(unittest.TestCase):
                                 model="gemma-4-E4B-it-GGUF", token_param="max_tokens")
         for profile, bound in ((None, 60), (local, 600)):
             timeouts = []
-            client = SparkClient(lambda body, timeout: timeouts.append(timeout) or wire_reply("ok"), self.ledger,
+            client = ChatClient(lambda body, timeout: timeouts.append(timeout) or wire_reply("ok"), self.ledger,
                                  **({"profile": profile} if profile else {}))
             client.chat([{"role": "user", "content": "hi"}], timeout=600)
             self.assertGreater(timeouts[0], bound - 1)
@@ -76,12 +76,12 @@ class ProtocolTests(unittest.TestCase):
 
     def test_cap_rejects_before_transport(self):
         ledger = BudgetLedger(self.root/"small.sqlite3", cap_usd="0.01", initial_spend_usd=0)
-        client = SparkClient(lambda *a: self.fail("transport invoked after cap"), ledger)
+        client = ChatClient(lambda *a: self.fail("transport invoked after cap"), ledger)
         with self.assertRaises(BudgetExceeded):
             client.chat([])
 
     def test_missing_usage_keeps_reservation_across_restart(self):
-        client = SparkClient(lambda *a: {"choices": []}, self.ledger)
+        client = ChatClient(lambda *a: {"choices": []}, self.ledger)
         with self.assertRaises(ModelError):
             client.chat([])
         state = BudgetLedger(self.root/"budget.sqlite3").summary()
@@ -92,13 +92,13 @@ class ProtocolTests(unittest.TestCase):
         reply = wire_reply(calls=[{"id": "a", "type": "function", "function": {
             "name": "write_file", "arguments": "not json"}}])
         with self.assertRaises(ModelError):
-            SparkClient(lambda *a: reply, self.ledger).session([], lambda *a: self.fail("dispatched"), [])
+            ChatClient(lambda *a: reply, self.ledger).session([], lambda *a: self.fail("dispatched"), [])
         self.assertEqual(self.ledger.summary()["settled_calls"], 1)
 
     def test_provider_overrun_records_actual_cost_and_blocks_future_dispatch(self):
         reply = wire_reply("ok")
         reply["usage"]["completion_tokens"] = 1_000_000
-        client = SparkClient(lambda *a: reply, self.ledger)
+        client = ChatClient(lambda *a: reply, self.ledger)
         with self.assertRaises(BudgetExceeded): client.chat([])
         state = self.ledger.summary()
         self.assertEqual(state["error_state"], "actual_cost_exceeded_reservation")
@@ -114,14 +114,14 @@ class ProtocolTests(unittest.TestCase):
             seen.append(1)
             if len(seen) == 1: raise RateLimited()
             return wire_reply("ok")
-        SparkClient(transport, self.ledger, cancel=InstantCancel()).chat([])
+        ChatClient(transport, self.ledger, cancel=InstantCancel()).chat([])
         self.assertEqual(len(seen), 2)
         self.assertEqual(self.ledger.summary()["unknown_count"], 1)
 
     def test_cancellation_prevents_dispatch(self):
         cancel = threading.Event()
         cancel.set()
-        client = SparkClient(lambda *a: self.fail("transport invoked"), self.ledger, cancel=cancel)
+        client = ChatClient(lambda *a: self.fail("transport invoked"), self.ledger, cancel=cancel)
         with self.assertRaises(ModelError): client.chat([])
 
     def test_cancel_during_dispatch_records_usage_and_suppresses_response(self):
@@ -129,7 +129,7 @@ class ProtocolTests(unittest.TestCase):
         def transport(*args):
             cancel.set()
             return wire_reply("do not use this result")
-        client = SparkClient(transport, self.ledger, cancel=cancel)
+        client = ChatClient(transport, self.ledger, cancel=cancel)
         with self.assertRaises(ModelError): client.chat([])
         self.assertEqual(self.ledger.summary()["settled_calls"], 1)
         self.assertEqual(self.ledger.summary()["reserved_usd"], 0)

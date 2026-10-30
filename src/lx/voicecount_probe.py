@@ -23,7 +23,7 @@ from .agent import ItemTools, agent_tools, run_agent
 from .budget import BudgetLedger
 from .perception import MetaToolTransport, PerceptionCache, PerceptionClient, parse_boxes, sam_text
 from .providers import SAM, TRANSCRIBE, ProviderProfile
-from .spark import ModelError, SparkClient
+from .spark import ModelError, ChatClient
 from .usage import BudgetScope, summarize, usage_rows
 from .voicecount import load_voicecount_dataset, verify_count
 from .voicecount_workflow import BASE_PROMPT, VoiceCountDomain
@@ -182,17 +182,17 @@ def main():
     # The cache lives beside the dataset so later steps reuse these paid results.
     perception = PerceptionClient(recorders["segment"], recorders["transcribe"], scope,
                                   PerceptionCache(ROOT/".lx"/"perception-cache"/"voicecount-v1"))
-    from .live_transport import LiveMetaTransport
+    from .live_transport import LiveChatTransport
     tools = agent_tools(CATALOG)
     try:
         if args.part == "meta":
-            transport = LiveMetaTransport(_runtime_key, call_limit=limits["chat"], agent_tools=tools,
+            transport = LiveChatTransport(_runtime_key, call_limit=limits["chat"], agent_tools=tools,
                                           image_types=("jpeg",), max_image_bytes=1_000_000)
-            report = run_meta(dataset, perception, SparkClient(transport, scope, retries=0), recorders)
+            report = run_meta(dataset, perception, ChatClient(transport, scope, retries=0), recorders)
         else:
-            transport = LiveMetaTransport(None, profile=LOCAL, call_limit=limits["chat"], agent_tools=tools,
+            transport = LiveChatTransport(None, profile=LOCAL, call_limit=limits["chat"], agent_tools=tools,
                                           image_types=("jpeg",), max_image_bytes=1_000_000)
-            client = SparkClient(transport, scope, retries=0, profile=LOCAL)
+            client = ChatClient(transport, scope, retries=0, profile=LOCAL)
             report = {"agent": run_agent_items(dataset, client, perception, (LOCAL_ITEM,)),
                       "raw_shapes": {name: r.replies for name, r in recorders.items()}}
     finally:

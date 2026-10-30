@@ -9,7 +9,7 @@ from unittest.mock import patch
 from lx import voicecount_probe as probe
 from lx.budget import BudgetLedger
 from lx.perception import PerceptionCache, PerceptionClient
-from lx.spark import SparkClient
+from lx.spark import ChatClient
 from lx.voicecount import build_voicecount_dataset, finalize_voicecount, load_voicecount_dataset
 from lx.voicecount_workflow import VoiceCountPreviewTransport, preview_perception
 
@@ -34,7 +34,7 @@ class ProbeTests(unittest.TestCase):
         recorders = {"segment": probe.Recording(segmenter), "transcribe": probe.Recording(transcriber)}
         perception = PerceptionClient(recorders["segment"], recorders["transcribe"], self.ledger,
                                       PerceptionCache(self.root/"cache"))
-        client = SparkClient(VoiceCountPreviewTransport(), self.ledger)
+        client = ChatClient(VoiceCountPreviewTransport(), self.ledger)
         items = ("loop-0001", "loop-0002")
         truth = self.dataset.controller_truth
         with patch.object(probe, "ITEMS", items), patch.object(probe, "NEGATIVE", ("loop-0001", "giraffes")):

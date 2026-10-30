@@ -8,7 +8,7 @@ import tempfile
 from lx.budget import BudgetLedger
 from lx.records import build_records_dataset
 from lx.records_workflow import RecordsPreviewTransport
-from lx.spark import SparkClient
+from lx.spark import ChatClient
 from lx.trials import run_trials
 from lx.usage import BudgetScope
 
@@ -24,7 +24,7 @@ def main():
         dataset = build_records_dataset(root/"dataset")
         ledger = BudgetLedger(root/"simulated.sqlite3", initial_spend_usd=0)
         def factory(identifier):
-            return SparkClient(RecordsPreviewTransport(), BudgetScope(ledger, identifier, "0.4"))
+            return ChatClient(RecordsPreviewTransport(), BudgetScope(ledger, identifier, "0.4"))
         result = run_trials(dataset, root/"experiment", factory)
         (evidence/"offline-trials.json").write_text(json.dumps(result, indent=2)+"\n", encoding="utf-8")
         (evidence/"worker_inputs").mkdir(exist_ok=True)

@@ -21,7 +21,7 @@ from lx.live_transport import validate_body
 from lx.perception import PerceptionCache, PerceptionClient
 from lx.proposer import TOOLS as FILE_TOOLS
 from lx.providers import SPARK
-from lx.spark import ModelError, SparkClient
+from lx.spark import ModelError, ChatClient
 from lx.spike import wire_reply
 from lx.usage import BudgetScope
 
@@ -61,9 +61,9 @@ class LocalStreamTests(unittest.TestCase):
         profile = local.agent_profile(URL, MODEL)
         agent_side = Checked(model=MODEL, tool_sets=(FILE_TOOLS, AGENT_TOOLS))
         improver_side = Checked(model=SPARK.model, tool_sets=(FILE_TOOLS,))
-        agent = SparkClient(agent_side, scope, max_tokens=local.MAX_OUTPUT_TOKENS, profile=profile)
+        agent = ChatClient(agent_side, scope, max_tokens=local.MAX_OUTPUT_TOKENS, profile=profile)
         report = stream.run_ea(self.root / "ds", self.root / "out", agent, perception,
-                               improver=SparkClient(improver_side, scope))
+                               improver=ChatClient(improver_side, scope))
         self.assertEqual(report["run"]["done"], 2)
         # The swapped provider only ran the agent; Spark only improved and reflected.
         self.assertGreater(agent_side.inner.calls["worker"], 0)
@@ -93,13 +93,13 @@ class LocalStreamTests(unittest.TestCase):
             return lambda body, timeout: bodies.append(body) or wire_reply("ok")
         for thinking, expected in (("on", {"enable_thinking": True}), ("off", {"enable_thinking": False}), (None, None)):
             bodies = []
-            client = SparkClient(capture(bodies), scope, max_tokens=8192, profile=local.agent_profile(URL, MODEL, thinking))
+            client = ChatClient(capture(bodies), scope, max_tokens=8192, profile=local.agent_profile(URL, MODEL, thinking))
             client.chat([{"role": "user", "content": "hi"}], role="worker", phase="execute")
             self.assertEqual(bodies[0].get("chat_template_kwargs"), expected)
             self.assertEqual(bodies[0]["max_tokens"], 8192)
             validate_body(bodies[0], model=MODEL, tool_sets=(FILE_TOOLS, AGENT_TOOLS))  # the live contract accepts it
         bodies = []
-        SparkClient(capture(bodies), scope).chat([{"role": "user", "content": "hi"}])
+        ChatClient(capture(bodies), scope).chat([{"role": "user", "content": "hi"}])
         self.assertNotIn("chat_template_kwargs", bodies[0])  # Spark's request is unchanged
         with self.assertRaises(ValueError):
             local.ProviderProfile(kind="chat", endpoint=URL + "/chat/completions", model=MODEL, enable_thinking="on")
@@ -154,7 +154,7 @@ class LocalStreamTests(unittest.TestCase):
 
     def test_probe_runs_the_view_check_and_base_runs(self):
         scope, perception = self._synthetic()
-        client = SparkClient(Checked(model=MODEL, tool_sets=(FILE_TOOLS, AGENT_TOOLS)), scope,
+        client = ChatClient(Checked(model=MODEL, tool_sets=(FILE_TOOLS, AGENT_TOOLS)), scope,
                              max_tokens=local.MAX_OUTPUT_TOKENS, profile=local.agent_profile(URL, MODEL))
         with patch.multiple(agent_probe, VIEW_SAMPLE="synth-01", RUN_SAMPLES=("synth-01", "synth-02")):
             report = agent_probe.run_probe(Probe(self.root / "ds"), client, perception)

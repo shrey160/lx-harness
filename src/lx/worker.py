@@ -8,7 +8,7 @@ from .engine import ROLES, Engine
 from .health import RunHealth, StoppedEarly
 from .spark import ModelError
 from .taskrun import run_task
-from .workflow import optimize_preview
+from .workflow import optimize_images
 from .workspace import Workspace
 
 
@@ -35,7 +35,7 @@ def execute(engine, workspace, identifier, snapshot):
     if job["spec"].get("task"):
         result = run_task(engine,workspace,job,snapshot,clients,live=live,check=workspace.check_source(job["spec"]["check"]),health=health)
     else:
-        result = optimize_preview(snapshot,output,clients["improver"],engine.demo.controller_truth,job["spec"],live=live,
+        result = optimize_images(snapshot,output,clients["improver"],engine.demo.controller_truth,job["spec"],live=live,
                                   worker_client=clients["worker"],limits=limits,health=health)
     return engine.finish_run(workspace,job,result)
 

@@ -10,7 +10,7 @@ Any chat provider entry can fill any role, and the spec binds each role to that
 entry's endpoint and prices. Specs default to controlled preview. A spec saved
 with mode "live" makes real calls only after versioned spec, data and budget
 approval, under the workspace's own cap. The shared $20 pilot ledger
-(live_ledger) stays for our experiments only.
+(pilot_ledger) stays for our experiments only.
 """
 from __future__ import annotations
 
@@ -37,11 +37,11 @@ from .health import read_health
 from . import checks, limits as run_limits, sandbox, tasks
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
-from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveMetaTransport
+from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveChatTransport
 from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
 from .providers import META_API, SAM, SPARK, TRANSCRIBE
 from .registry import Registry
-from .spark import IncompleteResponse, ModelError, SparkClient
+from .spark import IncompleteResponse, ModelError, ChatClient
 from .store import Store
 from .usage import BudgetScope, usage_rows, summarize
 from .inventory import write_synthetic
@@ -73,7 +73,7 @@ class Engine:
         self.registry = Registry(self.root/"app.sqlite3", secret_root, keychain or SystemKeychain())
         self.demo = build_demo_dataset(self.root/"demo")
         # Real pilot spend is never reset by creating the engine or previews.
-        self.live_ledger = BudgetLedger(ROOT/".lx"/"live-spike"/"pilot-budget.sqlite3") if self.root == DEFAULT_ROOT.resolve() else None
+        self.pilot_ledger = BudgetLedger(ROOT/".lx"/"live-spike"/"pilot-budget.sqlite3") if self.root == DEFAULT_ROOT.resolve() else None
         self.live_enabled = self.root == DEFAULT_ROOT.resolve()  # a scratch root never makes real calls
         self._live_transport_factory = None
         self._live_perception_factory = None
@@ -81,7 +81,7 @@ class Engine:
     def make_live_transport(self, call_limit=RUN_CALL_LIMIT, truth_hint=None):
         if self._live_transport_factory is not None:
             return self._live_transport_factory(truth_hint)
-        return LiveMetaTransport(lambda: self.registry.credential("spark-contributor"), call_limit=call_limit)
+        return LiveChatTransport(lambda: self.registry.credential("spark-contributor"), call_limit=call_limit)
 
     def _transport(self, entry, profile, call_limit, truth, *, limits, rate, contract=None):
         if self._live_transport_factory is not None:
@@ -89,7 +89,7 @@ class Engine:
         if not self.live_enabled:
             raise ValueError("Live runs are unavailable here; use the local app workspace")
         keyed = entry == DEFAULT_ROLE_ENTRY or any(m["id"] == entry and m["has_key"] for m in self.registry.list_models())
-        return LiveMetaTransport((lambda: self.registry.credential(entry)) if keyed else None, call_limit=call_limit,
+        return LiveChatTransport((lambda: self.registry.credential(entry)) if keyed else None, call_limit=call_limit,
                                  call_ceiling=call_limit, profile=profile, max_call_seconds=limits["call_seconds"],
                                  requests_per_minute=rate, **(contract or {}))
 
@@ -138,7 +138,7 @@ class Engine:
                 transports[entry] = (self._transport(entry, profile, call_limit, truth, limits=limits, contract=contract,
                                                      rate=spec["providers"][role].get("requests_per_minute")) if mode == "live"
                                      else InventoryPreviewTransport() if spec.get("task") else PreviewTransport(truth))
-            clients[role] = SparkClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile,
+            clients[role] = ChatClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile,
                                         max_tokens=limits["reply_tokens"], call_seconds=limits["call_seconds"])
         return clients
 
@@ -590,7 +590,7 @@ class Engine:
         try:
             transport = self._transport(entry, profile, 1, None, limits={"call_seconds":PROVIDER_TEST_SECONDS}, rate=None)
             scope = BudgetScope(BudgetLedger(self.root/"ledgers"/"provider-tests.sqlite3", PROVIDER_TEST_CAP, 0), entry, PROVIDER_TEST_CAP)
-            client = SparkClient(transport, scope, profile=replace(profile, context_limit=4096), max_tokens=256, retries=0,
+            client = ChatClient(transport, scope, profile=replace(profile, context_limit=4096), max_tokens=256, retries=0,
                                  call_seconds=PROVIDER_TEST_SECONDS)
             reply,usage = client.chat([{"role":"user","content":"Reply OK"}], role="orchestrator", phase="provider-test",
                                       timeout=PROVIDER_TEST_SECONDS)
@@ -656,7 +656,7 @@ class Engine:
                 "projects": projects, "missing_workspaces": missing,
                 "jobs": jobs, "preview_usage": summarize(rows),
                 "usage_events": (rows + spent)[-80:],
-                "live_usage": self.live_ledger.summary() if self.live_ledger else None}
+                "live_usage": self.pilot_ledger.summary() if self.pilot_ledger else None}
 
     def system(self):
         """What Settings shows. Apart from state, because finding the sandbox can start Docker's client."""

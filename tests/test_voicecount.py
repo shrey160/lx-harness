@@ -10,7 +10,7 @@ from pathlib import Path
 
 from lx.budget import BudgetLedger
 from lx.perception import PerceptionCache, PerceptionClient
-from lx.spark import SparkClient
+from lx.spark import ChatClient
 from lx.trials import VOICECOUNT_CATALOG, run_trials
 from lx.usage import BudgetScope
 from lx.voicecount import build_voicecount_dataset, finalize_voicecount, load_voicecount_dataset
@@ -102,7 +102,7 @@ class VoiceCountDatasetTests(unittest.TestCase):
         segmenter, transcriber = preview_perception(dataset)
 
         def factory(identifier):
-            return SparkClient(VoiceCountPreviewTransport(), BudgetScope(ledger, identifier, "5"))
+            return ChatClient(VoiceCountPreviewTransport(), BudgetScope(ledger, identifier, "5"))
 
         def extras(client):
             return {"perception": PerceptionClient(segmenter, transcriber, client.ledger,
@@ -137,7 +137,7 @@ class VoiceCountDatasetTests(unittest.TestCase):
         local = ProviderProfile(kind="chat", endpoint="http://127.0.0.1:8888/v1/chat/completions", model="local",
                                 token_param="max_tokens", supports_tools=True)
         ledger = BudgetLedger(self.root/"local.sqlite3", initial_spend_usd=0)
-        client = SparkClient(recording, ledger, profile=local)
+        client = ChatClient(recording, ledger, profile=local)
         segmenter, transcriber = preview_perception(dataset)
         adapter = VoiceCountAdapter(dataset.root/"worker_inputs", self.root/"local", client, dataset.controller_truth,
                                     perception=PerceptionClient(segmenter, transcriber, ledger, PerceptionCache(self.root/"c2")),

@@ -16,7 +16,7 @@ from .eventlog import build_eventlog_dataset
 from .eventlog_workflow import EventLogAdapter, EventLogDomain, EventLogPreviewTransport
 from .records import build_records_dataset
 from .records_workflow import CONTRACT, RecordsAdapter, RecordsDomain, RecordsPreviewTransport
-from .spark import SparkClient
+from .spark import ChatClient
 from .usage import BudgetScope, summarize, usage_rows
 from .voicecount import load_voicecount_dataset
 from .voicecount_workflow import VoiceCountAdapter, VoiceCountDomain, VoiceCountPreviewTransport, preview_perception
@@ -237,7 +237,7 @@ def main():
         transport = RecordsPreviewTransport
     ledger = BudgetLedger(args.output/"simulated-usage.sqlite3", initial_spend_usd=0)
     def factory(identifier):
-        return SparkClient(transport(), BudgetScope(ledger, identifier, "0.4"))
+        return ChatClient(transport(), BudgetScope(ledger, identifier, "0.4"))
     result = run_trials(dataset, args.output, factory, trials=args.trials, adaptation_count=args.adaptation_count,
                         task=args.task)
     print(json.dumps({"live": False, "dataset_sha256": dataset_hash(dataset),
@@ -269,7 +269,7 @@ def _voicecount_preview(parser, args):
 
     def factory(identifier):
         transports.append(VoiceCountPreviewTransport())
-        return SparkClient(transports[-1], BudgetScope(ledger, identifier, "5"))
+        return ChatClient(transports[-1], BudgetScope(ledger, identifier, "5"))
 
     def extras(client):
         return {"perception": PerceptionClient(segmenter, transcriber, client.ledger,

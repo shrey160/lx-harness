@@ -14,7 +14,7 @@ from lx.inventory_data import build_synthetic_dataset
 from lx.inventory_probe import Probe, probe_harness
 from lx.inventory_workflow import InventoryPreviewTransport, preview_transcription
 from lx.perception import PerceptionCache, PerceptionClient
-from lx.spark import ModelError, SparkClient
+from lx.spark import ModelError, ChatClient
 
 
 class Failing:
@@ -35,7 +35,7 @@ class EvalTests(unittest.TestCase):
 
     @unittest.skipUnless(sandbox.available(), "the preview skill runs its script in the sandbox")
     def test_pairs_both_arms_on_unseen_samples(self):
-        client = SparkClient(InventoryPreviewTransport(), self.ledger)
+        client = ChatClient(InventoryPreviewTransport(), self.ledger)
         report = evaluation.run_eval(self.probe, self.root / "out", client, self.perception, probe_harness())
         self.assertEqual(sorted(report["rows"]), ["synth-01", "synth-02", "synth-03", "synth-04"])  # all held-out
         held = report["by_split"]["heldout"]
@@ -51,7 +51,7 @@ class EvalTests(unittest.TestCase):
         self.assertTrue(report["complete"])
 
     def test_repeated_errors_stop_without_a_criterion_result(self):
-        report = evaluation.run_eval(self.probe, self.root / "out", SparkClient(Failing(), self.ledger, retries=0),
+        report = evaluation.run_eval(self.probe, self.root / "out", ChatClient(Failing(), self.ledger, retries=0),
                                      self.perception, probe_harness())
         self.assertGreaterEqual(len(report["errors"]), evaluation.MAX_ERRORS)
         self.assertFalse(report["complete"])

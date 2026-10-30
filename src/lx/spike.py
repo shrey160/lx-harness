@@ -13,8 +13,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from .budget import BudgetLedger
-from .proposer import SparkProposer
-from .spark import SparkClient
+from .proposer import ChatProposer
+from .spark import ChatClient
 
 
 def wire_reply(content=None, calls=None):
@@ -107,8 +107,8 @@ def run_spike(core_source, output, client, *, backend="local", image="h2portable
                 return False
 
     adapter = CheckedAdapter(root, runner, backend)
-    proposer = SparkProposer(client, root/"proposer_audit")
-    reflector = SparkProposer(client, root/"reflector_audit")
+    proposer = ChatProposer(client, root/"proposer_audit")
+    reflector = ChatProposer(client, root/"reflector_audit")
     adapter.spec = replace(adapter.spec, channels={"proposer": proposer.spec, "selector": proposer.spec})
     result = run_domain("data-cleaning", ["records-1"], 1, adapter=adapter,
                         prop=proposer, runs_root=adapter.spec.runs_root,
@@ -148,7 +148,7 @@ def main():
     args = parser.parse_args()
     ledger = BudgetLedger(args.output/"budget.sqlite3")
     transport = FixtureTransport()
-    report = run_spike(args.core_source, args.output, SparkClient(transport, ledger))
+    report = run_spike(args.core_source, args.output, ChatClient(transport, ledger))
     report["mode"] = "controlled_responses_no_network"
     report["controlled_transport_calls"] = transport.calls
     print(json.dumps(report, indent=2))

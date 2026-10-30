@@ -11,7 +11,7 @@ from unittest.mock import patch
 from lx import inventory_eval
 from lx import inventory_local_eval as evaluation
 from lx.budget import BudgetLedger
-from lx.spark import ModelError, SparkClient
+from lx.spark import ModelError, ChatClient
 
 
 class Capture:
@@ -41,7 +41,7 @@ class LocalEvalTests(unittest.TestCase):
 
     def test_client_sends_the_lower_output_cap_to_the_local_model(self):
         transport = Capture()
-        client = SparkClient(transport, BudgetLedger(self.root / "l.sqlite3", initial_spend_usd=0),
+        client = ChatClient(transport, BudgetLedger(self.root / "l.sqlite3", initial_spend_usd=0),
                              max_tokens=evaluation.MAX_OUTPUT_TOKENS, retries=0, profile=evaluation.LOCAL)
         with self.assertRaises(ModelError):
             client.chat([{"role": "user", "content": "hi"}], role="worker", phase="execute", candidate="x")

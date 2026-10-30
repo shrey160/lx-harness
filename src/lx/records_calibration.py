@@ -11,7 +11,7 @@ from pathlib import Path
 import tempfile
 
 from .records import build_records_dataset
-from .spark import SparkClient
+from .spark import ChatClient
 from .trials import calibrate, dataset_hash, experiment_hash
 from .usage import BudgetScope, summarize, usage_rows
 
@@ -34,7 +34,7 @@ def main():
     if not ledger_path.is_file() or ledger_path.is_symlink():
         raise ValueError("The existing shared pilot ledger is required")
     app = Engine()
-    ledger = app.live_ledger
+    ledger = app.pilot_ledger
     state = ledger.summary()
     if Decimal(str(state["spent_usd"])) < Decimal("0.036492926") or state["settled_calls"] < 154:
         raise ValueError("Shared pilot ledger is older than the recorded checkpoint")
@@ -53,7 +53,7 @@ def main():
             raise ValueError("Contract, controller truth or verifier differs from the reviewed experiment")
         # Runtime-only credential access through the existing registered Spark
         # loader. Fixed Meta transport; no credentials enter files or outputs.
-        client = SparkClient(app.make_live_transport(call_limit=40),
+        client = ChatClient(app.make_live_transport(call_limit=40),
                              BudgetScope(ledger, SCOPE, "0.50"), retries=0)
         report = calibrate(dataset, output, client, live=True)
     report.update(usage=summarize(usage_rows(ledger, SCOPE+"/")), ledger_before=state, ledger_after=ledger.summary())

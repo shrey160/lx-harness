@@ -23,7 +23,7 @@ from .inventory import answer_correct
 from .inventory_probe import KEEP_IMAGES, LEDGER, MAX_VIEW_BYTES, TOOLS, Probe, base_harness
 from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
 from .providers import SAM, TRANSCRIBE
-from .spark import ModelError, SparkClient
+from .spark import ModelError, ChatClient
 from .usage import BudgetScope, summarize, usage_rows
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -96,7 +96,7 @@ def main():
     if args.approve_dataset != APPROVED_DATASET or inventory_dataset_hash(DATASET) != APPROVED_DATASET:
         parser.error("Dataset approval does not match this fixed request")
     from .live import _runtime_key
-    from .live_transport import LiveMetaTransport
+    from .live_transport import LiveChatTransport
     probe = Probe(DATASET)
     ledger, state = guarded_ledger()
     output = ROOT/".lx"/SCOPE
@@ -108,9 +108,9 @@ def main():
     perception = PerceptionClient(MetaToolTransport(SAM, _runtime_key, call_limit=LIMITS["segment"]),
                                   MetaToolTransport(TRANSCRIBE, _runtime_key, call_limit=LIMITS["transcribe"]),
                                   scope, PerceptionCache(ROOT/".lx"/"perception-cache"/"inventory-mix-v1"))
-    transport = LiveMetaTransport(_runtime_key, agent_tools=TOOLS, image_types=("jpeg",), max_image_bytes=MAX_VIEW_BYTES,
+    transport = LiveChatTransport(_runtime_key, agent_tools=TOOLS, image_types=("jpeg",), max_image_bytes=MAX_VIEW_BYTES,
                                   max_images=KEEP_IMAGES, call_limit=LIMITS["chat"], call_ceiling=LIMITS["chat"])
-    client = SparkClient(transport, scope, retries=0)
+    client = ChatClient(transport, scope, retries=0)
     try:
         report = run_calibration(probe, output, client, perception, live=True)
     except ModelError as exc:  # budget or call-limit refusals end the run; the partial report is lost, usage is kept

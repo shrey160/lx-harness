@@ -14,7 +14,7 @@ from lx.inventory import FakeShapeSegmentation
 from lx.inventory_data import build_synthetic_dataset, inventory_dataset_hash
 from lx.inventory_workflow import InventoryPreviewTransport, preview_transcription
 from lx.perception import PerceptionCache, PerceptionClient
-from lx.spark import SparkClient
+from lx.spark import ChatClient
 from lx.spike import wire_reply
 
 
@@ -50,7 +50,7 @@ class ProbeTests(unittest.TestCase):
 
     def test_view_check_sends_the_image_after_the_tool_message(self):
         transport = ViewThenDescribe()
-        result = self.probe.view_check(SparkClient(transport, self.ledger), self.perception, "synth-01")
+        result = self.probe.view_check(ChatClient(transport, self.ledger), self.perception, "synth-01")
         self.assertTrue(result["view_called"])
         self.assertEqual(result["reply"], "Coloured shapes on a light background.")
         last = transport.bodies[-1]["messages"]
@@ -67,7 +67,7 @@ class ProbeTests(unittest.TestCase):
 
     @unittest.skipUnless(sandbox.available(), "sample B runs the helper script in the sandbox")
     def test_meta_run_covers_base_and_skill_harness(self):
-        client = SparkClient(InventoryPreviewTransport(), self.ledger)
+        client = ChatClient(InventoryPreviewTransport(), self.ledger)
         report = probe.run_meta(self.probe, client, self.perception, self.recorders)
         self.assertEqual(sorted(report["agent"]), ["synth-01", "synth-02"])
         base, skilled = report["agent"]["synth-01"], report["agent"]["synth-02"]

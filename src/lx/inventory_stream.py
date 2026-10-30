@@ -23,7 +23,7 @@ from .inventory_probe import CATALOG, KEEP_IMAGES, LEDGER, MAX_VIEW_BYTES, TOOLS
 from .inventory_workflow import InventoryAdapter, run_stream
 from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
 from .providers import SAM, TRANSCRIBE
-from .spark import SparkClient
+from .spark import ChatClient
 from .usage import BudgetScope, summarize, usage_rows
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -95,7 +95,7 @@ def main():
     if not sandbox.available():
         parser.error("The script sandbox is required (run from WSL)")
     from .live import _runtime_key
-    from .live_transport import LiveMetaTransport
+    from .live_transport import LiveChatTransport
     ledger, state = guarded_ledger()
     output = ROOT/".lx"/SCOPE
     output.mkdir(parents=True, exist_ok=True)
@@ -107,9 +107,9 @@ def main():
                                   MetaToolTransport(TRANSCRIBE, _runtime_key, call_limit=LIMITS["transcribe"]),
                                   scope, PerceptionCache(ROOT/".lx"/"perception-cache"/"inventory-mix-v1"))
     # The transport accepts exactly the agent tools or the improver file tools, nothing else.
-    transport = LiveMetaTransport(_runtime_key, agent_tools=TOOLS, image_types=("jpeg",), max_image_bytes=MAX_VIEW_BYTES,
+    transport = LiveChatTransport(_runtime_key, agent_tools=TOOLS, image_types=("jpeg",), max_image_bytes=MAX_VIEW_BYTES,
                                   max_images=KEEP_IMAGES, call_limit=LIMITS["chat"], call_ceiling=LIMITS["chat"])
-    client = SparkClient(transport, scope, retries=0)
+    client = ChatClient(transport, scope, retries=0)
     try:
         report = run_ea(DATASET, output/"run", client, perception, live=True)
     finally:

@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import Mock
 import urllib.error
 
-from lx.live_transport import ENDPOINT, LiveMetaTransport, validate_body
+from lx.live_transport import ENDPOINT, LiveChatTransport, validate_body
 from lx.proposer import TOOLS
 from lx.spark import MODEL, ModelError, RateLimited
 from lx.spike import wire_reply
@@ -44,7 +44,7 @@ def worker_body():
 class LiveTransportTests(unittest.TestCase):
     def setUp(self):
         self.opener = Mock()
-        self.transport = LiveMetaTransport(lambda: "dummy-test-key", opener=self.opener)
+        self.transport = LiveChatTransport(lambda: "dummy-test-key", opener=self.opener)
 
     def test_fixed_endpoint_model_and_auth(self):
         self.opener.open.return_value = _Response(b'{"choices": []}')
@@ -89,7 +89,7 @@ class LiveTransportTests(unittest.TestCase):
             validate_body(body)
 
     def test_call_limit(self):
-        transport = LiveMetaTransport(lambda: "k", call_limit=1, opener=self.opener)
+        transport = LiveChatTransport(lambda: "k", call_limit=1, opener=self.opener)
         self.opener.open.return_value = _Response(b'{"choices": []}')
         transport(worker_body(), 5)
         with self.assertRaisesRegex(ModelError, "call limit"):
@@ -111,7 +111,7 @@ class LiveTransportTests(unittest.TestCase):
 
     def test_missing_credential_fails_closed(self):
         with self.assertRaises(ModelError):
-            LiveMetaTransport(lambda: "", opener=self.opener)
+            LiveChatTransport(lambda: "", opener=self.opener)
 
 
 @unittest.skipUnless(os.name in ("posix", "nt"), "requires a WSL, Linux or Windows controller")
@@ -163,7 +163,7 @@ class LiveWiringTests(unittest.TestCase):
     def test_live_unavailable_without_shared_ledger(self):
         from lx.engine import Engine
         other = Engine(Path(self.temp.name) / "other")
-        self.assertIsNone(other.live_ledger)
+        self.assertIsNone(other.pilot_ledger)
         project = other.create_project({"source": "demo", "synthetic_public": True, "path": self.folder()})
         with self.assertRaises(ValueError):
             other.discuss(project["id"], "hello", True, "live")
@@ -180,8 +180,8 @@ class TimeLimitTests(unittest.TestCase):
                 seen.append(timeout)
                 return _Response(b"{}")
         body = {"model": "m", "messages": [{"role": "user", "content": "x"}]}
-        LiveMetaTransport(lambda: "dummy", opener=Opener(), profile=replace(SPARK, model="m"), max_call_seconds=45)(body, 300)
-        LiveMetaTransport(lambda: "dummy", opener=Opener(), profile=replace(SPARK, model="m"))(body, 900)
+        LiveChatTransport(lambda: "dummy", opener=Opener(), profile=replace(SPARK, model="m"), max_call_seconds=45)(body, 300)
+        LiveChatTransport(lambda: "dummy", opener=Opener(), profile=replace(SPARK, model="m"))(body, 900)
         self.assertEqual(seen, [45, 600])
 
     def test_a_rate_spaces_calls_evenly(self):
@@ -193,7 +193,7 @@ class TimeLimitTests(unittest.TestCase):
             now[0] += seconds
         opener = Mock()
         opener.open.side_effect = lambda *_a, **_k: _Response(b"{}")
-        transport = LiveMetaTransport(lambda: "dummy", opener=opener, profile=replace(SPARK, model="m"), requests_per_minute=40,
+        transport = LiveChatTransport(lambda: "dummy", opener=opener, profile=replace(SPARK, model="m"), requests_per_minute=40,
                                       sleep=sleep, clock=lambda: now[0])
         body = {"model": "m", "messages": [{"role": "user", "content": "x"}]}
         for _ in range(3):
@@ -205,7 +205,7 @@ class TimeLimitTests(unittest.TestCase):
 
     def test_a_bad_rate_is_refused(self):
         with self.assertRaises(ModelError):
-            LiveMetaTransport(lambda: "dummy", requests_per_minute=0)
+            LiveChatTransport(lambda: "dummy", requests_per_minute=0)
 
     def test_a_timeout_is_named_as_one(self):
         from dataclasses import replace
@@ -213,7 +213,7 @@ class TimeLimitTests(unittest.TestCase):
         class Slow:
             def open(self, request, timeout):
                 raise TimeoutError()
-        transport = LiveMetaTransport(lambda: "dummy", opener=Slow(), profile=replace(SPARK, model="m"))
+        transport = LiveChatTransport(lambda: "dummy", opener=Slow(), profile=replace(SPARK, model="m"))
         with self.assertRaisesRegex(ModelError, "did not reply in time"):
             transport({"model": "m", "messages": [{"role": "user", "content": "x"}]}, 5)
 

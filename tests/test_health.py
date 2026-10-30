@@ -12,9 +12,9 @@ from lx.budget import BudgetError, BudgetLedger
 from lx.engine import Engine
 from lx.health import RunHealth, StoppedEarly, read_health
 from lx.inventory_workflow import InventoryPreviewTransport
-from lx.proposer import SparkProposer
+from lx.proposer import ChatProposer
 from lx.providers import SPARK
-from lx.spark import ModelError, RateLimited, SparkClient, usage_of
+from lx.spark import ModelError, RateLimited, ChatClient, usage_of
 from lx.spike import wire_reply
 from lx.usage import summarize, usage_rows
 
@@ -77,7 +77,7 @@ class LedgerTests(Temp):
 
 class ClientTests(Temp):
     def client(self, transport, ledger):
-        return SparkClient(transport, ledger, retries=0)
+        return ChatClient(transport, ledger, retries=0)
 
     def ask(self, client):
         return client.chat([{"role": "user", "content": "x"}], timeout=5)
@@ -132,7 +132,7 @@ class HealthTests(Temp):
             profile = SPARK
             def session(self, *_args, **_kwargs):
                 raise ModelError("tool session exceeded the turn limit")
-        proposer = SparkProposer(Failing(), self.root/"audit", health=health)
+        proposer = ChatProposer(Failing(), self.root/"audit", health=health)
         context = self.root/"context"/"context"
         context.mkdir(parents=True)
         (context/"note.md").write_text("x", encoding="utf-8")

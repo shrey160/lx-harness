@@ -16,7 +16,7 @@ import tempfile
 
 from .eventlog import FIELDS, build_eventlog_dataset
 from .eventlog_workflow import EventLogAdapter
-from .spark import ModelError, SparkClient
+from .spark import ModelError, ChatClient
 from .trials import dataset_hash, experiment_hash
 from .usage import BudgetScope, summarize, usage_rows
 
@@ -106,7 +106,7 @@ def main():
     if not ledger_path.is_file() or ledger_path.is_symlink():
         raise ValueError("The existing shared pilot ledger is required")
     app = Engine()
-    ledger = app.live_ledger
+    ledger = app.pilot_ledger
     state = ledger.summary()
     if Decimal(str(state["spent_usd"])) < CHECKPOINT_SPENT or state["settled_calls"] < CHECKPOINT_CALLS:
         raise ValueError("Shared pilot ledger is older than the recorded checkpoint")
@@ -127,7 +127,7 @@ def main():
             raise ValueError("Contract, controller truth or verifier differs from the reviewed experiment")
         # Runtime-only credential access through the existing registered Spark
         # loader. Fixed Meta transport; no credentials enter files or outputs.
-        client = SparkClient(app.make_live_transport(call_limit=CALL_LIMIT),
+        client = ChatClient(app.make_live_transport(call_limit=CALL_LIMIT),
                              BudgetScope(ledger, SCOPE, RUN_CAP_USD), retries=0)
         try:
             report = run_ladder(ladder, output, client, live=True)

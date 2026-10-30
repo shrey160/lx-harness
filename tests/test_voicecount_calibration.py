@@ -10,7 +10,7 @@ from unittest.mock import patch
 from lx import voicecount_calibration as calibration
 from lx.budget import BudgetLedger
 from lx.perception import PerceptionCache, PerceptionClient
-from lx.spark import ModelError, SparkClient
+from lx.spark import ModelError, ChatClient
 from lx.spike import wire_reply
 from lx.voicecount import CONTRACT, build_voicecount_dataset, finalize_voicecount, load_voicecount_dataset
 from lx.voicecount_workflow import VoiceCountPreviewTransport, preview_perception
@@ -50,7 +50,7 @@ class CalibrationTests(unittest.TestCase):
 
     def test_both_arms_score_calibration_items_only(self):
         transport = AloneThenAgent()
-        report = calibration.run_calibration(self.dataset, self.root/"out", SparkClient(transport, self.ledger),
+        report = calibration.run_calibration(self.dataset, self.root/"out", ChatClient(transport, self.ledger),
                                              self.perception)
         self.assertEqual(len(report["items"]), 3)
         self.assertTrue(all(item.startswith("calibration-") for item in report["items"]))
@@ -68,7 +68,7 @@ class CalibrationTests(unittest.TestCase):
 
     def test_repeated_errors_stop_the_run(self):
         with self.assertRaisesRegex(ModelError, "stopped after 3"):
-            calibration.run_calibration(self.dataset, self.root/"out", SparkClient(AloneThenAgent(fail_alone=True), self.ledger),
+            calibration.run_calibration(self.dataset, self.root/"out", ChatClient(AloneThenAgent(fail_alone=True), self.ledger),
                                         self.perception)
 
     def test_fixed_request(self):

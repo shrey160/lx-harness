@@ -103,7 +103,7 @@ def validate_body(body, *, model=MODEL, tool_sets=(TOOLS,), image_types=("png",)
     return body
 
 
-class LiveMetaTransport:
+class LiveChatTransport:
     """One bounded live session source; the ledger scope enforces spend."""
 
     def __init__(self, credential_loader, *, call_limit=RUN_CALL_LIMIT, opener=None, profile=SPARK,

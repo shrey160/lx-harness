@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 
 from lx.budget import BudgetLedger
-from lx.spark import SparkClient
-from lx.proposer import SparkProposer
+from lx.spark import ChatClient
+from lx.proposer import ChatProposer
 from lx.spike import FixtureTransport, run_spike
 
 
@@ -18,12 +18,12 @@ class SpikeIntegration(unittest.TestCase):
             root = Path(directory)
             ledger = BudgetLedger(root/"budget.sqlite3")
             provider = FixtureTransport()
-            first = run_spike(core, root, SparkClient(provider, ledger))
+            first = run_spike(core, root, ChatClient(provider, ledger))
             self.assertTrue(first["independent_check"])
             self.assertTrue(first["candidate_edited_and_harvested"])
             self.assertGreater(provider.calls, 0)
             calls, before = provider.calls, ledger.summary()
-            second = run_spike(core, root, SparkClient(provider, ledger))
+            second = run_spike(core, root, ChatClient(provider, ledger))
             self.assertEqual(provider.calls, calls)
             self.assertEqual(ledger.summary(), before)
             self.assertEqual(second["execution_count"], 0)
@@ -40,10 +40,10 @@ class SpikeIntegration(unittest.TestCase):
             (context/"harness"/"scripts"/"normalize.py").write_text(fixture.BASE_SCRIPT, encoding="utf-8")
             ledger = BudgetLedger(root/"budget.sqlite3")
             transport = FixtureTransport()
-            proposer = SparkProposer(SparkClient(transport, ledger), root/"audit")
+            proposer = ChatProposer(ChatClient(transport, ledger), root/"audit")
             first = proposer.call("Repair signed totals", context, "repair", harvest="context/harness")
             calls, before = transport.calls, ledger.summary()
-            again = SparkProposer(SparkClient(transport, ledger), root/"audit")
+            again = ChatProposer(ChatClient(transport, ledger), root/"audit")
             second = again.call("Repair signed totals", context, "repair", harvest="context/harness")
             self.assertTrue(second.cached)
             self.assertEqual(first.workspace, second.workspace)

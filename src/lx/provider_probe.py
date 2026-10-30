@@ -17,10 +17,10 @@ import tempfile
 
 from .budget import BudgetLedger
 from .domain import build_demo_dataset
-from .live_transport import LiveMetaTransport
+from .live_transport import LiveChatTransport
 from .proposer import TOOLS
 from .providers import ProviderProfile, chat_endpoint
-from .spark import ModelError, SparkClient
+from .spark import ModelError, ChatClient
 
 MODEL = "meta/muse-glimmer-30b"
 CONTEXT_LIMIT = 131_072
@@ -75,7 +75,7 @@ def run(transport, ledger, image_path, profile=PROFILE):
         raw = transport(body, timeout)
         replies.append(raw)
         return raw
-    client = SparkClient(recording, ledger, max_tokens=MAX_TOKENS, retries=0, profile=profile)
+    client = ChatClient(recording, ledger, max_tokens=MAX_TOKENS, retries=0, profile=profile)
     results = []
     for name, messages, tools in requests(image_path):
         before = len(replies)
@@ -104,7 +104,7 @@ def main():
         root = Path(folder)
         demo = build_demo_dataset(root/"demo")
         image = sorted((demo.root/"worker_inputs").rglob("*.png"))[0]
-        transport = LiveMetaTransport(key_loader(key_env), call_limit=CALLS, profile=profile)
+        transport = LiveChatTransport(key_loader(key_env), call_limit=CALLS, profile=profile)
         ledger = BudgetLedger(root/"ledger.sqlite3", 1, 0)
         results = run(transport, ledger, image, profile)
         spent = ledger.summary()["spent_usd"]

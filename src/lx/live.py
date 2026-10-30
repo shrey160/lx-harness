@@ -16,7 +16,7 @@ import urllib.request
 
 from .budget import BudgetLedger
 from .proposer import TOOLS
-from .spark import MODEL, ModelError, RateLimited, SparkClient
+from .spark import MODEL, ModelError, RateLimited, ChatClient
 from .spike import run_spike
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -118,10 +118,10 @@ def worker():
     ledger = BudgetLedger(RUNTIME/"pilot-budget.sqlite3")
     provider = _MetaTransport(ledger)
     before = ledger.summary()
-    first = run_spike(CORE, RUNTIME/"run", SparkClient(provider, ledger), backend="docker")
+    first = run_spike(CORE, RUNTIME/"run", ChatClient(provider, ledger), backend="docker")
     spent = ledger.summary()
     count = provider.calls
-    resumed = run_spike(CORE, RUNTIME/"run", SparkClient(provider, ledger), backend="docker")
+    resumed = run_spike(CORE, RUNTIME/"run", ChatClient(provider, ledger), backend="docker")
     if provider.calls != count or ledger.summary() != spent or resumed["execution_count"] != 0:
         raise ModelError("completed resume unexpectedly consumed work or budget")
     report = {"mode": "live_spark_synthetic_only", "state": "passed", "model": MODEL,

@@ -14,7 +14,7 @@ from lx.inventory import FakeShapeSegmentation
 from lx.inventory_data import build_synthetic_dataset
 from lx.inventory_workflow import InventoryPreviewTransport, preview_transcription
 from lx.perception import PerceptionCache, PerceptionClient
-from lx.spark import SparkClient
+from lx.spark import ChatClient
 from lx.usage import BudgetScope
 
 
@@ -26,7 +26,7 @@ class StreamTests(unittest.TestCase):
             scenes, requests = build_synthetic_dataset(root / "ds", 2)
             ledger = BudgetLedger(root / "ledger.sqlite3", initial_spend_usd=0)
             transport = InventoryPreviewTransport()
-            client = SparkClient(transport, BudgetScope(ledger, "t8-test", "5"))
+            client = ChatClient(transport, BudgetScope(ledger, "t8-test", "5"))
             perception = PerceptionClient(FakeShapeSegmentation(scenes), preview_transcription(root / "ds", requests),
                                           ledger, PerceptionCache(root / "cache"))
             report = stream.run_ea(root / "ds", root / "out", client, perception)
@@ -52,7 +52,7 @@ class StreamTests(unittest.TestCase):
             scenes, requests = build_synthetic_dataset(root / "ds", 2)
             ledger = BudgetLedger(root / "ledger.sqlite3", initial_spend_usd=0)
             transport = InventoryPreviewTransport(scripts=False)
-            client = SparkClient(transport, BudgetScope(ledger, "t8-test", "5"))
+            client = ChatClient(transport, BudgetScope(ledger, "t8-test", "5"))
             perception = PerceptionClient(FakeShapeSegmentation(scenes), preview_transcription(root / "ds", requests),
                                           ledger, PerceptionCache(root / "cache"))
             report = stream.run_ea(root / "ds", root / "out", client, perception)

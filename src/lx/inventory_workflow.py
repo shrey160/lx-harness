@@ -207,14 +207,14 @@ def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None)
     from harness2.core import tree
     from harness2.core.schedule import Namespace, run_domain
 
-    from .proposer import SparkProposer
+    from .proposer import ChatProposer
 
     output = Path(output)
     stream = list(tasks) if tasks is not None else adapter.tasks("dev")
     if not stream:
         raise ValueError("The stream needs at least one sample")
-    proposer = SparkProposer(client, output/"proposer_audit", limits=limits, health=health)
-    reflector = SparkProposer(client, output/"reflector_audit", limits=limits, health=health)
+    proposer = ChatProposer(client, output/"proposer_audit", limits=limits, health=health)
+    reflector = ChatProposer(client, output/"reflector_audit", limits=limits, health=health)
     result = run_domain(adapter.domain_of(stream[0]), stream, 1, adapter=adapter, prop=proposer,
                         runs_root=adapter.spec.runs_root, library_root=output/"library", modes=("seq",),
                         reflector_prop=reflector)
@@ -411,7 +411,7 @@ def preview_stream(output, *, count=3, seed=20261029):
     from .inventory import FakeShapeSegmentation
     from .inventory_data import build_synthetic_dataset, load_inventory_dataset
     from .perception import PerceptionCache, PerceptionClient
-    from .spark import SparkClient
+    from .spark import ChatClient
     from .trials import VOICECOUNT_CATALOG
 
     output = Path(output)
@@ -422,7 +422,7 @@ def preview_stream(output, *, count=3, seed=20261029):
     ledger = BudgetLedger(output/"simulated-usage.sqlite3", initial_spend_usd=0)
     from . import sandbox
     transport = InventoryPreviewTransport(scripts=sandbox.available())
-    client = SparkClient(transport, BudgetScope(ledger, "inventory-preview", "5"))
+    client = ChatClient(transport, BudgetScope(ledger, "inventory-preview", "5"))
     perception = PerceptionClient(FakeShapeSegmentation(scenes), preview_transcription(output/"dataset", requests),
                                   ledger, PerceptionCache(output/"perception-cache"))
     adapter = InventoryAdapter(output/"dataset"/"worker_inputs", output/"run", client, truth,

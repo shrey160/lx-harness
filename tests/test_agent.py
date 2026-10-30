@@ -8,10 +8,10 @@ from pathlib import Path
 
 from lx.agent import ItemTools, agent_tools, render_trace, run_agent
 from lx.budget import BudgetLedger
-from lx.live_transport import LiveMetaTransport
+from lx.live_transport import LiveChatTransport
 from lx.perception import FakeSegmentation, FakeTranscription, PerceptionCache, PerceptionClient, media_hash
 from lx.providers import ProviderProfile
-from lx.spark import ModelError, SparkClient
+from lx.spark import ModelError, ChatClient
 from lx.spike import wire_reply
 
 from test_perception import AUDIO, PNG, POINTS, SCENES, Opener
@@ -51,7 +51,7 @@ class LoopTests(unittest.TestCase):
 
     def run_script(self, *turns, profile=None, **caps):
         transport = Scripted(*turns)
-        client = SparkClient(transport, self.ledger, **({"profile": profile} if profile else {}))
+        client = ChatClient(transport, self.ledger, **({"profile": profile} if profile else {}))
         answer, trace = run_agent(client, self.messages, TOOLS, self.tools, candidate="item-1", **caps)
         return answer, trace, transport
 
@@ -129,7 +129,7 @@ class AgentTransportTests(unittest.TestCase):
             {"type": "text", "text": "item"}, {"type": "image_url", "image_url": {"url": url}}]}]}
 
     def test_default_contract_still_rejects_agent_tools_and_jpeg(self):
-        transport = LiveMetaTransport(lambda: "dummy", opener=Opener(b"{}"))
+        transport = LiveChatTransport(lambda: "dummy", opener=Opener(b"{}"))
         with self.assertRaisesRegex(ModelError, "tool contract"):
             transport(self.body(), 30)
         with self.assertRaises(ModelError):
@@ -137,7 +137,7 @@ class AgentTransportTests(unittest.TestCase):
 
     def test_agent_contract_allows_exact_tools_and_bounded_jpeg(self):
         opener = Opener(b"{}")
-        transport = LiveMetaTransport(lambda: "dummy", opener=opener, agent_tools=TOOLS,
+        transport = LiveChatTransport(lambda: "dummy", opener=opener, agent_tools=TOOLS,
                                       image_types=("png", "jpeg"), max_image_bytes=1_000_000, call_ceiling=900)
         transport(self.body(b"\xff\xd8\xff" + b"0" * 300_000, "jpeg"), 30)
         self.assertEqual(opener.requests[0].full_url, "https://api.meta.ai/v1/chat/completions")
@@ -148,11 +148,11 @@ class AgentTransportTests(unittest.TestCase):
         with self.assertRaises(ModelError):
             transport(self.body(b"\xff\xd8\xff" + b"0" * 1_000_001, "jpeg"), 30)
         with self.assertRaisesRegex(ModelError, "call limit"):
-            LiveMetaTransport(lambda: "dummy", call_limit=901, call_ceiling=900)
+            LiveChatTransport(lambda: "dummy", call_limit=901, call_ceiling=900)
 
     def test_keyless_local_provider_uses_its_endpoint_and_model(self):
         opener = Opener(b"{}")
-        transport = LiveMetaTransport(None, opener=opener, profile=LOCAL, agent_tools=TOOLS)
+        transport = LiveChatTransport(None, opener=opener, profile=LOCAL, agent_tools=TOOLS)
         transport(self.body(model=LOCAL.model), 30)
         request = opener.requests[0]
         self.assertEqual(request.full_url, "http://127.0.0.1:8888/v1/chat/completions")
@@ -160,7 +160,7 @@ class AgentTransportTests(unittest.TestCase):
         with self.assertRaisesRegex(ModelError, "model contract"):
             transport(self.body(), 30)
         with self.assertRaisesRegex(ModelError, "credential loader"):
-            LiveMetaTransport(None)
+            LiveChatTransport(None)
 
 
 if __name__ == "__main__":

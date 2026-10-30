@@ -122,7 +122,7 @@ def normalize(raw: dict, *, max_tokens: int, profile=SPARK) -> tuple[dict, dict]
     return {"content": content, "tool_calls": normalized}, computed
 
 
-class SparkClient:
+class ChatClient:
     def __init__(self, transport, ledger, *, max_tokens=4096, retries=2, cancel=None, profile=SPARK, call_seconds=None):
         if type(max_tokens) is not int or not 1 <= max_tokens <= 32768:
             raise ValueError("max_tokens outside supported bounds")

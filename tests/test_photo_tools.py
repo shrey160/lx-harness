@@ -12,9 +12,9 @@ from PIL import Image
 from lx.agent import IMAGE_KEY, PhotoSetTools, agent_tools, photo_tools, render_trace, render_view, run_agent, tool_identity
 from lx.budget import BudgetLedger
 from lx.inventory import FakeShapeSegmentation, caps, fake_scenes, synthetic_sample
-from lx.live_transport import LiveMetaTransport, validate_body
+from lx.live_transport import LiveChatTransport, validate_body
 from lx.perception import FakeTranscription, PerceptionCache, PerceptionClient, media_hash
-from lx.spark import MODEL, ModelError, SparkClient
+from lx.spark import MODEL, ModelError, ChatClient
 from lx.spike import wire_reply
 
 from test_agent import CATALOG, Scripted, call
@@ -108,7 +108,7 @@ class PhotoToolTests(_Fixture):
 class ImageLoopTests(_Fixture):
     def run_script(self, *turns, **caps_):
         transport = Scripted(*turns)
-        client = SparkClient(transport, self.ledger)
+        client = ChatClient(transport, self.ledger)
         messages = [{"role": "developer", "content": "LX_AGENT"}, {"role": "user", "content": "item"}]
         answer, trace = run_agent(client, messages, TOOLS, self.tools, candidate="item-1", **caps_)
         return answer, trace, transport
@@ -160,8 +160,8 @@ class TransportImageBoundTests(unittest.TestCase):
         for bad in (0, 5, True):
             with self.subTest(max_images=bad):
                 with self.assertRaises(ModelError):
-                    LiveMetaTransport(lambda: "k", max_images=bad)
-        transport = LiveMetaTransport(lambda: "k", max_images=3, image_types=("jpeg",))
+                    LiveChatTransport(lambda: "k", max_images=bad)
+        transport = LiveChatTransport(lambda: "k", max_images=3, image_types=("jpeg",))
         self.assertEqual(transport._contract["max_images"], 3)
 
 
