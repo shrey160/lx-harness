@@ -19,7 +19,7 @@ import re
 from pathlib import Path, PurePosixPath
 
 from .agent import MAX_WINDOW_IMAGES, PhotoSetTools, render_trace, run_agent, tool_identity
-from .components import ComponentTools, compose_prompt, scripts, task_tools, validate_components
+from .components import ComponentTools, compose_prompt, experiment_tools, scripts, task_tools, validate_components
 from .inventory import (COLOURS, CONTRACT, SHAPES, WORDING, caps, canonical_colour, singular, verify_inventory)
 from .perception import FakeTranscription, media_hash
 from .orchestrator import preview_turn
@@ -142,7 +142,7 @@ class InventoryAdapter(ImagesAdapter):
         self.script_runner = script_runner
 
     def _agent_tools(self, catalog):
-        return task_tools(catalog, self.scripts_enabled)
+        return (task_tools if self.domain.whole_context else experiment_tools)(catalog, self.scripts_enabled)
 
     def validate_tree(self, value):
         if not value.get("systemprompt.md", "").strip():
@@ -173,7 +173,8 @@ class InventoryAdapter(ImagesAdapter):
         photos = self._photos(task)
         messages = self.domain.messages(self.by_id[task], compose_prompt(surface, harness), [_size(p) for p in photos])
         handler = ComponentTools(PhotoSetTools(self.perception, photos=photos, audio=self._audio(task), candidate=run_id,
-                                               segmentation=self.segmentation),
+                                               segmentation=self.segmentation,
+                                               counting=any(tool["function"]["name"] == "count_boxes" for tool in self.tools)),
                                  harness, runner=self.script_runner)
         return messages, handler
 

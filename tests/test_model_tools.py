@@ -7,10 +7,10 @@ from unittest.mock import MagicMock, patch
 
 from lx import sandbox, tasks
 from lx.agent import PhotoSetTools, photo_tools, run_agent, tool_identity
-from lx.components import COMPONENT_TOOLS, task_tools
+from lx.components import COMPONENT_TOOLS, experiment_tools, task_tools
 from lx.engine import Engine
 from lx.inventory_probe import CATALOG, TOOLS
-from lx.inventory_workflow import VIEW_NOTE, InventoryDomain, InventoryPreviewTransport
+from lx.inventory_workflow import VIEW_NOTE, InventoryAdapter, InventoryDomain, InventoryPreviewTransport
 from lx.live_transport import validate_body
 from lx.perception import META_SAM, META_TRANSCRIBE
 from lx.registry import Registry, RegistryError
@@ -19,7 +19,7 @@ from lx.worker import execute
 from test_tasks import Base, MemoryKeychain
 
 SAM, TRANSCRIBE = tasks.SEGMENTATION, tasks.TRANSCRIPTION
-# Taken at a7a0437, before tools could be switched: the Spark baseline depends on these staying put.
+# Taken at a7a0437, before tools could be switched: the paused experiments' evidence depends on these staying put.
 TOOL_HASH = "ee92f70b0f7835eaee956c0c36aa4d4904546ce4dfef6218573a920a3ae768f1"
 FULL_HASH = "65c4ce952a4f9fd42c91dd92920ece2ff31b8c405c8130d57bd9b9ab009e386b"
 FIRST_MESSAGE = {"sample_id": "s", "photos": [{"photo": 1, "width": 1, "height": 2}],
@@ -35,7 +35,7 @@ class BothOnChangesNothing(Base):
     def test_the_tool_lists_are_byte_identical(self):
         self.assertEqual(tool_identity(photo_tools(tasks.tool_catalog(tasks.MODEL_TOOLS))), TOOL_HASH)
         self.assertEqual(tool_identity(photo_tools(tasks.tool_catalog(tasks.MODEL_TOOLS))+COMPONENT_TOOLS), FULL_HASH)
-        self.assertEqual(tool_identity(task_tools(tasks.tool_catalog(tasks.MODEL_TOOLS))), FULL_HASH)
+        self.assertEqual(tool_identity(experiment_tools(tasks.tool_catalog(tasks.MODEL_TOOLS))), FULL_HASH)
         self.assertEqual(tool_identity(TOOLS), FULL_HASH)
 
     def test_the_paused_experiments_keep_their_loop(self):
@@ -48,10 +48,10 @@ class BothOnChangesNothing(Base):
             self.assertEqual(json.loads(domain.messages({"sample_id": "s"}, "p", [(1, 2)])[1]["content"]), FIRST_MESSAGE)
 
     @unittest.skipUnless(sandbox.available(), "needs the script sandbox")
-    def test_a_new_spec_gets_the_contract_the_runs_always_had(self):
+    def test_a_new_spec_gets_the_task_list(self):
         p = self.inventory()
         self.assertEqual(p["draft"]["tools"], [SAM, TRANSCRIBE])
-        self.assertEqual(tool_identity(self.app._agent_tools(p["draft"])), FULL_HASH)
+        self.assertEqual(tool_identity(self.app._agent_tools(p["draft"])), tool_identity(task_tools(tasks.tool_catalog(tasks.MODEL_TOOLS))))
 
     def test_a_spec_from_before_the_switch_has_both(self):
         self.assertEqual(tasks.spec_tools({"task": tasks.inventory_task()}), tasks.MODEL_TOOLS)
@@ -59,6 +59,25 @@ class BothOnChangesNothing(Base):
     def test_only_photo_tasks_use_tools(self):
         self.assertEqual(tasks.spec_tools({"task": None}), ())
         self.assertEqual(tasks.spec_tools({"task": {"template": tasks.TEXT_TEMPLATE}}), ())
+
+
+class TheStockAgent(Base):
+    def test_a_task_has_no_helper_the_loop_could_write_itself(self):
+        tools = task_tools(tasks.tool_catalog(tasks.MODEL_TOOLS))
+        self.assertEqual(names(tools), ["segment", "transcribe", "view", "load_skill", "run_script"])
+        self.assertNotIn("e.g. from segment", json.dumps(tools))
+        self.assertIn("earlier segment boxes", json.dumps(tools))
+
+    def test_a_model_naming_count_boxes_on_a_task_reaches_nothing(self):
+        handler = PhotoSetTools(MagicMock(), photos=[b"x"], counting=False)
+        with self.assertRaisesRegex(ValueError, "unknown tool"):
+            handler("count_boxes", {"photo": 1, "concept": "pen"})
+
+    def test_the_paused_experiments_still_have_it(self):
+        catalog = tasks.tool_catalog(tasks.MODEL_TOOLS)
+        offered = lambda domain: names(InventoryAdapter._agent_tools(SimpleNamespace(domain=domain, scripts_enabled=True), catalog))
+        self.assertIn("count_boxes", offered(InventoryDomain()))
+        self.assertNotIn("count_boxes", offered(tasks.TaskDomain(tasks.inventory_task(), "check")))
 
 
 class SettingsSwitch(Base):

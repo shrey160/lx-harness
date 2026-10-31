@@ -43,20 +43,24 @@ RUN_SCRIPT = _tool(
     ["name", "input"])
 COMPONENT_TOOLS = [LOAD_SKILL, RUN_SCRIPT]
 # Tool text that only holds while segmentation is on.
-_SEGMENT_TEXT = ((" (pixel corners of that photo, e.g. from segment)", " (pixel corners of that photo)"),
-                 ("photos and earlier segment boxes", "photos"))
+_VIEW_HINT = (" (pixel corners of that photo, e.g. from segment)", " (pixel corners of that photo)")
+_SEGMENT_BOXES = ("photos and earlier segment boxes", "photos")
+
+
+def experiment_tools(catalog, scripts=True):
+    """The paused experiments' list, count_boxes included: their recorded evidence depends on it."""
+    return photo_tools(catalog) + (COMPONENT_TOOLS if scripts else [LOAD_SKILL])
 
 
 def task_tools(catalog, scripts=True):
     """The agent's tools on a photo task, the one list the run sends and the live contract allows.
 
-    With segmentation off, nothing in it names segment, so the agent is not sent looking for it."""
-    tools = photo_tools(catalog) + (COMPONENT_TOOLS if scripts else [LOAD_SKILL])
-    if any(tool["function"]["name"] == "segment" for tool in tools):
-        return tools
-    text = json.dumps(tools)
-    for old, new in _SEGMENT_TEXT:
-        text = text.replace(old, new)
+    The stock agent gets the model tools alone: a helper over their output is something the loop can write
+    as a script (D-021). With segmentation off, nothing in it names segment, so the agent is not sent looking for it."""
+    tools = [tool for tool in experiment_tools(catalog, scripts) if tool["function"]["name"] != "count_boxes"]
+    text = json.dumps(tools).replace(*_VIEW_HINT)
+    if not any(tool["function"]["name"] == "segment" for tool in tools):
+        text = text.replace(*_SEGMENT_BOXES)
     return json.loads(text)
 
 

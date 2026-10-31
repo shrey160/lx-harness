@@ -183,11 +183,11 @@ class PhotoSetTools:
     agent as a follow-up message and the trace keeps only its hash.
     """
 
-    def __init__(self, perception, *, photos, audio=None, candidate="", max_side=768, segmentation=True):
+    def __init__(self, perception, *, photos, audio=None, candidate="", max_side=768, segmentation=True, counting=True):
         if not photos:
             raise ValueError("an item needs at least one photo")
         self.perception, self.photos, self.audio, self.candidate = perception, list(photos), audio, candidate
-        self.max_side, self.segmentation = max_side, segmentation
+        self.max_side, self.segmentation, self.counting = max_side, segmentation, counting
         self.segments = {}
 
     def _photo(self, arguments):
@@ -197,7 +197,7 @@ class PhotoSetTools:
         return number
 
     def __call__(self, name, arguments):
-        if name in {"segment", "count_boxes"} and not self.segmentation:
+        if (name in {"segment", "count_boxes"} and not self.segmentation) or (name == "count_boxes" and not self.counting):
             raise ValueError(f"unknown tool {name!r}")  # switched off: a model naming it anyway reaches nothing
         if name == "transcribe":
             if arguments or self.audio is None:
