@@ -54,6 +54,8 @@ def server_for(app, port=8765):
                 pieces = path.strip("/").split("/")
                 if len(pieces)==5 and pieces[:2]==["api","packages"] and pieces[4]=="download":
                     return self.respond(app.package_bytes(pieces[2],pieces[3]),mime="application/zip")
+                if len(pieces)==5 and pieces[:2]==["api","trajectories"] and pieces[4]=="download":
+                    return self.respond(app.trajectory_bytes(pieces[2],pieces[3]),mime="application/zip")
                 allowed = {"/":"index.html","/app.js":"app.js","/app.css":"app.css"}
                 if path not in allowed:
                     return self.respond({"error":"Not found"},404)

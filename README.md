@@ -375,7 +375,8 @@ Each folder has its own README:
   scripted replies, not a real model.
 - There is no CLI or MCP server yet (P6), and the GUI redesign is P7.
 - Reuse on a fresh sample works only for the demo. A task package holds the harness, its
-  check, results and limitations; running it on new samples comes with `lx use` (P6).
+  check, results, limitations and `learned.md`; running it on new samples comes with
+  `lx use` (P6). Trajectories download separately, because they can hold your data.
 - The Test button has not yet made a real provider call, and request pacing has been
   tested only with a mocked clock.
 

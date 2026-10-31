@@ -5,13 +5,17 @@ after the loop, and the harness with the largest gain becomes the package.
 """
 from __future__ import annotations
 
+import difflib
 import json
 from pathlib import Path
 from types import SimpleNamespace
 
 from .inventory_workflow import InventoryAdapter, grade_stream, preview_transcription, run_stream
-from .tasks import SEGMENTATION, TaskDomain, build_dataset, is_text, preview_scenes, spec_tools, tool_catalog
+from .tasks import EXTERNAL, SEGMENTATION, TaskDomain, build_dataset, is_text, preview_scenes, spec_tools, tool_catalog
 from .text_task import TextAdapter, TextDomain
+
+
+MAX_DIFF_LINES = 80
 
 
 def _adapter(task, run_dir, output, client, truth, check, *, live, limits, tools, perception=None, health=None):
@@ -34,11 +38,36 @@ def limitations(spec, report, chosen, live):
              (f"- This harness came from one sample ({chosen}), picked for the largest gain after grading, "
               "which adds to that optimism." if chosen else "- No sample gained, so this is the base harness."),
              f"- Learned with {worker} as the agent. A harness can fail on another model; retest it after a swap.",
-             "- Reuse on a new sample is not built yet. The harness is plain files you can read and copy."]
+             "- Reuse on a new sample is not built yet. The harness is plain files you can read and copy.",
+             ("- A connected agent set this run up. It could read every file in the workspace, including the answers, "
+              "so the task text and check may reflect them." if spec["roles"]["orchestrator"] == EXTERNAL else
+              "- The built-in orchestrator can read the file list, sample input text and the shape of the answers, never their values.")]
     if skipped:
         lines.append(f"- Not graded, because they produced no reference run: {', '.join(sorted(skipped))}.")
     if not live:
         lines.append("- Preview run: replies came from doubles, so this shows the plumbing works, not what a model can do.")
+    return "\n".join(lines)+"\n"
+
+
+def _text(content):
+    return content.decode("utf-8", "replace") if isinstance(content, bytes) else str(content)
+
+
+def learned(base, final, report, gains, chosen):
+    """What the loop changed, for a person or an outside agent to read. `base` and `final` map file names to contents."""
+    means = report["means"]
+    scores = f"Mean score, each sample with its own harness: {means['base']:.2f} before, {means['harness2']:.2f} after."
+    if chosen is None:
+        return f"# What was learned\n\nNothing the loop tried beat the base harness, so this package is the base harness.\n\n{scores}\n"
+    lines = ["# What was learned", "", f"This package is the harness from {chosen}, the largest gain ({gains[chosen]:+.2f} on that sample).", "", scores, "",
+             "## Changes from the base harness"]
+    added, removed = sorted(set(final)-set(base)), sorted(set(base)-set(final))
+    changed = sorted(name for name in set(base) & set(final) if base[name] != final[name])
+    lines += [f"- Removed `{name}`" for name in removed]
+    for name in added+changed:
+        lines += ["", f"### {'Added' if name in added else 'Changed'} `{name}`", "", "```diff"]
+        diff = list(difflib.unified_diff(_text(base.get(name, "")).splitlines(), _text(final[name]).splitlines(), lineterm="", n=1))[2:]
+        lines += diff[:MAX_DIFF_LINES]+([f"... {len(diff)-MAX_DIFF_LINES} more lines"] if len(diff) > MAX_DIFF_LINES else [])+["```"]
     return "\n".join(lines)+"\n"
 
 
@@ -52,8 +81,10 @@ def _package(adapter, report, output, spec, *, live, check):
     source = adapter.spec.runs_root/relative if gains[best] > 0 and relative else adapter.base_harness()
     package = Path(output)/"package"
     package.mkdir(exist_ok=True)
-    tree.write_tree(surface, tree.read_tree(surface, source), package/"harness", stubs=False)
+    final = tree.read_tree(surface, source)
+    tree.write_tree(surface, final, package/"harness", stubs=False)
     chosen = best if gains[best] > 0 else None
+    (package/"learned.md").write_text(learned(tree.read_tree(surface, adapter.base_harness()), final, report, gains, chosen), encoding="utf-8")
     (package/"spec.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
     (package/"check.py").write_text(check, encoding="utf-8", newline="")
     (package/"limitations.md").write_text(limitations(spec, report, chosen, live), encoding="utf-8")

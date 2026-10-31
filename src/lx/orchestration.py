@@ -125,4 +125,6 @@ class Orchestration:
         run = next((run for run in self.engine.runs(identifier) if run["id"] == run_id), None)
         if run is None or run["status"] != "completed":
             raise ValueError("That run has no results yet")
-        return {key: value for key, value in run.get("result", {}).items() if key != "spec"}
+        learned = self.engine.workspace(identifier).package_dir(run_id)/"learned.md"
+        return {**{key: value for key, value in run.get("result", {}).items() if key != "spec"},
+                "learned": learned.read_text(encoding="utf-8")[:MAX_SAMPLE_TEXT] if learned.is_file() else None}

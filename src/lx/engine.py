@@ -57,8 +57,7 @@ DEFAULT_ROOT = Path.home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT
 SAMPLES = "samples"
 ROLES = ("orchestrator","improver","worker")
 DEFAULT_ROLE_ENTRY = "spark-contributor"
-# An outside agent as orchestrator (D-024): its own model and account, so no entry, key or client here.
-EXTERNAL = "external-agent"
+EXTERNAL = tasks.EXTERNAL
 EXTERNAL_PROVIDER = {"id":EXTERNAL,"name":"Connected agent","model_id":"","base_url":"","pricing":{},"context_limit":0,"accepts_images":False,
                      "supports_tools":True,"priced":True,"requests_per_minute":None,"limits":{}}
 SHORT_NAMES = {tasks.SEGMENTATION:"SAM",tasks.TRANSCRIPTION:"Transcribe"}
@@ -813,6 +812,22 @@ class Engine:
             for path in folder.rglob("*"):
                 if path.is_file() and not path.is_symlink() and path.suffix in {".md",".json",".py"}:
                     archive.write(path,path.relative_to(folder).as_posix())
+        return stream.getvalue()
+
+    def trajectory_bytes(self, identifier, job_id):
+        """Every agent run's trace, for fine-tuning (REQ-01). Only on request: traces can hold the user's data, and no answers."""
+        workspace = self.workspace(identifier)
+        job = workspace.run(job_id)
+        if job["status"] in {"queued","running"}:
+            raise ValueError("Wait for the run to end")
+        folder = workspace.run_dir(job_id)/"outputs"/"runs"/"executions"
+        traces = sorted(path for path in folder.rglob("trace.json") if path.is_file() and not path.is_symlink()) if folder.is_dir() else []
+        if not traces:
+            raise ValueError("This run left no trajectories")
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream,"w",zipfile.ZIP_DEFLATED) as archive:
+            for path in traces:
+                archive.write(path,path.relative_to(folder).as_posix())
         return stream.getvalue()
 
     def fresh(self, identifier, job_id):

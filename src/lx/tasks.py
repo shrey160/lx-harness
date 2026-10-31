@@ -26,6 +26,8 @@ TEMPLATE = "photo-request"
 TEXT_TEMPLATE = text_task.TEMPLATE
 TEXT_FIELDS = ("name", "work", "domain_word", "yardstick", "deliverable_word", "selection_checks", "base_prompt", "contract")
 SEGMENTATION, TRANSCRIPTION = "sam-catalog", "transcribe-catalog"
+# An outside agent as orchestrator (D-024): its own model and account, so no entry, key or client here.
+EXTERNAL = "external-agent"
 MODEL_TOOLS = (SEGMENTATION, TRANSCRIPTION)
 _TOOL_KINDS = {SEGMENTATION: "segmentation", TRANSCRIPTION: "transcription"}
 MAX_TEXT = 8000

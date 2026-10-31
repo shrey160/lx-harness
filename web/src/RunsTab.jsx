@@ -60,6 +60,7 @@ function Result({project,job,ui,post,live}){
     <div className="stats">{Object.entries(result.checks).map(([label,checks])=><Stat key={label} value={`${Object.values(checks).filter(Boolean).length}/${Object.keys(checks).length}`} label={{base:'passed before',harness2:'passed after',selected_dev:'passed after',heldout:'held-out passed'}[label]||label.replaceAll('_',' ')}/>)}</div>
     <div className="actions">
       <a className="button primary" href={`/api/packages/${project.id}/${job.id}/download`} download="harness-package.zip">Download package</a>
+      {result.task&&<a className="button" href={`/api/trajectories/${project.id}/${job.id}/download`} download="trajectories.zip" title="Every agent run's trace, for fine-tuning. These can hold your data, and no answers.">Download trajectories</a>}
       {!result.task&&<button className="button" disabled={ui.busy} onClick={()=>post('fresh')}>Try a new scene</button>}
     </div>
     <p className="muted">The package holds the approved spec, the harness and the check results; a task package adds its check file and limitations.</p>
