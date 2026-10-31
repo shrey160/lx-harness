@@ -390,13 +390,38 @@ shows what you accept and waits for you to type yes, and each refuses without a 
 terminal. `lx run start` starts a live run you approved, or one your grant covers;
 otherwise it answers pending.
 
+## Let an agent run it
+
+Set up keys, models and tools in the app first. An agent such as Claude Code or Muse
+Code can then act as the orchestrator with its own model: it needs no keys, because
+workers, the improver and tools run through LX.
+
+Install the extra, adding `--extra mcp` to your `uv sync` command, then start the server
+with `python -m lx.mcp_server` from that environment. It speaks MCP over stdio. Every
+tool takes a workspace folder, and a preview or run returns at once for the agent to
+poll. A run keeps going after the agent closes.
+
+The agent can draft the spec and check, test the check, run previews and start live runs
+you approved. It cannot approve a run, set a grant or a budget, add a key or provider, or
+release held spending. To let it start live runs, set a grant on the Spec tab or with
+`lx grant`: a spending cap, an expiry (7 days by default) and a run count (3 by default),
+for these samples, providers and tools. Anything outside that answers pending, and so
+does a check that scores a blank or wrong answer too well, since no person reads it. Revoke
+a grant at any time; a run already going keeps its budget until you stop it.
+
+**Known limit.** This guards against mistakes and bad sample content, not a hostile
+agent. A program on your machine, running as you, can read the keychain, edit files, or
+take a session token from the app and call the approve route. A connected agent can also
+read every file in the workspace, including the answers, so each package says so.
+
 ## Not built yet
 
 - Two templates exist: `photo-request` and `text-request`. A task that fits neither
   needs a new one.
 - The orchestrator reads sample text only, not photos or audio, and has been tried on
   scripted replies, not a real model.
-- There is no MCP server yet (P6), and the GUI redesign is P7.
+- The MCP server has been tried with the SDK's client, not yet with a real agent. The
+  GUI redesign is P7.
 - Reuse on a fresh sample works only for the demo. A task package holds the harness, its
   check, results, limitations and `learned.md`, and there is no command yet to run it on
   new samples. Trajectories download separately, because they can hold your data.

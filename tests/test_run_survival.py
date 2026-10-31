@@ -30,8 +30,17 @@ def end_tree(caller):
     caller.wait()
 
 
+class ReleasesItsFiles(Base):
+    def clear_when_released(self, path):
+        """The record says completed a moment before the worker exits and lets go of its log files on Windows."""
+        deadline = time.time()+60
+        while Path(path).exists() and time.time() < deadline:
+            shutil.rmtree(path, ignore_errors=True)
+            time.sleep(0.5)
+
+
 @unittest.skipUnless(sandbox.available(), "needs the script sandbox")
-class RunSurvival(Base):
+class RunSurvival(ReleasesItsFiles):
     def test_a_preview_finishes_after_its_callers_tree_is_ended(self):
         path = self.folder()
         write_synthetic(Path(path)/"samples", 6)
@@ -49,13 +58,6 @@ class RunSurvival(Base):
             time.sleep(0.5)
         self.assertEqual(workspace.run(run_id)["status"], "completed", workspace.run(run_id).get("error"))
         self.addCleanup(self.clear_when_released, path)
-
-    def clear_when_released(self, path):
-        """The record says completed a moment before the worker exits and lets go of its log files on Windows."""
-        deadline = time.time()+60
-        while Path(path).exists() and time.time() < deadline:
-            shutil.rmtree(path, ignore_errors=True)
-            time.sleep(0.5)
 
 
 if __name__ == "__main__":

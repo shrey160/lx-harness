@@ -13,6 +13,9 @@ dependencies = [
     "pillow==11.3.0",
 ]
 
+[project.optional-dependencies]
+mcp = ["mcp==2.3.0"]
+
 [project.scripts]
 lx = "lx.cli:main"
 
