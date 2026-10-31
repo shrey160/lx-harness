@@ -9,6 +9,7 @@ import difflib
 import hashlib
 import json
 from pathlib import Path
+import random
 from types import SimpleNamespace
 
 from .checks import named_checks
@@ -21,6 +22,20 @@ MAX_DIFF_LINES, MAX_EDIT_LINES = 80, 400
 STAGE_NAMES = {"inv": "How the agent works", "dom": "The subject", "c": "Combined"}
 STAGE_ORDER = ("inv", "dom", "c")
 LEARNED_FOLDERS = ("skills", "scripts", "plugin", "sub_agents")
+
+
+def run_order(stream, identifier):
+    """This run's order over the stream. The split stays fixed, so a held-out sample stays held out; the order
+    differs per run, as in the paper's three runs, and comes from the run id, so a resume keeps it."""
+    order = sorted(stream)
+    random.Random(f"{identifier}:stream-order").shuffle(order)
+    return order
+
+
+def _folders(run_dir):
+    """{sample id: its folder in the workspace}."""
+    sources = Path(run_dir)/"dataset"/"controller_truth"/"sources.json"
+    return {key: value.get("folder") for key, value in json.loads(sources.read_text(encoding="utf-8")).items()} if sources.is_file() else {}
 
 
 def _adapter(task, run_dir, output, client, truth, check, *, live, limits, tools, perception=None, health=None):
@@ -121,8 +136,7 @@ def harness_edits(run_dir):
     so it works during a run. Each stage is compared with the base harness, because the invariant and
     domain stages each start from it and the combined stage merges them."""
     output = Path(run_dir)/"outputs"/"runs"
-    sources = Path(run_dir)/"dataset"/"controller_truth"/"sources.json"
-    folders = {key: value.get("folder") for key, value in json.loads(sources.read_text(encoding="utf-8")).items()} if sources.is_file() else {}
+    folders = _folders(run_dir)
     samples = []
     for sample in sorted(output.glob("*-seq1/*")):
         harnesses = sample/"harnesses"
@@ -189,9 +203,9 @@ def _package(adapter, report, output, spec, *, live, check, approved_by="person"
     return gains, chosen
 
 
-def summarize_report(task, report, gains, chosen, live):
+def summarize_report(task, report, gains, chosen, live, folders):
     rows = report["per_sample"]
-    return {"task": task["name"], "live": live, "simulated_usage": not live, "improved": chosen is not None,
+    return {"task": task["name"], "live": live, "stream_order": [folders.get(sample) or sample for sample in report["stream"]], "simulated_usage": not live, "improved": chosen is not None,
             "retained": "harness2" if chosen else "base", "chosen_sample": chosen, "means": report["means"],
             "gains": gains, "skipped": report["skipped"],
             "checks": {"base": {t: r["base"]["score"] == 1.0 for t, r in rows.items()},
@@ -207,6 +221,7 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     task = spec["task"]
     run_dir = workspace.run_dir(identifier)
     stream, truth, requests = build_dataset(snapshot, run_dir/"dataset", task, preview=not live)
+    stream = run_order(stream, identifier)
     limits, tools = engine.limits_of(spec), spec_tools(spec)
     if is_text(task):
         perception = None
@@ -229,7 +244,7 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health,
                         on_grading=lambda: workspace.update_run(identifier, phase="grading"))
     gains, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
-    return {**summarize_report(task, report, gains, chosen, live), "base_sha256": base}
+    return {**summarize_report(task, report, gains, chosen, live, _folders(run_dir)), "base_sha256": base}
 
 
 def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
@@ -254,9 +269,7 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
     for step in steps:
         if step["type"] == "tool":
             calls[step["name"]] = calls.get(step["name"], 0)+1
-    sources = run_dir/"dataset"/"controller_truth"/"sources.json"
-    folder = json.loads(sources.read_text(encoding="utf-8")).get(sample, {}).get("folder", sample) if sources.is_file() else sample
-    return {"kind": "trial", "task": task["name"], "live": True, "sample": folder, "score": sum(item["passed"] for item in named)/len(named),
+    return {"kind": "trial", "task": task["name"], "live": True, "sample": _folders(run_dir).get(sample, sample), "score": sum(item["passed"] for item in named)/len(named),
             "base_sha256": base, "checks": named, "stopped": next((step["reason"] for step in steps if step["type"] == "stopped"), None), "tool_calls": calls,
             "note": "One sample on the base harness: a smoke test, not a measure of what the loop can reach."}
 
@@ -268,9 +281,10 @@ def regrade(engine, workspace, job, *, live):
     run_dir = workspace.run_dir(identifier)
     output = run_dir/"outputs"
     stream, truth, _ = build_dataset(run_dir/"snapshot", run_dir/"dataset", task, preview=not live)
+    stream = run_order(stream, identifier)
     client = SimpleNamespace(profile=engine.registry.profile(spec["roles"]["worker"]))
     check = workspace.check_source(spec["check"])
     adapter = _adapter(task, run_dir, output, client, truth, check, live=live, limits=engine.limits_of(spec), tools=spec_tools(spec))
     report = grade_stream(adapter, output, stream, {"regraded": True})
     gains, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
-    return summarize_report(task, report, gains, chosen, live)
+    return summarize_report(task, report, gains, chosen, live, _folders(run_dir))

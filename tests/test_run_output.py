@@ -8,7 +8,7 @@ import zipfile
 from lx import sandbox
 from lx.inventory import write_synthetic
 from lx.orchestration import Orchestration
-from lx.taskrun import MAX_DIFF_LINES, learned, limitations
+from lx.taskrun import MAX_DIFF_LINES, learned, limitations, run_order
 from lx.worker import execute
 from test_tasks import Base
 
@@ -34,6 +34,19 @@ class Learned(unittest.TestCase):
         text = learned({}, {"long.md": "\n".join(f"line {n}" for n in range(500))}, REPORT, {"s": 1}, "s")
         self.assertIn("more lines", text)
         self.assertLess(text.count("+line"), MAX_DIFF_LINES+1)
+
+
+class StreamOrder(unittest.TestCase):
+    samples = [f"sample-{number:02d}" for number in range(1, 7)]
+
+    def test_runs_differ_and_hold_the_same_samples(self):
+        orders = [run_order(self.samples, identifier) for identifier in ("a1", "b2", "c3")]
+        self.assertGreater(len({tuple(order) for order in orders}), 1)
+        for order in orders:
+            self.assertEqual(sorted(order), self.samples)
+
+    def test_a_resume_keeps_its_order(self):
+        self.assertEqual(run_order(self.samples, "a1"), run_order(self.samples[::-1], "a1"))
 
 
 class WhatTheOrchestratorCouldRead(unittest.TestCase):
@@ -86,6 +99,12 @@ class APreviewPackage(Base):
             self.assertFalse({name for name in names if "trace" in name})
             self.assertIn("connected agent", archive.read("limitations.md").decode("utf-8"))
         self.assertIn("What was learned", self.lx.results(self.path, self.run_id)["learned"])
+
+    def test_it_records_the_order_its_samples_ran_in(self):
+        order = self.lx.results(self.path, self.run_id)["stream_order"]
+        self.assertEqual(len(order), 6)
+        self.assertTrue(all(folder.startswith("sample-") for folder in order))
+        self.assertEqual(len(set(order)), 6)
 
     def test_trajectories_hold_traces_and_no_answer_files(self):
         with zipfile.ZipFile(io.BytesIO(self.app.trajectory_bytes(self.project["id"], self.run_id))) as archive:
