@@ -371,8 +371,8 @@ Each folder has its own README:
 
 - Two templates exist: `photo-request` and `text-request`. A task that fits neither
   needs a new one.
-- The discussion step is not yet a real orchestrator: it does not remember the
-  conversation or edit the spec. That is P5.
+- The orchestrator reads sample text only, not photos or audio, and has been tried on
+  scripted replies, not a real model.
 - There is no CLI or MCP server yet (P6), and the GUI redesign is P7.
 - Reuse on a fresh sample works only for the demo. A task package holds the harness, its
   check, results and limitations; running it on new samples comes with `lx use` (P6).
