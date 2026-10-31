@@ -396,10 +396,10 @@ Set up keys, models and tools in the app first. An agent such as Claude Code or 
 Code can then act as the orchestrator with its own model: it needs no keys, because
 workers, the improver and tools run through LX.
 
-Install the extra, adding `--extra mcp` to your `uv sync` command, then start the server
-with `python -m lx.mcp_server` from that environment. It speaks MCP over stdio. Every
-tool takes a workspace folder, and a preview or run returns at once for the agent to
-poll. A run keeps going after the agent closes.
+Add `--extra mcp` to your `uv sync` command, then open Settings, Tools, Connect an agent.
+It gives the setup for Claude Code and Muse Code with this install's paths. The server
+speaks MCP over stdio. Every tool takes a workspace folder, and a preview or run returns
+at once for the agent to poll. A run keeps going after the agent closes.
 
 The agent can draft the spec and check, test the check, run previews and start live runs
 you approved. It cannot approve a run, set a grant or a budget, add a key or provider, or

@@ -165,3 +165,4 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .settings-nav h1 { flex: 0 0 100%; padding-left: 0; }
   .settings-nav .nav-row { width: auto; }
 }
+.setup { margin: 8px 0 16px; padding: 12px; overflow-x: auto; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; }

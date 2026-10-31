@@ -47,7 +47,21 @@ function Tools({state,system,ui,refresh}){
     <p className="muted">Off stops every workspace from using a tool and blocks approved runs that include it. Photo tasks need a transcription tool, because their requests are audio.</p>
     <h3>Agent tools</h3>
     <ul className="list">{system?.agent_tools.map(tool=><li key={tool.name}><code>{tool.name}</code><span className="muted">{tool.description}</span></li>)}</ul>
+    {system&&<ConnectAgent setup={system.agent_setup}/>}
   </section>;
+}
+
+function ConnectAgent({setup}){
+  return <>
+    <h3>Connect an agent</h3>
+    <p className="muted">An agent can set up tasks here with its own model and account. It needs no keys, because workers, the improver and tools run through LX. It can run previews, and starts a live run only if you approve it or set a grant on the Spec tab.</p>
+    {!setup.installed&&<p className="callout warn">The MCP extra is not installed. Run your <code>uv sync</code> command again with <code>--extra mcp</code>.</p>}
+    <p>Claude Code: run this in the folder you will work in.</p>
+    <pre className="setup"><code>{setup.claude}</code></pre>
+    <p>Muse Code: add this to <code>~/.config/muse/settings.json</code>, merging it with what is there.</p>
+    <pre className="setup"><code>{setup.muse}</code></pre>
+    <p className="muted">A connected agent can read every file in a workspace, including the answers, and what it reads goes to its own provider. Use it on samples you are happy to share there.</p>
+  </>;
 }
 
 function UsagePage({state}){

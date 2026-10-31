@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import replace
 import hashlib
 from importlib.metadata import version
+from importlib.util import find_spec
 import io
 import json
 import math
@@ -889,8 +890,16 @@ class Engine:
         enabled = [m["id"] for m in self.registry.list_models() if m["enabled"] and m["id"] in tasks.MODEL_TOOLS]
         calls = [tool.get("function", tool) for tool in task_tools(tasks.tool_catalog(enabled))]
         return {"version":version("lx-harness"),"state_root":str(self.root),"sandbox":sandbox.backend(),
-                "meta_key":self.registry.meta_key_source(),
+                "meta_key":self.registry.meta_key_source(),"agent_setup":self.agent_setup(),
                 "agent_tools":[{"name":call["name"],"description":call["description"]} for call in calls]}
+
+    def agent_setup(self):
+        """Ready setup for an agent client, with this install's own paths (D-024). No keys: the agent never needs one."""
+        args = ["-m","lx.mcp_server"]+([] if self.root == DEFAULT_ROOT.resolve() else ["--root",str(self.root)])
+        muse = {"schema_version":1,"mcp_servers":{"lx":{"transport":"stdio","command":sys.executable,"args":args,"mode":"optional"}}}
+        return {"installed":find_spec("mcp") is not None,
+                "claude":subprocess.list2cmdline(["claude","mcp","add","--transport","stdio","--scope","local","lx","--",sys.executable,*args]),
+                "muse":json.dumps(muse,indent=2)}
 
     # Packages
 
