@@ -13,6 +13,9 @@ dependencies = [
     "pillow==11.3.0",
 ]
 
+[project.scripts]
+lx = "lx.cli:main"
+
 [tool.uv.sources]
 h2portable = { path = "../harness2_portable_core", editable = true }
 harness2-cli = { path = "../harness2_portable_core/vendor/harness2-cli", editable = true }

@@ -367,16 +367,39 @@ Each folder has its own README:
 
 [overview.md](overview.md) is the original project vision.
 
+## Use it from a terminal
+
+`lx` runs the same actions as the app and prints JSON. It is on the path of the
+environment `uv sync` made, and works on the folder you are in unless you pass
+`--workspace`:
+
+```text
+lx status
+lx init --template photo-request --goal "Count the items in the photos"
+lx samples
+lx spec show
+lx spec draft --mode live --tools sam-catalog,transcribe-catalog
+lx check test
+lx preview
+lx run status
+lx results <run id>
+```
+
+`lx approve`, `lx grant --cap 2` and `lx run resume <run id>` are a person's steps. Each
+shows what you accept and waits for you to type yes, and each refuses without a real
+terminal. `lx run start` starts a live run you approved, or one your grant covers;
+otherwise it answers pending.
+
 ## Not built yet
 
 - Two templates exist: `photo-request` and `text-request`. A task that fits neither
   needs a new one.
 - The orchestrator reads sample text only, not photos or audio, and has been tried on
   scripted replies, not a real model.
-- There is no CLI or MCP server yet (P6), and the GUI redesign is P7.
+- There is no MCP server yet (P6), and the GUI redesign is P7.
 - Reuse on a fresh sample works only for the demo. A task package holds the harness, its
-  check, results, limitations and `learned.md`; running it on new samples comes with
-  `lx use` (P6). Trajectories download separately, because they can hold your data.
+  check, results, limitations and `learned.md`, and there is no command yet to run it on
+  new samples. Trajectories download separately, because they can hold your data.
 - The Test button has not yet made a real provider call, and request pacing has been
   tested only with a mocked clock.
 
