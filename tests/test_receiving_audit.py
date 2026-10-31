@@ -278,7 +278,7 @@ class GeneratorTests(unittest.TestCase):
 
     def test_credits_follow_each_note(self):
         self.assertEqual({name: sample["truth"]["total_claim"] for name, sample in self.samples.items()},
-                         {"order-changed": 10.75, "slip-overclaims": 44.1, "substitution": 13.0, "retake": 7.3, "price-rule": 40.4})
+                         {"order-changed": 17.25, "slip-overclaims": 5.22, "substitution": 13.0, "retake": 7.3, "price-rule": 40.4})
 
     def test_a_cancelled_line_is_over_and_earns_nothing(self):
         clocks = self.samples["order-changed"]["truth"]["lines"][2]
@@ -286,9 +286,16 @@ class GeneratorTests(unittest.TestCase):
         self.assertIn("settled on nine", self.samples["order-changed"]["note"])
 
     def test_only_a_shortfall_beyond_the_back_order_earns_credit(self):
-        remotes = self.samples["slip-overclaims"]["truth"]["lines"][2]
-        self.assertEqual((remotes["item"], remotes["ordered"], remotes["received"], remotes["credit"], check.expected_status(remotes)), ("remote", 6, 3, 8.55, "short"))
-        self.assertEqual(builder.credit(dict(builder.PLANS[1]["lines"][2], backordered=0), builder.PLANS[1]), 25.65)
+        donuts = self.samples["slip-overclaims"]["truth"]["lines"][2]
+        self.assertEqual((donuts["item"], donuts["ordered"], donuts["received"], donuts["credit"], check.expected_status(donuts)), ("donut", 6, 3, 2.25, "short"))
+        self.assertEqual(builder.credit(dict(builder.PLANS[1]["lines"][2], backordered=0), builder.PLANS[1]), 6.75)
+
+    def test_the_reworked_samples_pack_lookalikes_together(self):
+        shots = [entry for entry in self.samples["slip-overclaims"]["layout"] if "delivery" in entry]
+        self.assertEqual(len(shots), 2)
+        self.assertTrue(all({"apple", "orange"} <= {kind for kind, _ in entry["objects"]} and len(entry["objects"]) >= 9 for entry in shots))
+        bottles = self.samples["order-changed"]["truth"]["lines"][3]
+        self.assertEqual((bottles["received"], bottles["substitute"], bottles["credit"], check.expected_status(bottles)), (3, {"item": "vase", "count": 2}, 6.5, "wrong_item"))
 
     def test_a_worker_that_missed_the_note_fails_each_sample(self):
         plain = {name: {key: value for key, value in plan.items() if key not in ("discount", "free", "min_short")} for name, plan in zip(self.samples, builder.PLANS)}
