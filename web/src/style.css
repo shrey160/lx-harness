@@ -166,3 +166,11 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .settings-nav .nav-row { width: auto; }
 }
 .setup { margin: 8px 0 16px; padding: 12px; overflow-x: auto; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; }
+.edits { margin-top: 16px; }
+.edits details { margin: 8px 0; }
+.edits summary { cursor: pointer; }
+.edit-stage { margin: 8px 0 0 12px; }
+.edit-stage h4 { margin: 12px 0 4px; font-size: 13px; }
+.edit-notes { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); }
+.diff .add { color: var(--accent); }
+.diff .del { color: var(--bad); }

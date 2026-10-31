@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {active, api, modeName, money, plural, resumable, scores, statusName, tone, when} from './api.js';
 
 export function RunsTab({project,jobs,ui,setTab}){
@@ -46,10 +46,39 @@ function RunPage({project,job,ui,back}){
       {job.status==='failed'&&job.spec.task&&job.kind!=='trial'&&<button className="button" disabled={ui.busy} onClick={()=>post('regrade')}>Grade saved answers</button>}
     </div>
     {result&&(job.kind==='trial'?<TrialResult project={project} job={job}/>:<Result project={project} job={job} ui={ui} post={post} live={live}/>)}
+    {job.kind!=='trial'&&job.spec.task&&<Edits project={project} job={job}/>}
     <Health job={job} busy={ui.busy} release={charged=>post('release',{charged})}/>
     <h3>Usage{live?'':' (simulated)'}</h3>
     <Usage usage={job.usage}/>
   </section>;
+}
+
+function Edits({project,job}){
+  const [edits,setEdits]=useState(null),running=active(job);
+  useEffect(()=>{
+    const load=()=>api(`edits/${project.id}/${job.id}`).then(setEdits,()=>{});
+    load();
+    if(!running)return undefined;
+    const timer=setInterval(load,5000);
+    return ()=>clearInterval(timer);
+  },[job.id,running]);
+  if(!edits)return null;
+  return <div className="edits">
+    <h3>What the improver changed</h3>
+    {edits.samples.length===0&&<p className="muted">{running?'Nothing written yet. Edits appear here as the loop writes them.':'This run left no edits.'}</p>}
+    {edits.samples.map(sample=><details key={sample.sample} open={running||sample.sample===edits.chosen_sample}>
+      <summary>{sample.folder||sample.sample}{sample.done?(sample.kept_base?' · kept the base harness':' · kept the improved harness'):' · in progress'}{sample.sample===edits.chosen_sample?(sample.kept_base?' · in the package, unchanged from the base':' · in the package'):''}</summary>
+      {sample.stages.length===0&&<p className="muted">Nothing written yet.</p>}
+      {sample.stages.map(stage=><div className="edit-stage" key={stage.label}>
+        <h4>{stage.stage}{stage.status==='written'?'':` (${stage.status})`}</h4>
+        {stage.notes&&<p className="edit-notes">{stage.notes}</p>}
+        {stage.changes.length===0&&<p className="muted">No files changed from the base harness.</p>}
+        {stage.changes.map(item=><details key={item.file}><summary><code>{item.file}</code> <span className="muted">{item.change}</span></summary>
+          {item.diff.length>0&&<pre className="setup diff"><code>{item.diff.map((line,i)=><span key={i} className={line[0]==='+'?'add':line[0]==='-'?'del':''}>{line+'\n'}</span>)}</code></pre>}
+        </details>)}
+      </div>)}
+    </details>)}
+  </div>;
 }
 
 function TrialResult({project,job}){

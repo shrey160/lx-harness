@@ -43,7 +43,7 @@ class Tools(Base):
         tools = self.using(flow)
         self.assertEqual({tool.name for tool in tools}, set(ACTIONS))
         read = {tool.name for tool in tools if tool.annotations.read_only_hint}
-        self.assertEqual(read, {"status", "samples", "read_sample", "truth_shape", "spec_show", "check_test", "ready", "run_status", "results"})
+        self.assertEqual(read, {"status", "samples", "read_sample", "truth_shape", "spec_show", "check_test", "ready", "run_status", "edits", "results"})
 
     def test_a_refused_action_comes_back_as_an_error_with_its_reason(self):
         async def flow(client):

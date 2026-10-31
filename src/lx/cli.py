@@ -132,6 +132,8 @@ def parser():
     action(run, "status", "run_status", "this workspace's runs")
     item = command(run, "stop", lambda engine, lx, args: lx.run_stop(args.workspace, args.run), help="stop a run")
     item.add_argument("run")
+    item = command(run, "edits", lambda engine, lx, args: lx.edits(args.workspace, args.run), help="what the improver has written, during a run or after it")
+    item.add_argument("run")
     item = command(run, "resume", resume, help="resume a stopped run, as a person")
     item.add_argument("run")
 

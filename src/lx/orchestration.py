@@ -12,7 +12,7 @@ from pathlib import PurePosixPath
 from . import tasks
 from .engine import EXTERNAL
 
-ACTIONS = ("status", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "ready", "preview", "run_start", "trial_start", "run_status", "run_stop", "results")
+ACTIONS = ("status", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "ready", "preview", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
@@ -134,6 +134,10 @@ class Orchestration:
 
     def run_stop(self, workspace, run_id):
         return {"status": self.engine.stop(self._id(workspace), run_id)["status"]}
+
+    def edits(self, workspace, run_id):
+        """What the improver wrote, sample by sample, during a run or after it."""
+        return self.engine.run_edits(self._id(workspace), run_id)
 
     def results(self, workspace, run_id):
         identifier = self._id(workspace)

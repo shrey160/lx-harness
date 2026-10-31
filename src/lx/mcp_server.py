@@ -115,6 +115,12 @@ def server_for(engine):
         return lx.run_stop(workspace, run_id)
 
     @tool(READ)
+    def edits(workspace: str, run_id: str) -> dict[str, Any]:
+        """What the improver has written so far, for each sample and stage, as diffs from the base harness with its notes. Works during a run.
+        It is for reading: procedure stays with the loop, so do not copy it into the task text."""
+        return lx.edits(workspace, run_id)
+
+    @tool(READ)
     def results(workspace: str, run_id: str) -> dict[str, Any]:
         """A finished run's scores, gains and learned.md."""
         return lx.results(workspace, run_id)

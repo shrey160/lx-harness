@@ -398,6 +398,12 @@ against a grant. There is no loop and no package. Its cap is $0.25 by default, a
 change it under Budget on the Spec tab, within the run budget. One sample is a smoke test,
 not a measure.
 
+`lx run edits <run id>`, or "What the improver changed" on a run's page, shows what the
+improver wrote for each sample and stage, as diffs from the base harness with its notes:
+the system prompt, guardrails, skills, scripts and tool guidance. It fills in during a run,
+and an agent can read it too. A run only counts as improved if the kept harness really
+differs from the base, because the same harness can score differently on a rerun.
+
 `lx approve`, `lx grant --cap 2` and `lx run resume <run id>` are a person's steps. Each
 shows what you accept and waits for you to type yes, and each refuses without a real
 terminal. `lx run start` starts a live run you approved, or one your grant covers;

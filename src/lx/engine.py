@@ -799,6 +799,13 @@ class Engine:
         workspace.update_run(identifier,status="completed",phase="complete",result=result,error=None)
         return result
 
+    def run_edits(self, identifier, job_id):
+        """What the improver has written in a run so far. Works during the run."""
+        from .taskrun import harness_edits
+        workspace = self.workspace(identifier)
+        job = workspace.run(job_id)
+        return {"status":job["status"],"chosen_sample":(job.get("result") or {}).get("chosen_sample"),**harness_edits(workspace.run_dir(job_id))}
+
     def finish_trial(self, workspace, job, result):
         """A trial ends in its result alone: nothing was learned, so there is no package."""
         result["usage"] = summarize(usage_rows(self._ledger(workspace),job["id"]+"/"))

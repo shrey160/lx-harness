@@ -16,7 +16,9 @@ from .tasks import EXTERNAL, SEGMENTATION, TaskDomain, build_dataset, is_text, p
 from .text_task import TextAdapter, TextDomain
 
 
-MAX_DIFF_LINES = 80
+MAX_DIFF_LINES, MAX_EDIT_LINES = 80, 400
+STAGE_NAMES = {"inv": "How the agent works", "dom": "The subject", "c": "Combined"}
+STAGE_ORDER = ("inv", "dom", "c")
 
 
 def _adapter(task, run_dir, output, client, truth, check, *, live, limits, tools, perception=None, health=None):
@@ -64,14 +66,70 @@ def learned(base, final, report, gains, chosen):
         return f"# What was learned\n\nNothing the loop tried beat the base harness, so this package is the base harness.\n\n{scores}\n"
     lines = ["# What was learned", "", f"This package is the harness from {chosen}, the largest gain ({gains[chosen]:+.2f} on that sample).", "", scores, "",
              "## Changes from the base harness"]
+    changes = file_changes(base, final, MAX_DIFF_LINES)
+    lines += [f"- Removed `{item['file']}`" for item in changes if item["change"] == "removed"]
+    for item in changes:
+        if item["change"] != "removed":
+            lines += ["", f"### {item['change'].capitalize()} `{item['file']}`", "", "```diff", *item["diff"], "```"]
+    return "\n".join(lines)+"\n"
+
+
+def file_changes(base, final, limit):
+    """[{file, change, diff}] between two harnesses: added, then changed, then removed."""
+    def diff(name):
+        lines = list(difflib.unified_diff(_text(base.get(name, "")).splitlines(), _text(final[name]).splitlines(), lineterm="", n=1))[2:]
+        return lines[:limit]+([f"... {len(lines)-limit} more lines"] if len(lines) > limit else [])
     added, removed = sorted(set(final)-set(base)), sorted(set(base)-set(final))
     changed = sorted(name for name in set(base) & set(final) if base[name] != final[name])
-    lines += [f"- Removed `{name}`" for name in removed]
-    for name in added+changed:
-        lines += ["", f"### {'Added' if name in added else 'Changed'} `{name}`", "", "```diff"]
-        diff = list(difflib.unified_diff(_text(base.get(name, "")).splitlines(), _text(final[name]).splitlines(), lineterm="", n=1))[2:]
-        lines += diff[:MAX_DIFF_LINES]+([f"... {len(diff)-MAX_DIFF_LINES} more lines"] if len(diff) > MAX_DIFF_LINES else [])+["```"]
-    return "\n".join(lines)+"\n"
+    return ([{"file": name, "change": "added", "diff": diff(name)} for name in added]
+            + [{"file": name, "change": "changed", "diff": diff(name)} for name in changed]
+            + [{"file": name, "change": "removed", "diff": []} for name in removed])
+
+
+def _harness_files(folder):
+    return {path.relative_to(folder).as_posix(): path.read_bytes() for path in sorted(folder.rglob("*")) if path.is_file() and not path.is_symlink()}
+
+
+def _stage_key(label):
+    name = label.rstrip("0123456789")
+    return STAGE_ORDER.index(name) if name in STAGE_ORDER else len(STAGE_ORDER)
+
+
+def _stage_status(meta):
+    if meta is None:
+        return "written"
+    return "failed" if meta["fell_back"] else "no change kept" if meta["kept_base"] else "written"
+
+
+def harness_edits(run_dir):
+    """What the improver has written so far, sample by sample, from the files the loop leaves as it goes,
+    so it works during a run. Each stage is compared with the base harness, because the invariant and
+    domain stages each start from it and the combined stage merges them."""
+    output = Path(run_dir)/"outputs"/"runs"
+    sources = Path(run_dir)/"dataset"/"controller_truth"/"sources.json"
+    folders = {key: value.get("folder") for key, value in json.loads(sources.read_text(encoding="utf-8")).items()} if sources.is_file() else {}
+    samples = []
+    for sample in sorted(output.glob("*-seq1/*")):
+        harnesses = sample/"harnesses"
+        if not (harnesses/"base").is_dir():
+            continue
+        summary_file = sample.parent.with_name(sample.parent.name.replace("-seq1", "-agg1"))/sample.name/"summary.json"
+        summary = json.loads(summary_file.read_text(encoding="utf-8")) if summary_file.is_file() else {}
+        metas = {meta["label"]: meta for meta in summary.get("modes", {}).get("seq", {}).get("stages", [])}
+        base, stages = _harness_files(harnesses/"base"), []
+        for label in sorted((path.name for path in harnesses.iterdir() if path.is_dir() and path.name != "base"), key=_stage_key):
+            meta = metas.get(label)
+            stages.append({"label": label, "stage": STAGE_NAMES.get(label.rstrip("0123456789"), label), "status": _stage_status(meta),
+                           "notes": (meta or {}).get("notes"), "changes": file_changes(base, _harness_files(harnesses/label), MAX_EDIT_LINES)})
+        samples.append({"sample": sample.name, "folder": folders.get(sample.name), "done": bool(summary),
+                        "kept_base": summary.get("selections", {}).get("seq", {}).get("chosen_tree_is_base"), "stages": stages})
+    return {"samples": samples}
+
+
+def kept_sample(best, gains, base, final):
+    """The sample whose harness counts as an improvement. A rerun of the same harness can score
+    higher by chance, so a gain with no edits is not one."""
+    return best if gains[best] > 0 and final != base else None
 
 
 def _package(adapter, report, output, spec, *, live, check, approved_by="person"):
@@ -86,8 +144,9 @@ def _package(adapter, report, output, spec, *, live, check, approved_by="person"
     package.mkdir(exist_ok=True)
     final = tree.read_tree(surface, source)
     tree.write_tree(surface, final, package/"harness", stubs=False)
-    chosen = best if gains[best] > 0 else None
-    (package/"learned.md").write_text(learned(tree.read_tree(surface, adapter.base_harness()), final, report, gains, chosen), encoding="utf-8")
+    base = tree.read_tree(surface, adapter.base_harness())
+    chosen = kept_sample(best, gains, base, final)
+    (package/"learned.md").write_text(learned(base, final, report, gains, chosen), encoding="utf-8")
     (package/"spec.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
     (package/"check.py").write_text(check, encoding="utf-8", newline="")
     (package/"limitations.md").write_text(limitations(spec, report, chosen, live, approved_by), encoding="utf-8")
@@ -158,7 +217,9 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
     for step in steps:
         if step["type"] == "tool":
             calls[step["name"]] = calls.get(step["name"], 0)+1
-    return {"kind": "trial", "task": task["name"], "live": True, "sample": sample, "score": sum(item["passed"] for item in named)/len(named),
+    sources = run_dir/"dataset"/"controller_truth"/"sources.json"
+    folder = json.loads(sources.read_text(encoding="utf-8")).get(sample, {}).get("folder", sample) if sources.is_file() else sample
+    return {"kind": "trial", "task": task["name"], "live": True, "sample": folder, "score": sum(item["passed"] for item in named)/len(named),
             "checks": named, "stopped": next((step["reason"] for step in steps if step["type"] == "stopped"), None), "tool_calls": calls,
             "note": "One sample on the base harness: a smoke test, not a measure of what the loop can reach."}
 
