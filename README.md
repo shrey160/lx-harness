@@ -18,7 +18,8 @@ nothing runs live until you approve the spec, the data and the budget.
 | Full loop on 6 inventory samples on the new agent loop | Muse Spark 1.3 Contributor | 0.82 to 0.82, $0.37: all 6 base runs answered, and these samples left the loop little room |
 | Full loop on 6 inventory samples through OpenRouter | Muse Glimmer | 0.00 to 0.00, $1.27: the agent never answered within the turn limits of the time |
 
-The turn limits were raised after the last run, and it has not been rerun.
+The Glimmer run came before the raised limits and the new agent loop, and Glimmer has
+not been rerun on them.
 Previews use scripted responses, so they prove the plumbing and say nothing about
 a model. Earlier results are in [docs/history.md](docs/history.md).
 
