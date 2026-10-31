@@ -92,6 +92,31 @@ def validate_check_source(source):
     return source
 
 
+def truth_shape(truths):
+    """The field names and types of the answers, never their values."""
+    def shape(value):
+        if isinstance(value, dict):
+            return {key: shape(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [shape(value[0])] if value else []
+        return "boolean" if isinstance(value, bool) else "number" if isinstance(value, (int, float)) else "text" if isinstance(value, str) else "null"
+    shapes = [shape(truth) for truth in truths.values()]
+    return {"samples": len(shapes), "shape": shapes[0] if shapes else None, "same_shape": all(item == shapes[0] for item in shapes)}
+
+
+def quotes_answers(text, truths):
+    """A backstop, not a proof: true if a text repeats a long answer, or several short ones. Numbers are left out."""
+    def strings(value):
+        if isinstance(value, dict):
+            return [item for part in value.values() for item in strings(part)]
+        if isinstance(value, list):
+            return [item for part in value for item in strings(part)]
+        return [value.lower()] if isinstance(value, str) and len(value) >= 4 else []
+    lowered = text.lower()
+    found = {value for truth in truths.values() for value in strings(truth) if re.search(r"(?<!\w)"+re.escape(value)+r"(?!\w)", lowered)}
+    return len(found) >= 3 or any(len(value) >= 12 for value in found)
+
+
 def source_hash(source):
     return hashlib.sha256(source.encode("utf-8")).hexdigest()
 

@@ -41,11 +41,11 @@ function Discuss({project,ui}){
   const live=project.draft.mode==='live';
   const send=()=>ui.act(async()=>{await api(`projects/${project.id}/discuss`,{text,data_approved:!live||consent,mode:project.draft.mode});setText('');});
   return <section className="narrow">
-    <p className="muted">Ask the orchestrator about your goal and samples. It sees file names, sizes and hashes, not file contents. For now it does not remember earlier messages or change the spec.</p>
+    <p className="muted">Tell the orchestrator what you want. It remembers this conversation, reads the text of your samples and can edit the spec, which clears any approval. It never sees the answers, and only you can approve or start a run.</p>
     <div className="chat">{project.messages.map((m,i)=><div key={i} className={'message '+m.role}><strong>{m.role==='user'?'You':live?'Orchestrator':'Scripted reply'}</strong><p>{m.content}</p></div>)}</div>
     <div className="stack">
       <textarea aria-label="Message" rows="3" value={text} onChange={e=>setText(e.target.value)}/>
-      {live&&<label className="check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>Send this goal, message and file list to the orchestrator's provider.</label>}
+      {live&&<label className="check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>Send this goal, message, file list and any sample text it reads to the orchestrator's provider.</label>}
       <div className="actions"><button className="button primary" disabled={ui.busy||!text.trim()||(live&&!consent)} onClick={send}>Send</button></div>
     </div>
   </section>;

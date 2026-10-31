@@ -22,6 +22,7 @@ from .agent import MAX_WINDOW_IMAGES, PhotoSetTools, render_trace, run_agent, to
 from .components import ComponentTools, compose_prompt, scripts, task_tools, validate_components
 from .inventory import (COLOURS, CONTRACT, SHAPES, WORDING, caps, canonical_colour, singular, verify_inventory)
 from .perception import FakeTranscription, media_hash
+from .orchestrator import preview_turn
 from .spike import wire_reply
 from .workflow import ImagesAdapter
 
@@ -359,7 +360,7 @@ class InventoryPreviewTransport:
         if messages[0]["content"].startswith("LX_PREFLIGHT"):
             return wire_reply("PREFLIGHT_OK")
         if messages[0]["content"].startswith("LX_DISCUSSION"):
-            return wire_reply("Controlled preview: this task runs from its spec and check file; nothing was sent to a model.")
+            return preview_turn(body) or wire_reply("Controlled preview: this task runs from its spec and check file; nothing was sent to a model.")
         if messages[0]["content"].startswith(self.marker):
             self.calls["worker"] += 1
             return self._agent(messages) if self.segmentation else self._view_only(messages)

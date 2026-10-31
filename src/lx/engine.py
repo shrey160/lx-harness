@@ -134,7 +134,7 @@ class Engine:
             return task_tools(tasks.tool_catalog(tasks.spec_tools(spec)), scripts)
         return COMPONENT_TOOLS if scripts else [LOAD_SKILL]
 
-    def build_clients(self, workspace, spec, scope_id, cap_usd, *, call_limit=None, truth=None):
+    def build_clients(self, workspace, spec, scope_id, cap_usd, *, call_limit=None, truth=None, contract=None):
         """One client per role. Live spends from the workspace ledger; preview never does.
 
         Roles sharing an entry share a transport, so its call limit covers the run."""
@@ -145,8 +145,9 @@ class Engine:
         ledger = self._ledger(workspace) if mode == "live" else workspace.preview_ledger
         limits = self.limits_of(spec)
         call_limit = call_limit or limits["chat_calls"]
-        contract = None
-        if tasks.is_text(spec.get("task")):
+        if contract is not None:
+            pass
+        elif tasks.is_text(spec.get("task")):
             contract = {"agent_tools":self._agent_tools(spec)}
         elif spec.get("task"):
             from .agent import MAX_WINDOW_IMAGES
@@ -200,7 +201,7 @@ class Engine:
         """Who receives what in a live run, for the owner to accept (D-015(8))."""
         host = lambda url: urlsplit(url).netloc
         task = draft.get("task")
-        gets = {"orchestrator":"your goal, messages, file names, sizes and hashes",
+        gets = {"orchestrator":"your goal, messages, file names, sizes and hashes, and the sample input text it reads",
                 "improver":"run traces and answers, including text from the samples",
                 "worker":"the sample requests" if tasks.is_text(task) else "the sample photos and transcribed requests" if task else "the sample images and transcripts"}
         notice = [{"who":role,"host":host(draft["providers"][role]["base_url"]),"gets":gets[role]} for role in ROLES if draft["roles"][role] != EXTERNAL]
@@ -483,14 +484,15 @@ class Engine:
         if project["external_orchestrator"]:
             raise ValueError("A connected agent is this workspace's orchestrator; talk to it there")
         mode = mode or project["draft"].get("mode", "controlled_preview")
+        from .orchestration import Orchestration
+        from .orchestrator import TOOLS, converse
+        tools = bool(project["draft"].get("task")) and project["draft"]["providers"]["orchestrator"]["supports_tools"]
         client = self.build_clients(workspace, {**project["draft"],"mode":mode}, "discussion-"+identifier, project["draft"]["budget_usd"],
-                                    call_limit=DISCUSSION_CALL_LIMIT)["orchestrator"]
-        history = [{"role":"developer","content":"LX_DISCUSSION\nUse inventory metadata first; ask only consequential questions."},
-            {"role":"user","content":json.dumps({"goal":project["goal"],"inventory":project["inventory"],"message":text})}]
-        reply,_ = client.chat(history, role="orchestrator",phase="discussion",candidate=identifier)
+                                    call_limit=DISCUSSION_CALL_LIMIT, contract={"agent_tools":TOOLS} if tools else {})["orchestrator"]
+        reply = converse(Orchestration(self, external=False), str(workspace.folder), client, project, text, tools=tools)
         with workspace.lock():
             record = workspace.project()
-            record["messages"].extend([{"role":"user","content":text},{"role":"assistant","content":reply["content"]}])
+            record["messages"].extend([{"role":"user","content":text},{"role":"assistant","content":reply or "(no reply)"}])
             workspace.write_project(record)
         return self._view(workspace)
 

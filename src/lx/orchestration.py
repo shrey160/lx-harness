@@ -7,11 +7,15 @@ scripts or guidance, because the loop learns those (D-021).
 """
 from __future__ import annotations
 
+from pathlib import PurePosixPath
+
+from . import tasks
 from .engine import EXTERNAL
 
-ACTIONS = ("status", "init", "samples", "spec_show", "spec_draft", "check_test", "preview", "run_start", "run_status", "run_stop", "results")
+ACTIONS = ("status", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "preview", "run_start", "run_status", "run_stop", "results")
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
+MAX_SAMPLE_TEXT = 8000
 _RUN_FIELDS = ("id", "status", "phase", "mode", "created_at", "approved_by", "progress", "error")
 
 
@@ -43,7 +47,29 @@ class Orchestration:
         return {"workspace": project["path"], "version": project["draft"]["version"]}
 
     def samples(self, workspace):
-        return {"inventory": self.engine.project(self._id(workspace))["inventory"]}
+        return {"inventory": self.engine.project(self._id(workspace))["inventory"]["inventory"]}
+
+    def read_sample(self, workspace, path):
+        """One listed input file as text, never an answer file."""
+        project = self.engine.project(self._id(workspace))
+        if PurePosixPath(path).name == "truth.json":
+            raise ValueError("Answer files cannot be read")
+        if path not in {item["path"] for item in project["inventory"]["inventory"]}:
+            raise ValueError("That file is not in the sample list")
+        if PurePosixPath(path).suffix.lower() not in {".txt", ".json", ".md", ".csv"}:
+            raise ValueError("Only text files can be read here")
+        data = (self.engine.workspace(project["id"]).samples_path/path).read_bytes()
+        return {"text": data[:MAX_SAMPLE_TEXT].decode("utf-8", "replace"), "cut": len(data) > MAX_SAMPLE_TEXT}
+
+    def truth_shape(self, workspace):
+        """Field names and types of the answers, so a check can be written without seeing them."""
+        return tasks.truth_shape(self._truths(self._id(workspace)))
+
+    def _truths(self, identifier):
+        task = self.engine.project(identifier)["draft"].get("task")
+        if not task:
+            raise ValueError("This workflow has a built-in task and check")
+        return tasks.sample_truths(self.engine.workspace(identifier).samples_path, task)
 
     def spec_show(self, workspace):
         project = self.engine.project(self._id(workspace))
@@ -60,6 +86,8 @@ class Orchestration:
         """A new spec version, which clears any approval. `task` holds only the fields that change."""
         identifier = self._id(workspace)
         current = self.engine.project(identifier)["draft"]["roles"]
+        if task and tasks.quotes_answers(" ".join(str(value) for value in task.values()), self._truths(identifier)):
+            raise ValueError("The task text repeats answers from the samples; describe the work without them")
         project = self.engine.draft_spec(identifier, goal=goal, mode=mode, roles=self._roles(current, worker, improver), task=task,
                                          check=check, limits=limits, tools=tools)
         return {"version": project["draft"]["version"], "blocked": project["blocked"]}
