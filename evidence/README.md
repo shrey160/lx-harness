@@ -26,6 +26,7 @@ anything about a model.
 | `10-29-inventory-calibration` | T7: base 0.39, gate passed | Live |
 | `10-29-inventory-ea` | T8 stream: 0.31 to 0.66 | Live |
 | `10-29-inventory-eval` | E-B: held-out 0.47 to 0.70, criterion met | Live |
+| `10-31-spark-calibration` | Spark on the new loop: base 0.82, loop 0.82, 6 of 6 answered | Live |
 | `10-29-inventory-eval-local` | E-C, stopped on a controller timeout | Live |
 | `10-30-inventory-eval-local-retry` | E-C retry: 0.40 to 0.30, criterion not met | Live |
 | `10-30-inventory-agent-probe`, `10-30-inventory-agent-probe-v2` | G1b probes of a swapped agent | Live |

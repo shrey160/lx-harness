@@ -1,7 +1,7 @@
 # Spark calibration on the new agent loop (prepared 31 Oct 2026)
 
-Status: **PREPARED, NOT APPROVED.** No live call has been made and nothing has been
-spent. Only a person can approve and start it.
+Status: **DONE.** Run `4d32acd19c7f` ran 31 Oct at the user's direction, and the agent
+clicked approve and start. Result: `evidence/2026-10-31-spark-calibration`.
 
 ## Why
 

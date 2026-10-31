@@ -31,7 +31,7 @@ works today, read the [main README](../README.md).
 | [inventory-probe-review.md](inventory-probe-review.md) | T6 probe |
 | [inventory-calibration-review.md](inventory-calibration-review.md) | T7 calibration |
 | [inventory-stream-review.md](inventory-stream-review.md) | T8 E-A stream |
-| [spark-calibration-review.md](spark-calibration-review.md) | Spark calibration on the new agent loop; prepared, not approved |
+| [spark-calibration-review.md](spark-calibration-review.md) | Spark calibration on the new agent loop; run 31 Oct |
 | [inventory-eval-review.md](inventory-eval-review.md) | E-B evaluation |
 | [inventory-local-eval-review.md](inventory-local-eval-review.md) | E-C evaluation and its retry |
 | [inventory-stream-local-review.md](inventory-stream-local-review.md) | G1b probe and G2 stream |
