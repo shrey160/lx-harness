@@ -1,0 +1,13 @@
+{
+  "template": "photo-request",
+  "name": "lx_receiving_audit",
+  "truth_schema": "free",
+  "stream_samples": 5,
+  "base_prompt": "Audit the delivery and return JSON.",
+  "contract": "You are the receiving clerk for a delivery. Each item has 3-7 photos and a voice note from your supervisor; the note is provided only as audio. Some photos show the paperwork: the purchase order, the supplier's packing slip and the price list. The others show the delivery as it arrived. Return one JSON object with exactly: lines and total_claim. lines has one entry per item on the purchase order, each with exactly: item (its name on the purchase order), ordered (integer: the quantity on order now), received (integer: how many of that item are physically in the delivery), status (wrong_item if a different item came in its place; otherwise complete if received equals ordered, short if fewer, over if more), substitute (null, or {\"item\", \"count\"} for the different item that came in its place), credit (number: the credit owed on this line, 0 if none), boxes (a list of {\"photo\": its number starting at 1, \"box\": [x1, y1, x2, y2] in inclusive pixel corners of that photo}, one for each physical object counted in received or in substitute). total_claim (number) is the sum of the credits. Unless your supervisor sets another rule, a line that came up short earns (ordered minus received) times its unit price. No extra fields, markdown or prose.",
+  "work": "audit a delivery against its paperwork and a spoken note, calling the available model tools.",
+  "domain_word": "goods receiving audit",
+  "yardstick": "The audit is correct when each purchase order line has the right quantities, status, credit and one box for each physical object counted, and the total claim is right.",
+  "deliverable_word": "discrepancy claim JSON",
+  "selection_checks": "Check that the voice note was heard in full, every photo was looked at, each number traces to a source, and the answer follows the contract."
+}

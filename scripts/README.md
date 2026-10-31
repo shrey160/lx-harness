@@ -12,6 +12,7 @@ Run these from `main_LX`.
 | `inventory_mix_rejects.json` | Cutouts rejected by eye for that dataset |
 | `export_samples.py` | Copies a frozen inventory dataset's split into a new samples folder |
 | `synthesize_voicecount.py` | Voices typed requests offline with Kokoro; also used for inventory requests |
+| `receiving_audit/` | The goods receiving audit task: `task.json` and its scoring check `check.py`, an ordinary spec and check for `spec_draft` |
 
 None of these spends money or calls a provider. The dataset scripts need local
 downloads that are gitignored under `.lx/`.
