@@ -404,6 +404,12 @@ the system prompt, guardrails, skills, scripts and tool guidance. It fills in du
 and an agent can read it too. A run only counts as improved if the kept harness really
 differs from the base, because the same harness can score differently on a rerun.
 
+Every run and trial starts from the stock harness, with no skills or scripts: nothing
+learned in an earlier run carries over. LX rebuilds it for each run, refuses to start if it
+holds anything learned, and records its fingerprint in the result, so two runs can be
+compared. Within one run, the loop does carry what it learned from sample to sample,
+as the Harness² paper describes. A finished package is yours to reuse by hand.
+
 `lx approve`, `lx grant --cap 2` and `lx run resume <run id>` are a person's steps. Each
 shows what you accept and waits for you to type yes, and each refuses without a real
 terminal. `lx run start` starts a live run you approved, or one your grant covers;

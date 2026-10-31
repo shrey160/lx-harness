@@ -98,7 +98,7 @@ class WhatItDoes(Trials):
     def test_an_agent_sees_scores_and_counts_but_no_trace_or_answer(self):
         run_id, _ = self.trial()
         seen = self.lx.results(self.path, run_id)
-        self.assertEqual(set(seen) - {"usage"}, {"kind", "task", "live", "sample", "score", "checks", "stopped", "tool_calls", "note", "learned"})
+        self.assertEqual(set(seen) - {"usage"}, {"kind", "task", "live", "sample", "score", "base_sha256", "checks", "stopped", "tool_calls", "note", "learned"})
         self.assertIsNone(seen["learned"])
         self.assertEqual({tuple(sorted(item)) for item in seen["checks"]}, {("name", "passed")})
         self.assertGreater(seen["tool_calls"]["transcribe"], 0)

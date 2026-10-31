@@ -6,7 +6,7 @@ import unittest
 from lx import sandbox
 from lx.inventory import write_synthetic
 from lx.orchestration import ACTIONS, Orchestration
-from lx.taskrun import MAX_EDIT_LINES, harness_edits, kept_sample
+from lx.taskrun import MAX_EDIT_LINES, clean_base, harness_edits, kept_sample
 from lx.worker import execute
 from test_tasks import Base
 
@@ -113,6 +113,54 @@ class ImprovedMeansEdited(unittest.TestCase):
 
     def test_edits_with_no_gain_are_not(self):
         self.assertIsNone(kept_sample("sample-02", {"sample-02": 0.0}, {"a": "x"}, {"a": "y"}))
+
+
+class StartingHarness(unittest.TestCase):
+    def adapter(self, **files):
+        import tempfile
+        from types import SimpleNamespace
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        for name, text in {"systemprompt.md": "Answer.", **files}.items():
+            path = root/name.replace("__", "/")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        return SimpleNamespace(base_harness=lambda: root)
+
+    def test_a_stock_harness_passes_and_its_fingerprint_repeats(self):
+        self.assertEqual(clean_base(self.adapter()), clean_base(self.adapter()))
+
+    def test_a_different_prompt_changes_the_fingerprint(self):
+        self.assertNotEqual(clean_base(self.adapter()), clean_base(self.adapter(**{"systemprompt.md": "Other."})))
+
+    def test_anything_learned_is_refused(self):
+        for name in ("skills__count__SKILL.md", "scripts__sum.py", "plugin__x.md", "sub_agents__y.md"):
+            with self.subTest(name), self.assertRaisesRegex(ValueError, "nothing learned"):
+                clean_base(self.adapter(**{name: "learned"}))
+
+
+@unittest.skipUnless(sandbox.available(), "needs the script sandbox")
+class NothingCarriesOver(Base):
+    def test_a_second_run_starts_as_the_first_did_though_the_first_learned(self):
+        lx = Orchestration(self.app, launch=False)
+        path = self.folder()
+        write_synthetic(Path(path)/"samples", 6)
+        lx.init(path, "photo-request")
+        workspace = self.app.workspace(self.app.open_workspace(path)["id"])
+
+        def finish():
+            run_id = lx.preview(path)["run_id"]
+            return run_id, execute(self.app, workspace, run_id, workspace.run_dir(run_id)/"snapshot")
+        first_id, first = finish()
+        self.assertTrue(list(workspace.package_dir(first_id).glob("harness/skills/*/SKILL.md")))
+        lx.spec_draft(path, goal="A second run")
+        second_id, second = finish()
+        self.assertEqual(first["base_sha256"], second["base_sha256"])
+        base = workspace.run_dir(second_id)/"outputs"/"base"
+        self.assertEqual([path_.name for path_ in base.rglob("SKILL.md")], [])
+        self.assertEqual([path_.name for path_ in base.rglob("*.py")], [])
+        self.assertNotEqual(workspace.run_dir(first_id), workspace.run_dir(second_id))
 
 
 class Offered(unittest.TestCase):

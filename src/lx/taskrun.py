@@ -6,6 +6,7 @@ after the loop, and the harness with the largest gain becomes the package.
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -19,6 +20,7 @@ from .text_task import TextAdapter, TextDomain
 MAX_DIFF_LINES, MAX_EDIT_LINES = 80, 400
 STAGE_NAMES = {"inv": "How the agent works", "dom": "The subject", "c": "Combined"}
 STAGE_ORDER = ("inv", "dom", "c")
+LEARNED_FOLDERS = ("skills", "scripts", "plugin", "sub_agents")
 
 
 def _adapter(task, run_dir, output, client, truth, check, *, live, limits, tools, perception=None, health=None):
@@ -90,6 +92,17 @@ def file_changes(base, final, limit):
 
 def _harness_files(folder):
     return {path.relative_to(folder).as_posix(): path.read_bytes() for path in sorted(folder.rglob("*")) if path.is_file() and not path.is_symlink()}
+
+
+def clean_base(adapter):
+    """The fingerprint of the harness a run starts from, refused if it holds anything learned. Each run rebuilds
+    its base from code in its own folder, so nothing carries over from an earlier run; this keeps that true."""
+    folder = Path(adapter.base_harness())
+    files = _harness_files(folder)
+    learned = [name for name in files if name.split("/")[0] in LEARNED_FOLDERS]
+    if learned:
+        raise ValueError("The base harness must start with nothing learned; found "+", ".join(learned[:3]))
+    return hashlib.sha256(json.dumps({name: _text(body) for name, body in files.items()}, sort_keys=True).encode()).hexdigest()
 
 
 def _stage_key(label):
@@ -191,10 +204,11 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     output = run_dir/"outputs"
     adapter = _adapter(task, run_dir, output, clients["worker"], truth, check, live=live, limits=limits, tools=tools,
                        perception=perception, health=health)
+    base = clean_base(adapter)
     report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health,
                         on_grading=lambda: workspace.update_run(identifier, phase="grading"))
     gains, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
-    return summarize_report(task, report, gains, chosen, live)
+    return {**summarize_report(task, report, gains, chosen, live), "base_sha256": base}
 
 
 def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
@@ -210,7 +224,7 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
     limits, tools = engine.limits_of(spec), spec_tools(spec)
     perception = None if is_text(task) else engine.build_perception(workspace, identifier, job["cap_usd"], run_dir/"perception-cache", limits, tools)
     adapter = _adapter(task, run_dir, output, client, truth, check, live=True, limits=limits, tools=tools, perception=perception, health=health)
-    sample = stream[0]
+    sample, base = stream[0], clean_base(adapter)
     run = adapter.execute(sample, adapter.base_harness(), "trial")
     workspace.update_run(identifier, phase="grading")
     named = named_checks(check, truth[sample], json.loads(adapter.deliverable_text(run)))
@@ -222,7 +236,7 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
     sources = run_dir/"dataset"/"controller_truth"/"sources.json"
     folder = json.loads(sources.read_text(encoding="utf-8")).get(sample, {}).get("folder", sample) if sources.is_file() else sample
     return {"kind": "trial", "task": task["name"], "live": True, "sample": folder, "score": sum(item["passed"] for item in named)/len(named),
-            "checks": named, "stopped": next((step["reason"] for step in steps if step["type"] == "stopped"), None), "tool_calls": calls,
+            "base_sha256": base, "checks": named, "stopped": next((step["reason"] for step in steps if step["type"] == "stopped"), None), "tool_calls": calls,
             "note": "One sample on the base harness: a smoke test, not a measure of what the loop can reach."}
 
 

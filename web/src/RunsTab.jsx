@@ -86,7 +86,7 @@ function TrialResult({project,job}){
   return <div className="result">
     <h3>Trial on one sample</h3>
     <div className="stats"><Stat value={result.score.toFixed(2)} label={`score on ${result.sample}`}/><Stat value={`${result.checks.length-failed.length}/${result.checks.length}`} label="checks passed"/></div>
-    <p className="muted">{result.note}</p>
+    <p className="muted">{result.note} Started from the stock harness (<code>{result.base_sha256.slice(0,12)}</code>).</p>
     {result.stopped&&<p className="callout warn">It stopped early: {result.stopped}.</p>}
     {failed.length>0&&<p>Failed: {failed.map(check=>check.name).join(', ')}</p>}
     <p className="muted">Tool calls: {Object.entries(result.tool_calls).map(([name,count])=>`${name} ${count}`).join(', ')||'none'}</p>
@@ -108,6 +108,7 @@ function Result({project,job,ui,post,live}){
       {result.task&&<a className="button" href={`/api/trajectories/${project.id}/${job.id}/download`} download="trajectories.zip" title="Every agent run's trace, for fine-tuning. These can hold your data, and no answers.">Download trajectories</a>}
       {!result.task&&<button className="button" disabled={ui.busy} onClick={()=>post('fresh')}>Try a new scene</button>}
     </div>
+    {result.base_sha256&&<p className="muted">Started from the stock harness, with nothing learned from earlier runs (<code>{result.base_sha256.slice(0,12)}</code>).</p>}
     <p className="muted">The package holds the approved spec, the harness and the check results; a task package adds its check file and limitations.</p>
     {job.fresh_result&&<div className={'callout '+(job.fresh_result.accepted?'':'warn')}><strong>{job.fresh_result.accepted?'New scene passed':'New scene failed'}</strong><p>{job.fresh_result.note}</p>{job.fresh_result.errors?.map(e=><p key={e}>{e}</p>)}</div>}
   </div>;
