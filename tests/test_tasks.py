@@ -302,7 +302,7 @@ class MetaKeyTests(Base):
         app = Engine(self.root/"keyed", keychain=MemoryKeychain())
         app.live_enabled = True
         app.registry.update("spark-contributor", api_key="dummy-ui-key")
-        with patch("lx.engine.MetaToolTransport") as transport, patch("lx.live._runtime_key") as loader:
+        with patch("lx.engine.ToolTransport") as transport, patch("lx.live._runtime_key") as loader:
             app.build_perception(SimpleNamespace(project=lambda: {"id": "a"*32}), "scope", 1, self.root/"cache", {"segment_calls": 1, "transcribe_calls": 1})
         self.assertEqual([call.args[1]() for call in transport.call_args_list], ["dummy-ui-key", "dummy-ui-key"])
         loader.assert_not_called()

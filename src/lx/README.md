@@ -42,7 +42,7 @@ separate `worker.py` process, so credentials load there and never in task worker
 | `model_list.py` | Reads a provider's model list, so its details need no typing |
 | `spark.py` | The chat protocol; the transport is injected, so it is offline-testable |
 | `live_transport.py` | The constrained chat transport for live calls |
-| `perception.py` | The built-in Meta tools, SAM 3.1 and Muse Voice Transcribe; each can be switched off (`tasks.py`) |
+| `perception.py` | Model tools: one transport and client, and a format per wire shape. SAM 3.1 and Muse Voice Transcribe are the first two; each can be switched off (`tasks.py`) |
 | `budget.py` | Persistent, concurrency-safe spending ledger |
 | `usage.py` | Scopes a ledger to an approved run budget and summarizes usage |
 

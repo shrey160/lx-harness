@@ -29,6 +29,7 @@ class RegistryError(ValueError):
 
 # id, name, model_id, capabilities, profile. Non-Spark built-ins are re-applied
 # on every open so older databases pick up the current catalog.
+TOOL_FORMATS = {"sam-catalog": "meta-sam", "transcribe-catalog": "meta-transcribe"}
 _BUILTINS = (
     (
         "spark-contributor",
@@ -413,6 +414,12 @@ class Registry:
             except Exception:
                 raise RegistryError("runtime credential unavailable") from None
         raise RegistryError("no API key is registered for this model")
+
+    def tool_format(self, record_id: str) -> str:
+        """Which wire format a model tool speaks; lx.perception holds the formats."""
+        if record_id not in TOOL_FORMATS:
+            raise RegistryError("unknown model tool")
+        return TOOL_FORMATS[record_id]
 
     def meta_key_source(self) -> str | None:
         """Where the Meta key comes from, or None if it cannot be loaded. The key itself goes no further."""

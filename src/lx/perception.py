@@ -1,4 +1,7 @@
-"""Fixed Meta perception tools: SAM 3.1 segmentation and Muse Voice Transcribe.
+"""Model tools: one transport and client, and a format per wire shape.
+
+A `ToolFormat` says how one kind of API is called, read and priced. SAM 3.1 and
+Muse Voice Transcribe are the first two; PROD-006 T3 adds others.
 
 The agent never sends media itself; the controller binds the current item's
 image or audio and calls these clients. Wire shapes follow the Meta docs read
@@ -26,8 +29,10 @@ import urllib.error
 import urllib.request
 import uuid
 import wave
+from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
+from typing import Any, Callable
 
 from .providers import SAM, TRANSCRIBE
 from .spark import ModelError, RateLimited, failure_reason
@@ -192,6 +197,50 @@ def parse_transcript(raw):
     return {"transcript": raw["transcript"].strip(), "duration_ms": duration}
 
 
+# --- formats ----------------------------------------------------------------
+
+def _sam_send(payload):
+    if not isinstance(payload, dict) or payload.get("model") != SAM.model:
+        raise ModelError("request outside the approved segmentation contract")
+    return json.dumps(payload, allow_nan=False).encode(), "application/json"
+
+
+def _transcribe_send(payload):
+    if not isinstance(payload, dict) or set(payload) != {"request", "audio"}:
+        raise ModelError("request outside the approved transcription contract")
+    wav_duration_ms(payload["audio"])
+    return multipart(payload)
+
+
+def _audio_price(milliseconds):
+    return (Decimal(milliseconds) / 3_600_000 * TRANSCRIBE.audio_hour_price).quantize(Decimal("1E-9"))
+
+
+@dataclass(frozen=True)
+class ToolFormat:
+    """How one API is called, read and priced. `billed_unread`: it charges whether or not its reply parses."""
+    name: str
+    tool: str
+    endpoint: str
+    model: str
+    request: Callable[..., Any]
+    send: Callable[[Any], tuple]
+    read: Callable[[Any], Any]
+    reserve: Callable[[bytes], Decimal]
+    settle: Callable[[Any, bytes], Decimal]
+    billed_unread: bool
+
+
+META_SAM = ToolFormat("meta-sam", "segment", SAM.endpoint, SAM.model, sam_body, _sam_send,
+                      lambda raw: parse_boxes(sam_text(raw)), lambda media: SAM.image_price,
+                      lambda result, media: SAM.image_price, True)
+# Reserve the price of the header duration plus one second of rounding room.
+META_TRANSCRIBE = ToolFormat("meta-transcribe", "transcribe", TRANSCRIBE.endpoint, TRANSCRIBE.model, transcribe_parts,
+                             _transcribe_send, parse_transcript, lambda media: _audio_price(wav_duration_ms(media)+1000),
+                             lambda result, media: _audio_price(result["duration_ms"]), False)
+FORMATS = {tool_format.name: tool_format for tool_format in (META_SAM, META_TRANSCRIBE)}
+
+
 # --- transports -------------------------------------------------------------
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -199,36 +248,26 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-class MetaToolTransport:
-    """One fixed Meta tool endpoint, bounded calls, error bodies withheld."""
+class ToolTransport:
+    """One tool endpoint, bounded calls, error bodies withheld."""
 
-    def __init__(self, profile, credential_loader, *, call_limit, opener=None):
-        if profile not in (SAM, TRANSCRIBE):
-            raise ModelError("only the fixed Meta tool profiles are approved")
+    def __init__(self, tool_format, credential_loader, *, call_limit, opener=None):
         if not callable(credential_loader):
             raise ModelError("a runtime credential loader is required")
         if type(call_limit) is not int or call_limit < 1:
             raise ModelError("call limit outside approved bounds")
-        self.profile, self.call_limit, self.calls = profile, call_limit, 0
+        self.format, self.call_limit, self.calls = tool_format, call_limit, 0
         self._key = credential_loader()
         if not isinstance(self._key, str) or not self._key:
-            raise ModelError("Meta credential unavailable to the application runtime")
+            raise ModelError("tool credential unavailable to the application runtime")
         self._opener = opener or urllib.request.build_opener(_NoRedirect())
 
     def __call__(self, payload, timeout):
-        if self.profile is SAM:
-            if not isinstance(payload, dict) or payload.get("model") != SAM.model:
-                raise ModelError("request outside the approved segmentation contract")
-            data, content_type = json.dumps(payload, allow_nan=False).encode(), "application/json"
-        else:
-            if not isinstance(payload, dict) or set(payload) != {"request", "audio"}:
-                raise ModelError("request outside the approved transcription contract")
-            wav_duration_ms(payload["audio"])
-            data, content_type = multipart(payload)
+        data, content_type = self.format.send(payload)
         if self.calls >= self.call_limit:
             raise ModelError("live tool call limit for this run reached")
         self.calls += 1
-        request = urllib.request.Request(self.profile.endpoint, data=data, method="POST", headers={
+        request = urllib.request.Request(self.format.endpoint, data=data, method="POST", headers={
             "Authorization": "Bearer " + self._key, "Content-Type": content_type})
         try:
             with self._opener.open(request, timeout=min(timeout, 120)) as response:
@@ -249,6 +288,16 @@ class MetaToolTransport:
             return json.loads(body)
         except ValueError:
             raise ModelError("tool response is not JSON; cost remains reserved") from None
+
+
+class MetaToolTransport(ToolTransport):
+    """The paused experiments' name for the two built-in tools."""
+
+    def __init__(self, profile, credential_loader, *, call_limit, opener=None):
+        if profile not in (SAM, TRANSCRIBE):
+            raise ModelError("only the fixed Meta tool profiles are approved")
+        super().__init__(META_SAM if profile is SAM else META_TRANSCRIBE, credential_loader, call_limit=call_limit, opener=opener)
+        self.profile = profile
 
 
 # --- cache and clients ------------------------------------------------------
@@ -289,10 +338,12 @@ class PerceptionCache:
 
 
 class PerceptionClient:
-    """Budgeted, cached calls to the fixed segmentation and transcription tools."""
+    """Budgeted, cached calls to a segmentation tool and a transcription tool."""
 
-    def __init__(self, segment_transport, transcribe_transport, ledger, cache):
+    def __init__(self, segment_transport, transcribe_transport, ledger, cache, *, segment_format=META_SAM,
+                 transcribe_format=META_TRANSCRIBE):
         self.segment_transport, self.transcribe_transport = segment_transport, transcribe_transport
+        self.segment_format, self.transcribe_format = segment_format, transcribe_format
         self.ledger, self.cache = ledger, cache
         self.live_calls = 0
 
@@ -306,37 +357,39 @@ class PerceptionClient:
         self.live_calls += 1
         return raw, reservation
 
+    def _use(self, tool_format, transport, media, payload, candidate, timeout):
+        """One paid call; what the reply reads as. A reply is settled once its cost is known."""
+        raw, reservation = self._call(transport, payload, tool_format.reserve(media), tool_format.tool, candidate, timeout)
+        settle = lambda result: self.ledger.settle(reservation, cost_usd=tool_format.settle(result, media), input_tokens=0, output_tokens=0)
+        if tool_format.billed_unread:
+            settle(None)
+            return tool_format.read(raw)
+        try:
+            result = tool_format.read(raw)
+        except BaseException as exc:
+            self.ledger.unknown(reservation, failure_reason(exc))
+            raise
+        settle(result)
+        return result
+
     def segment(self, image, concept, *, candidate="", timeout=120):
-        concept = concept_text(concept)
-        key, identity = self.cache.key("segment", SAM.model, media_hash(image), {"concept": concept})
+        concept, tool_format = concept_text(concept), self.segment_format
+        key, identity = self.cache.key("segment", tool_format.model, media_hash(image), {"concept": concept})
         cached = self.cache.get(key, identity)
         if cached is not None:
             return cached
-        raw, reservation = self._call(self.segment_transport, sam_body(image, concept), SAM.image_price,
-                                      "segment", candidate, timeout)
-        # One image request is billed whether or not the reply parses.
-        self.ledger.settle(reservation, cost_usd=SAM.image_price, input_tokens=0, output_tokens=0)
-        result = {"concept": concept, "boxes": parse_boxes(sam_text(raw))}
+        boxes = self._use(tool_format, self.segment_transport, image, tool_format.request(image, concept), candidate, timeout)
+        result = {"concept": concept, "boxes": boxes}
         self.cache.put(key, identity, result)
         return result
 
     def transcribe(self, audio, *, candidate="", timeout=120):
-        key, identity = self.cache.key("transcribe", TRANSCRIBE.model, media_hash(audio), {})
+        tool_format = self.transcribe_format
+        key, identity = self.cache.key("transcribe", tool_format.model, media_hash(audio), {})
         cached = self.cache.get(key, identity)
         if cached is not None:
             return cached
-        # Reserve the price of the header duration plus one second of rounding room.
-        hours = Decimal(wav_duration_ms(audio) + 1000) / 3_600_000
-        raw, reservation = self._call(self.transcribe_transport, transcribe_parts(audio),
-                                      (hours * TRANSCRIBE.audio_hour_price).quantize(Decimal("1E-9")),
-                                      "transcribe", candidate, timeout)
-        try:
-            result = parse_transcript(raw)
-        except BaseException as exc:
-            self.ledger.unknown(reservation, failure_reason(exc))
-            raise
-        cost = (Decimal(result["duration_ms"]) / 3_600_000 * TRANSCRIBE.audio_hour_price).quantize(Decimal("1E-9"))
-        self.ledger.settle(reservation, cost_usd=cost, input_tokens=0, output_tokens=0)
+        result = self._use(tool_format, self.transcribe_transport, audio, tool_format.request(audio), candidate, timeout)
         self.cache.put(key, identity, result)
         return result
 

@@ -38,8 +38,8 @@ from . import checks, limits as run_limits, sandbox, tasks, text_task
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveChatTransport
-from .perception import MetaToolTransport, PerceptionCache, PerceptionClient
-from .providers import META_API, SAM, SPARK, TRANSCRIBE
+from .perception import FORMATS, PerceptionCache, PerceptionClient, ToolTransport
+from .providers import META_API, SPARK
 from .model_list import read_models
 from .registry import Registry
 from .spark import IncompleteResponse, ModelError, ChatClient
@@ -107,6 +107,9 @@ class Engine:
         return run_limits.defaults({role:(p["id"] == DEFAULT_ROLE_ENTRY, p.get("limits") or {}) for role,p in providers.items()},
                                    task=bool(task))
 
+    def _tool_transport(self, entry, call_limit):
+        return ToolTransport(FORMATS[self.registry.tool_format(entry)], lambda: self.registry.credential(entry), call_limit=call_limit)
+
     def build_perception(self, workspace, scope_id, cap_usd, cache, limits, tools=tasks.MODEL_TOOLS):
         """Live SAM and Transcribe for a task's agent; their cost is on the workspace ledger. A tool that is off stays unbuilt."""
         scope = BudgetScope(self._ledger(workspace), scope_id, cap_usd)
@@ -115,9 +118,8 @@ class Engine:
         elif not self.live_enabled:
             raise ValueError("Live runs are unavailable here; use the local app workspace")
         else:
-            key = lambda: self.registry.credential("sam-catalog")
-            segment = MetaToolTransport(SAM, key, call_limit=limits["segment_calls"]) if tasks.SEGMENTATION in tools else None
-            transcribe = MetaToolTransport(TRANSCRIBE, key, call_limit=limits["transcribe_calls"]) if tasks.TRANSCRIPTION in tools else None
+            segment, transcribe = (self._tool_transport(tool, limits[limit]) if tool in tools else None
+                                   for tool, limit in ((tasks.SEGMENTATION, "segment_calls"), (tasks.TRANSCRIPTION, "transcribe_calls")))
         return PerceptionClient(segment, transcribe, scope, PerceptionCache(cache))
 
     @staticmethod

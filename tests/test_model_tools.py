@@ -12,6 +12,7 @@ from lx.engine import Engine
 from lx.inventory_probe import CATALOG, TOOLS
 from lx.inventory_workflow import VIEW_NOTE, InventoryDomain, InventoryPreviewTransport
 from lx.live_transport import validate_body
+from lx.perception import META_SAM, META_TRANSCRIBE
 from lx.registry import Registry, RegistryError
 from lx.spark import ModelError
 from lx.worker import execute
@@ -180,11 +181,22 @@ class SpecList(Base):
         app = Engine(self.root/"keyed", keychain=MemoryKeychain())
         app.live_enabled = True
         app.registry.update("spark-contributor", api_key="dummy-ui-key")
-        with patch("lx.engine.MetaToolTransport") as transport:
+        with patch("lx.engine.ToolTransport") as transport:
             client = app.build_perception(SimpleNamespace(project=lambda: {"id": "a"*32}), "scope", 1, self.root/"cache",
                                           {"segment_calls": 1, "transcribe_calls": 1}, (TRANSCRIBE,))
         self.assertEqual(transport.call_count, 1)
         self.assertIsNone(client.segment_transport)
+
+    def test_each_tool_gets_its_own_format_and_limit(self):
+        app = Engine(self.root/"keyed", keychain=MemoryKeychain())
+        app.live_enabled = True
+        app.registry.update("spark-contributor", api_key="dummy-ui-key")
+        client = app.build_perception(SimpleNamespace(project=lambda: {"id": "a"*32}), "scope", 1, self.root/"cache",
+                                      {"segment_calls": 3, "transcribe_calls": 2})
+        self.assertEqual((client.segment_transport.format, client.segment_transport.call_limit), (META_SAM, 3))
+        self.assertEqual((client.transcribe_transport.format, client.transcribe_transport.call_limit), (META_TRANSCRIBE, 2))
+        with self.assertRaisesRegex(RegistryError, "unknown model tool"):
+            app.registry.tool_format("spark-contributor")
 
     @unittest.skipUnless(sandbox.available(), "needs the script sandbox")
     def test_a_preview_runs_without_it_and_never_offers_or_calls_it(self):

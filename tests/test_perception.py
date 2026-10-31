@@ -1,5 +1,6 @@
 """Budgeted, cached perception clients and the fixed Meta tool transports (offline)."""
 
+import hashlib
 import io
 import json
 import tempfile
@@ -169,6 +170,73 @@ class TransportTests(unittest.TestCase):
         self.assertNotIn("secret", str(raised.exception))
         with self.assertRaises(ModelError):
             self.transport(opener=Opener(b"not json"))(sam_body(PNG, "apples"), 30)
+
+
+class Recording(BudgetLedger):
+    def reserve(self, cost, *rest):
+        self.log.append(("reserve", str(cost), *rest))
+        return super().reserve(cost, *rest)
+
+    def settle(self, reservation, **usage):
+        self.log.append(("settle", str(usage["cost_usd"])))
+        return super().settle(reservation, **usage)
+
+    def unknown(self, reservation, reason):
+        self.log.append(("unknown", reason))
+        return super().unknown(reservation, reason)
+
+
+class WireRecordTests(unittest.TestCase):
+    """Values read from the code before tool formats (`7ef4714`): a changed request, cost or cache key fails here."""
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+
+    def client(self, sam_reply, voice_reply):
+        self.sam, self.voice = Opener(json.dumps(sam_reply).encode()), Opener(json.dumps(voice_reply).encode())
+        self.ledger = Recording(self.root/"budget.sqlite3", initial_spend_usd=0)
+        self.ledger.log = []
+        return PerceptionClient(MetaToolTransport(SAM, lambda: "dummy-key", call_limit=2, opener=self.sam),
+                                MetaToolTransport(TRANSCRIBE, lambda: "dummy-key", call_limit=2, opener=self.voice),
+                                self.ledger, PerceptionCache(self.root/"cache"))
+
+    def assert_requests(self):
+        sam, voice = self.sam.requests[0], self.voice.requests[0]
+        self.assertEqual((sam.full_url, sam.get_method(), sam.get_header("Content-type"), sam.get_header("Authorization")),
+                         ("https://api.meta.ai/v1/responses", "POST", "application/json", "Bearer dummy-key"))
+        self.assertEqual(hashlib.sha256(sam.data).hexdigest(), "9b1c7598fad76b488e0a469c090bbfa7d6be498e9b3d2a1e264afa929a9b94d1")
+        boundary = voice.get_header("Content-type").split("boundary=")[1]
+        self.assertEqual((voice.full_url, voice.get_method(), voice.get_header("Authorization")),
+                         ("https://api.meta.ai/v1/asr/transcribe", "POST", "Bearer dummy-key"))
+        self.assertEqual(hashlib.sha256(voice.data.replace(boundary.encode(), b"BOUNDARY")).hexdigest(),
+                         "20b80b67ec211b2cd2c1e61691a10fd7bb16cb06c5dc10d02aa51e9d511b5437")
+
+    def test_requests_costs_and_cache_keys_are_unchanged(self):
+        client = self.client({"output_text": "<0f>0<|box;x1=1;y1=2;x2=3;y2=4;w=9;h=9;c=0.900|>"},
+                             {"transcript": " two apples ", "audioDurationMs": 2100})
+        self.assertEqual(client.segment(PNG, "Apples", candidate="run-a"),
+                         {"concept": "apples", "boxes": [{"x1": 1, "y1": 2, "x2": 3, "y2": 4, "w": 9, "h": 9, "c": 0.9}]})
+        self.assertEqual(client.transcribe(AUDIO, candidate="run-a"), {"transcript": "two apples", "duration_ms": 2100})
+        self.assert_requests()
+        self.assertEqual(self.ledger.log, [("reserve", "0.0025", "tool", "segment", "run-a"), ("settle", "0.0025"),
+                                           ("reserve", "0.000150000", "tool", "transcribe", "run-a"), ("settle", "0.000105000")])
+        self.assertEqual(sorted(path.stem for path in (self.root/"cache").glob("*.json")),
+                         ["148c9a1652f4b761b6e0e7ed68a62550aa95378cab8c1a11518c411347077821",
+                          "de75adeb3c4ae2f3e174b48ba563165063d7dcdc0d1a2a3c99ef213667e89c75"])
+
+    def test_a_bad_reply_costs_what_it_did(self):
+        client = self.client({"output_text": "<|box;broken|>"}, {"transcript": "x"})
+        with self.assertRaisesRegex(ModelError, "could not be parsed"):
+            client.segment(PNG, "Apples", candidate="run-a")
+        with self.assertRaisesRegex(ModelError, "no valid duration"):
+            client.transcribe(AUDIO, candidate="run-a")
+        self.assert_requests()
+        self.assertEqual(self.ledger.log, [("reserve", "0.0025", "tool", "segment", "run-a"), ("settle", "0.0025"),
+                                           ("reserve", "0.000150000", "tool", "transcribe", "run-a"),
+                                           ("unknown", "transcription reply has no valid duration")])
+        self.assertEqual(list((self.root/"cache").glob("*.json")), [])
 
 
 if __name__ == "__main__":
