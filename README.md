@@ -375,6 +375,9 @@ environment `uv sync` made, and works on the folder you are in unless you pass
 
 ```text
 lx status
+lx guide
+lx guide tasks
+lx environment
 lx init --template photo-request --goal "Count the items in the photos"
 lx samples
 lx spec show
@@ -385,6 +388,12 @@ lx preview
 lx run status
 lx results <run id>
 ```
+
+`lx guide` lists LX's guides, and `lx guide tasks` or `lx guide environment` prints one.
+`lx environment` shows what this install offers a run: the sandbox and its limits, each
+model tool with what it does and whether it is on, the agent's tools and the run limits.
+Over MCP these are the `guide` and `environment` tools, so a connected agent can read them
+before it sets up a task. They are read-only and need no workspace.
 
 `lx ready`, or "Check these samples" on the Spec tab, tells you whether this spec could run
 live on your samples as they are now: per-sample problems, what blocks a run, and how the

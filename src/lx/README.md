@@ -13,6 +13,7 @@ separate `worker.py` process, so credentials load there and never in task worker
 |---|---|
 | `engine.py` | The engine API: workspaces, specs, approval, runs, results, provider tests |
 | `orchestration.py` | What an orchestrator may do; the built-in one, the CLI and the MCP server share it (D-024) |
+| `guides.py` | The guides in `docs/` an orchestrator can read, by topic |
 | `orchestrator.py` | The built-in orchestrator: a bounded conversation over those actions |
 | `server.py` | Loopback-only HTTP API and the built React UI |
 | `worker.py` | Controller subprocess for one managed run |

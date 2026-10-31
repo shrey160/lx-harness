@@ -88,6 +88,14 @@ def tool_catalog(tools):
     return [entry for entry in CATALOG if entry["kind"] in {_TOOL_KINDS[tool] for tool in tools}]
 
 
+def tool_list(models):
+    """Each model tool: what it does, whether it is on, and whether a photo task can leave it out."""
+    known, needed = {model["id"]: model for model in models}, required_tools({"template": TEMPLATE})
+    catalog = {entry["kind"]: entry for entry in tool_catalog(MODEL_TOOLS)}
+    return [{"id": tool, "name": known[tool]["name"], "enabled": known[tool]["enabled"], "does": catalog[_TOOL_KINDS[tool]]["capabilities"],
+             "required_on_photo_tasks": tool in needed} for tool in MODEL_TOOLS if tool in known]
+
+
 def validate_check_source(source):
     if type(source) is not str or not source.strip() or len(source) > MAX_CHECK:
         raise ValueError(f"A scoring check must be non-empty and at most {MAX_CHECK} characters")

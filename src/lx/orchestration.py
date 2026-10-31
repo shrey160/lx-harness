@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
-from . import tasks
+from . import sandbox, tasks
 from .engine import EXTERNAL
+from .guides import guide_list, read_guide
+from .limits import field_list
 
-ACTIONS = ("status", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
+ACTIONS = ("status", "guide", "environment", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
@@ -36,6 +38,16 @@ class Orchestration:
         engine = self.engine
         return {"live_available": engine.live_enabled, "meta_key": bool(engine.registry.meta_key_source()),
                 "models": [{field: model.get(field) for field in _MODEL_FIELDS} for model in engine.registry.list_models()]}
+
+    def guide(self, topic=None):
+        """The guides, or one guide's text."""
+        return {"guides": guide_list()} if topic is None else read_guide(topic)
+
+    def environment(self):
+        """What this install offers a run, as facts. Finding the sandbox can start Docker's client."""
+        system = self.engine.system()
+        return {"sandbox": sandbox.describe(), "model_tools": tasks.tool_list(self.engine.registry.list_models()), "agent_tools": system["agent_tools"],
+                "limits": field_list(), "templates": list(TEMPLATES), "guides": guide_list()}
 
     def init(self, workspace, template, *, goal=None, name=None):
         if template not in TEMPLATES:

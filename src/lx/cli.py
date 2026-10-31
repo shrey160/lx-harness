@@ -95,6 +95,9 @@ def parser():
         return command(group, name, lambda engine, lx, args: getattr(lx, method)(args.workspace), help=help)
 
     command(commands, "status", lambda engine, lx, args: lx.status(), folder=False, help="whether LX can run; never shows a key")
+    item = command(commands, "guide", lambda engine, lx, args: lx.guide(args.topic), folder=False, help="list the guides, or read one")
+    item.add_argument("topic", nargs="?")
+    command(commands, "environment", lambda engine, lx, args: lx.environment(), folder=False, help="what this install offers a run: sandbox, tools, limits")
     item = command(commands, "init", lambda engine, lx, args: lx.init(args.workspace, args.template, goal=args.goal, name=args.name),
                    help="start a workspace on a folder of samples")
     item.add_argument("--template", required=True, choices=tuple(TEMPLATES))

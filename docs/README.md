@@ -6,6 +6,7 @@ product works today, read the [main README](../README.md).
 
 | File | Purpose |
 |---|---|
+| [tasks.md](tasks.md) | Writing a task: samples, the spec, the scoring check, trying and reading a run |
 | [environment.md](environment.md) | Preparing an environment: keys, Python libraries and system tools for a task |
 | [history.md](history.md) | Earlier product history, moved out of the main README |
 

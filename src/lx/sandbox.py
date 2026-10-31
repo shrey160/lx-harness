@@ -87,6 +87,13 @@ def available():
     return backend() is not None
 
 
+def describe():
+    """What a script gets here, as facts for whoever sets up a task. docs/environment.md explains them."""
+    kind = backend()
+    return {"backend": kind, "image": IMAGE if kind == "docker" else None, "network": False, "script_seconds": TIMEOUT,
+            "script_chars": MAX_SOURCE, "output_chars": MAX_STDOUT, "input_chars": MAX_INPUT}
+
+
 def _limits(cpu):
     import resource
 

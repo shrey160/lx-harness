@@ -255,8 +255,9 @@ package added. Do not let an agent add packages on its own.
 
 ## Things to know
 
-- The orchestrator cannot see the sandbox. `status` and `spec_show` do not report which
-  sandbox is in use or what is installed, so tell it what you added.
+- An orchestrator reads this guide with `lx guide environment` or the `guide` tool, and
+  sees the sandbox's kind and limits, each tool and the run limits with `lx environment`
+  or the `environment` tool. It does not see what is installed, so tell it what you added.
 - More tools do not always help. In the receiving audit runs of 1 November 2026, 7
   learned scripts ran 52 times out of 53 with no sandbox problem, using only `json` and
   `sys`. The limit there was what the improver chose to write, not what the sandbox

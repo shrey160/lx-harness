@@ -43,7 +43,15 @@ class Tools(Base):
         tools = self.using(flow)
         self.assertEqual({tool.name for tool in tools}, set(ACTIONS))
         read = {tool.name for tool in tools if tool.annotations.read_only_hint}
-        self.assertEqual(read, {"status", "samples", "read_sample", "truth_shape", "spec_show", "check_test", "ready", "run_status", "edits", "results"})
+        self.assertEqual(read, {"status", "guide", "environment", "samples", "read_sample", "truth_shape", "spec_show", "check_test", "ready", "run_status", "edits", "results"})
+
+    def test_an_agent_reads_the_guides_and_the_environment(self):
+        async def flow(client):
+            return [reply(await client.call_tool(name, arguments)) for name, arguments in (("guide", {}), ("guide", {"topic": "environment"}), ("environment", {}))]
+        listing, text, shown = self.using(flow)
+        self.assertEqual({entry["topic"] for entry in listing["guides"]}, {"tasks", "environment"})
+        self.assertIn("Which place does your requirement belong in", text["text"])
+        self.assertIs(shown["sandbox"]["network"], False)
 
     def test_a_refused_action_comes_back_as_an_error_with_its_reason(self):
         async def flow(client):
