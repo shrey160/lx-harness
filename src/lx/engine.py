@@ -57,6 +57,10 @@ DEFAULT_ROOT = Path.home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT
 SAMPLES = "samples"
 ROLES = ("orchestrator","improver","worker")
 DEFAULT_ROLE_ENTRY = "spark-contributor"
+# An outside agent as orchestrator (D-024): its own model and account, so no entry, key or client here.
+EXTERNAL = "external-agent"
+EXTERNAL_PROVIDER = {"id":EXTERNAL,"name":"Connected agent","model_id":"","base_url":"","pricing":{},"context_limit":0,"accepts_images":False,
+                     "supports_tools":True,"priced":True,"requests_per_minute":None,"limits":{}}
 SHORT_NAMES = {tasks.SEGMENTATION:"SAM",tasks.TRANSCRIPTION:"Transcribe"}
 DEFAULT_WORKSPACE_BUDGET = 5
 PROVIDER_TEST_CAP = 1
@@ -104,7 +108,7 @@ class Engine:
 
     @staticmethod
     def _limit_defaults(providers, task):
-        return run_limits.defaults({role:(p["id"] == DEFAULT_ROLE_ENTRY, p.get("limits") or {}) for role,p in providers.items()},
+        return run_limits.defaults({role:(p["id"] in {DEFAULT_ROLE_ENTRY,EXTERNAL}, p.get("limits") or {}) for role,p in providers.items()},
                                    task=bool(task))
 
     def _tool_transport(self, entry, call_limit):
@@ -151,6 +155,8 @@ class Engine:
         transports, clients = {}, {}
         for role in ROLES:
             entry = spec["roles"][role]
+            if entry == EXTERNAL:
+                continue
             profile = self.registry.profile(entry)
             if entry not in transports:
                 transports[entry] = (self._transport(entry, profile, call_limit, truth, limits=limits, contract=contract,
@@ -182,6 +188,8 @@ class Engine:
 
     def _provider(self, entry):
         """What an approval binds for a role: where its data goes and the price. Never the key."""
+        if entry == EXTERNAL:
+            return dict(EXTERNAL_PROVIDER)
         model = next((m for m in self.registry.list_models() if m["id"] == entry), None)
         if model is None or not model["role_ready"]:
             raise ValueError("Each role needs a chat provider entry with an endpoint")
@@ -195,7 +203,9 @@ class Engine:
         gets = {"orchestrator":"your goal, messages, file names, sizes and hashes",
                 "improver":"run traces and answers, including text from the samples",
                 "worker":"the sample requests" if tasks.is_text(task) else "the sample photos and transcribed requests" if task else "the sample images and transcripts"}
-        notice = [{"who":role,"host":host(draft["providers"][role]["base_url"]),"gets":gets[role]} for role in ROLES]
+        notice = [{"who":role,"host":host(draft["providers"][role]["base_url"]),"gets":gets[role]} for role in ROLES if draft["roles"][role] != EXTERNAL]
+        notice += [{"who":"orchestrator","host":"your connected agent","gets":"whatever it reads in this folder, on its own provider and account"}
+                   ] if draft["roles"]["orchestrator"] == EXTERNAL else []
         tools = tasks.spec_tools(draft)
         notice += [{"who":"SAM 3.1","host":host(META_API),"gets":"the sample photos"}] if tasks.SEGMENTATION in tools else []
         notice += [{"who":"Muse Voice Transcribe","host":host(META_API),"gets":"the sample audio"}] if tasks.TRANSCRIPTION in tools else []
@@ -205,6 +215,8 @@ class Engine:
         unknown = set(roles) - set(ROLES)
         if unknown or set(roles) != set(ROLES):
             raise ValueError("Assign a provider to the orchestrator, improver and worker")
+        if EXTERNAL in (roles["improver"], roles["worker"]):
+            raise ValueError("A connected agent can only be the orchestrator")
         providers = {role:self._provider(roles[role]) for role in ROLES}
         if not providers["improver"]["supports_tools"]:
             raise ValueError("The improver's provider must support tool calls")
@@ -277,6 +289,7 @@ class Engine:
                                           if not p["priced"] or (p["pricing"] and not any(float(price) for price in p["pricing"].values()))}),
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
                 "notice": self.data_notice(draft),
+                "external_orchestrator": draft["roles"]["orchestrator"] == EXTERNAL,
                 "notice_accepted": self._notice_hosts(record["id"]),
                 "blocked": self._blocked(draft),
                 "budget": {key:value for key,value in self._ledger(workspace).summary().items()
@@ -427,6 +440,23 @@ class Engine:
             self._draft(workspace, record, budget=draft["budget_usd"], task=task, check=check)
         return self._view(workspace)
 
+    def draft_spec(self, identifier, *, goal=None, mode=None, roles=None, task=None, check=None, limits=None, tools=None):
+        """An orchestrator's changes, as a new spec version. The run budget stays what a person set."""
+        workspace = self.workspace(identifier)
+        self._jobs(workspace)
+        with workspace.lock():
+            if any(j["status"] in {"queued","running"} for j in workspace.runs()):
+                raise ValueError("Stop the active run before editing its spec")
+            record = workspace.project()
+            draft = workspace.spec(record["spec_version"])
+            if (task is not None or check is not None) and not draft.get("task"):
+                raise ValueError("This workflow has a built-in task and check")
+            if draft.get("task"):
+                task = tasks.validate_task({**draft["task"], **(task or {})})
+                check = workspace.check_source(draft["check"]) if check is None else tasks.validate_check_source(check)
+            self._draft(workspace, record, goal, draft["budget_usd"], mode, roles, task=task, check=check, limits=limits, tools=tools)
+        return self._view(workspace)
+
     def test_check(self, identifier):
         """Self-test the current check on the samples as they are now; changes nothing."""
         workspace = self.workspace(identifier)
@@ -450,6 +480,8 @@ class Engine:
             raise ValueError("Enter a short requirements message")
         workspace = self.workspace(identifier)
         project = self._view(workspace)
+        if project["external_orchestrator"]:
+            raise ValueError("A connected agent is this workspace's orchestrator; talk to it there")
         mode = mode or project["draft"].get("mode", "controlled_preview")
         client = self.build_clients(workspace, {**project["draft"],"mode":mode}, "discussion-"+identifier, project["draft"]["budget_usd"],
                                     call_limit=DISCUSSION_CALL_LIMIT)["orchestrator"]
@@ -472,7 +504,7 @@ class Engine:
                         limits=data.get("limits"), tools=data.get("tools"))
         return self._view(workspace)
 
-    def approve(self, identifier, data):
+    def approve(self, identifier, data, by="person"):
         """A human step. Freezes the samples as they are now, whatever was seen earlier."""
         workspace = self.workspace(identifier)
         with workspace.lock():
@@ -503,8 +535,19 @@ class Engine:
                 shutil.rmtree(workspace.snapshot_dir(name), ignore_errors=True)
                 raise
             self.store.save("approval", {"id":identifier,"version":draft["version"],"spec_hash":fingerprint(draft),
-                "data_hash":fingerprint(captured["inventory"]),"inventory":captured["inventory"],"snapshot":name,"self_test":tested})
+                "data_hash":fingerprint(captured["inventory"]),"inventory":captured["inventory"],"snapshot":name,"self_test":tested,"by":by})
         return self._view(workspace)
+
+    def approve_preview(self, identifier):
+        """A preview runs on doubles: nothing leaves and nothing is spent, so it needs no person (D-024).
+        The approval binds the spec, and the spec holds the mode, so it can never start a live run."""
+        workspace = self.workspace(identifier)
+        draft = workspace.spec(workspace.project()["spec_version"])
+        if draft.get("mode") == "live":
+            raise ValueError("This spec is a live run; only a person can approve it")
+        if any(j["status"] in {"queued","running"} for j in self._jobs(workspace)):
+            raise ValueError("One run is already active")
+        return self.approve(identifier, {"version":draft["version"],"data_approved":True,"contributor_accepted":True}, by="preview")
 
     def _prove_task(self, workspace, draft, snapshot):
         """At approval: the frozen samples fit the task and the check proves itself on them."""
@@ -540,7 +583,7 @@ class Engine:
                 shutil.rmtree(workspace.run_dir(job_id))
                 raise ValueError("Snapshot changed since approval; approve again")
             job = {"id":job_id,"project_id":identifier,"name":record["name"],"status":"queued","phase":"queued","created_at":time.time(),
-                   "mode":draft.get("mode","controlled_preview"),"spec":draft,"approved":_approval_identity(approved),"launch_pending":True}
+                   "mode":draft.get("mode","controlled_preview"),"spec":draft,"approved":_approval_identity(approved),"approved_by":approved.get("by","person"),"launch_pending":True}
             workspace.write_run(job)
         if launch:
             self._launch(workspace, job_id)

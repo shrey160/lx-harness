@@ -12,6 +12,7 @@ separate `worker.py` process, so credentials load there and never in task worker
 | File | Purpose |
 |---|---|
 | `engine.py` | The engine API: workspaces, specs, approval, runs, results, provider tests |
+| `orchestration.py` | What an orchestrator may do; the built-in one, the CLI and the MCP server share it (D-024) |
 | `server.py` | Loopback-only HTTP API and the built React UI |
 | `worker.py` | Controller subprocess for one managed run |
 | `workspace.py` | A user folder and the `.lx/` directory inside it |

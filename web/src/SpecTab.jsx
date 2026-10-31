@@ -33,7 +33,7 @@ export function SpecTab({state,project,ui,setTab}){
 
     <h2>Roles</h2>
     <div className="three">{ROLES.map((role,i)=><label className="field" key={role}><span className="capital">{role}</span>
-      <select aria-label={role+' provider'} value={roles[role]||''} onChange={e=>setRoles({...roles,[role]:e.target.value})}>{state.models.filter(m=>m.role_ready).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select>
+      <select aria-label={role+' provider'} value={roles[role]||''} onChange={e=>setRoles({...roles,[role]:e.target.value})}>{roles[role]==='external-agent'&&<option value="external-agent">Connected agent</option>}{state.models.filter(m=>m.role_ready).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select>
       <small className="muted">{hosts[i]}</small></label>)}</div>
     {mode==='live'&&project.free_providers.length>0&&<p className="callout warn" role="status">No spending limit on {project.free_providers.join(', ')}: it is free or publishes no price, so the budget cannot count it and only the call limits apply.</p>}
     {!specDirty&&project.blocked&&<p className="callout bad" role="status">{project.blocked}</p>}
@@ -83,6 +83,7 @@ function Review({project,ui,close,done}){
       <dt>Budget</dt><dd>${draft.budget_usd} for this run, ${project.budget.cap_usd} for the workspace</dd>
       {['orchestrator','improver','worker'].map(role=><React.Fragment key={role}><dt className="capital">{role}</dt><dd>{draft.providers[role].name}</dd></React.Fragment>)}
     </dl>
+    {project.external_orchestrator&&<p className="muted">A connected agent is the orchestrator. It uses its own model and account, so the costs shown here leave it out.</p>}
     {live&&<><h3>Who receives what</h3><ul className="plain">{project.notice.map(entry=><li key={entry.who}><strong>{entry.who}</strong> ({entry.host}): {entry.gets}</li>)}</ul></>}
     {usesSpark&&live&&<p className="callout warn">Spark Contributor may use approved content for training.</p>}
     {project.blocked&&<p className="callout bad" role="alert">{project.blocked}</p>}
