@@ -136,9 +136,30 @@ def harness_edits(run_dir):
             meta = metas.get(label)
             stages.append({"label": label, "stage": STAGE_NAMES.get(label.rstrip("0123456789"), label), "status": _stage_status(meta),
                            "notes": (meta or {}).get("notes"), "changes": file_changes(base, _harness_files(harnesses/label), MAX_EDIT_LINES)})
-        samples.append({"sample": sample.name, "folder": folders.get(sample.name), "done": bool(summary),
-                        "kept_base": summary.get("selections", {}).get("seq", {}).get("chosen_tree_is_base"), "stages": stages})
+        selection = summary.get("selections", {}).get("seq", {})
+        samples.append({"sample": sample.name, "folder": folders.get(sample.name), "done": bool(summary), "kept_base": selection.get("chosen_tree_is_base"),
+                        "kept_label": selection.get("chosen_label"), "stages": stages})
     return {"samples": samples}
+
+
+def token_report(rows, samples):
+    """Tokens from base to improved, from the ledger: what the worker used on the base harness, what it used
+    trying each edit, and what the improver spent. Input tokens include any the provider served from cache."""
+    def spent(row):
+        return (row["input_tokens"] or 0)+(row["output_tokens"] or 0)
+    worker = {}
+    totals = {"base_runs": 0, "edit_runs": 0, "improver": 0}
+    for row in rows:
+        parts = row["candidate"].split("/")
+        if row["role"] == "improver":
+            totals["improver"] += spent(row)
+        elif row["role"] == "worker" and len(parts) >= 4:
+            worker[(parts[2], parts[3])] = worker.get((parts[2], parts[3]), 0)+spent(row)
+            totals["base_runs" if parts[1].endswith("-agg1") else "edit_runs"] += spent(row)
+    per_sample = [{"sample": sample["sample"], "folder": sample["folder"], "base": worker.get((sample["sample"], "base1"), 0),
+                   "kept_label": sample["kept_label"], "kept_base": sample["kept_base"], "kept": worker.get((sample["sample"], sample["kept_label"])) if sample["kept_label"] else None,
+                   "stages": {stage["label"]: worker.get((sample["sample"], stage["label"]), 0) for stage in sample["stages"]}} for sample in samples]
+    return {**totals, "total": sum(totals.values()), "samples": per_sample}
 
 
 def kept_sample(best, gains, base, final):

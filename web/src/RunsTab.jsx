@@ -53,6 +53,20 @@ function RunPage({project,job,ui,back}){
   </section>;
 }
 
+function Tokens({tokens}){
+  const count=n=>n===null||n===undefined?'–':n.toLocaleString();
+  const change=row=>row.kept===null||!row.base?'–':`${row.kept>row.base?'+':''}${Math.round(100*(row.kept-row.base)/row.base)}%`;
+  return <div className="tokens">
+    <h3>Tokens from base to improved</h3>
+    <div className="stats"><Stat value={count(tokens.base_runs)} label="worker on the base harness"/><Stat value={count(tokens.edit_runs)} label="worker trying the edits"/><Stat value={count(tokens.improver)} label="improver"/><Stat value={count(tokens.total)} label="total"/></div>
+    {tokens.samples.length>0&&<div className="table-wrap"><table className="table">
+      <thead><tr><th>Sample</th><th>Base run</th><th>Kept run</th><th>Change</th></tr></thead>
+      <tbody>{tokens.samples.map(row=><tr key={row.sample}><td>{row.folder||row.sample}{row.kept_base?' (base kept)':''}</td><td>{count(row.base)}</td><td>{count(row.kept)}</td><td>{change(row)}</td></tr>)}</tbody>
+    </table></div>}
+    <p className="muted">Input tokens include any the provider served from cache. One run's tokens vary, as scores do.</p>
+  </div>;
+}
+
 function Edits({project,job}){
   const [edits,setEdits]=useState(null),running=active(job);
   useEffect(()=>{
@@ -64,6 +78,7 @@ function Edits({project,job}){
   },[job.id,running]);
   if(!edits)return null;
   return <div className="edits">
+    <Tokens tokens={edits.tokens}/>
     <h3>What the improver changed</h3>
     {edits.samples.length===0&&<p className="muted">{running?'Nothing written yet. Edits appear here as the loop writes them.':'This run left no edits.'}</p>}
     {edits.samples.map(sample=><details key={sample.sample} open={running||sample.sample===edits.chosen_sample}>

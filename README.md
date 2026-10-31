@@ -400,8 +400,10 @@ not a measure.
 
 `lx run edits <run id>`, or "What the improver changed" on a run's page, shows what the
 improver wrote for each sample and stage, as diffs from the base harness with its notes:
-the system prompt, guardrails, skills, scripts and tool guidance. It fills in during a run,
-and an agent can read it too. A run only counts as improved if the kept harness really
+the system prompt, guardrails, skills, scripts and tool guidance. It also shows tokens from
+base to improved: what the worker used on the base harness and on the kept one, for each
+sample, what it used trying the edits, and what the improver spent. It fills in during a
+run, and an agent can read it too. A run only counts as improved if the kept harness really
 differs from the base, because the same harness can score differently on a rerun.
 
 Every run and trial starts from the stock harness, with no skills or scripts: nothing

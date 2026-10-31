@@ -122,7 +122,7 @@ def server_for(engine):
 
     @tool(READ)
     def edits(workspace: str, run_id: str) -> dict[str, Any]:
-        """What the improver has written so far, for each sample and stage, as diffs from the base harness with its notes. Works during a run.
+        """What the improver has written so far, for each sample and stage, as diffs from the base harness with its notes, and tokens from base to improved. Works during a run.
         It is for reading: procedure stays with the loop, so do not copy it into the task text."""
         return lx.edits(workspace, run_id)
 

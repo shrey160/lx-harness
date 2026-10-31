@@ -819,10 +819,13 @@ class Engine:
 
     def run_edits(self, identifier, job_id):
         """What the improver has written in a run so far. Works during the run."""
-        from .taskrun import harness_edits
+        from .taskrun import harness_edits, token_report
         workspace = self.workspace(identifier)
         job = workspace.run(job_id)
-        return {"status":job["status"],"chosen_sample":(job.get("result") or {}).get("chosen_sample"),**harness_edits(workspace.run_dir(job_id))}
+        edits = harness_edits(workspace.run_dir(job_id))
+        ledger = self._ledger(workspace) if job["spec"].get("mode") == "live" else workspace.preview_ledger
+        return {"status":job["status"],"chosen_sample":(job.get("result") or {}).get("chosen_sample"),**edits,
+                "tokens":token_report(usage_rows(ledger,job_id+"/"),edits["samples"])}
 
     def finish_trial(self, workspace, job, result):
         """A trial ends in its result alone: nothing was learned, so there is no package."""

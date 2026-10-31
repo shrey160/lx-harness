@@ -6,7 +6,7 @@ import unittest
 from lx import sandbox
 from lx.inventory import write_synthetic
 from lx.orchestration import ACTIONS, Orchestration
-from lx.taskrun import MAX_EDIT_LINES, clean_base, harness_edits, kept_sample
+from lx.taskrun import MAX_EDIT_LINES, clean_base, harness_edits, kept_sample, token_report
 from lx.worker import execute
 from test_tasks import Base
 
@@ -98,10 +98,42 @@ class WholeRun(Base):
         seen = lx.edits(path, run_id)
         self.assertEqual(seen, self.app.run_edits(identifier, run_id))
         self.assertEqual(len(seen["samples"]), 6)
+        self.assertGreater(seen["tokens"]["base_runs"], 0)
+        self.assertGreater(seen["tokens"]["improver"], 0)
         files = {change["file"] for sample in seen["samples"] for stage_ in sample["stages"] for change in stage_["changes"]}
         self.assertIn("guardrails.md", files)
         self.assertTrue(any(name.startswith("skills/") for name in files))
         self.assertEqual(json.loads(json.dumps(seen)), seen)
+
+
+class Tokens(unittest.TestCase):
+    def rows(self):
+        def row(role, candidate, used):
+            return {"role": role, "candidate": "job/"+candidate, "input_tokens": used, "output_tokens": 1}
+        return [row("worker", "lx-oc-agg1/sample-01/base1", 99), row("worker", "lx-oc-agg1/sample-01/base1", 9),
+                row("worker", "lx-oc-seq1/sample-01/inv1", 49), row("worker", "lx-oc-seq1/sample-01/c1", 79),
+                row("improver", "inv1.a1", 199), row("improver", "experience.seq1", 99),
+                row("orchestrator", "job", 49), row("tool", "lx-oc-agg1/sample-01/base1", 0)]
+
+    def samples(self, **extra):
+        return [{"sample": "sample-01", "folder": "sample-05", "kept_label": "c1", "kept_base": False,
+                 "stages": [{"label": "inv1"}, {"label": "c1"}], **extra}]
+
+    def test_it_splits_base_runs_edit_runs_and_the_improver(self):
+        report = token_report(self.rows(), self.samples())
+        self.assertEqual({key: report[key] for key in ("base_runs", "edit_runs", "improver", "total")},
+                         {"base_runs": 110, "edit_runs": 130, "improver": 300, "total": 540})
+
+    def test_each_sample_shows_its_base_and_kept_runs(self):
+        row = token_report(self.rows(), self.samples())["samples"][0]
+        self.assertEqual((row["folder"], row["base"], row["kept"], row["stages"]), ("sample-05", 110, 80, {"inv1": 50, "c1": 80}))
+
+    def test_a_sample_still_running_has_no_kept_run(self):
+        self.assertIsNone(token_report(self.rows(), self.samples(kept_label=None))["samples"][0]["kept"])
+
+    def test_empty_tokens_count_as_zero(self):
+        rows = [{"role": "worker", "candidate": "job/lx-oc-agg1/sample-01/base1", "input_tokens": None, "output_tokens": None}]
+        self.assertEqual(token_report(rows, [])["total"], 0)
 
 
 class ImprovedMeansEdited(unittest.TestCase):
