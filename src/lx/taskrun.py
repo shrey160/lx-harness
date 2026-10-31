@@ -130,7 +130,8 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     output = run_dir/"outputs"
     adapter = _adapter(task, run_dir, output, clients["worker"], truth, check, live=live, limits=limits, tools=tools,
                        perception=perception, health=health)
-    report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health)
+    report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health,
+                        on_grading=lambda: workspace.update_run(identifier, phase="grading"))
     gains, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
     return summarize_report(task, report, gains, chosen, live)
 
@@ -150,6 +151,7 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
     adapter = _adapter(task, run_dir, output, client, truth, check, live=True, limits=limits, tools=tools, perception=perception, health=health)
     sample = stream[0]
     run = adapter.execute(sample, adapter.base_harness(), "trial")
+    workspace.update_run(identifier, phase="grading")
     named = named_checks(check, truth[sample], json.loads(adapter.deliverable_text(run)))
     steps = json.loads((run/"trace.json").read_text(encoding="utf-8"))["trace"]
     calls = {}

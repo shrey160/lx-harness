@@ -51,6 +51,24 @@ class WhatItMayDo(Actions):
         self.lx.preview(self.path)
         self.assertIs(self.lx.run_status(self.path)["runs"][0]["simulated_cost"], True)
 
+    def test_a_run_records_when_it_finished_and_a_resume_clears_it(self):
+        self.begin()
+        run_id = self.lx.preview(self.path)["run_id"]
+        self.assertIsNone(self.lx.run_status(self.path)["runs"][0]["finished_at"])
+        workspace = self.app.workspace(self.app.open_workspace(self.path)["id"])
+        workspace.update_run(run_id, status="failed", launch_pending=False)
+        first = self.lx.run_status(self.path)["runs"][0]["finished_at"]
+        self.assertTrue(first)
+        workspace.update_run(run_id, phase="failed")
+        self.assertEqual(self.lx.run_status(self.path)["runs"][0]["finished_at"], first)
+        workspace.update_run(run_id, status="running")
+        self.assertNotIn("finished_at", workspace.run(run_id))
+
+    def test_going_live_says_a_person_is_needed(self):
+        self.begin()
+        self.assertNotIn("note", self.lx.spec_draft(self.path, goal="Count cups"))
+        self.assertIn("approval", self.lx.spec_draft(self.path, mode="live")["note"])
+
     def test_the_budget_a_person_set_stays(self):
         self.begin()
         project = self.app.open_workspace(self.path)

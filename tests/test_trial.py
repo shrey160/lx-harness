@@ -63,6 +63,13 @@ class WhatItDoes(Trials):
         self.assertFalse(self.workspace.package_dir(run_id).exists())
         self.assertEqual(self.workspace.run(run_id)["status"], "completed")
 
+    def test_it_says_when_grading_starts(self):
+        phases = []
+        update = self.workspace.update_run
+        self.workspace.update_run = lambda identifier, **changes: (phases.append(changes.get("phase")), update(identifier, **changes))[1]
+        self.trial()
+        self.assertEqual([phase for phase in phases if phase], ["preflight", "trying", "grading", "complete"])
+
     def test_it_shows_no_loop_progress(self):
         self.trial()
         self.assertIsNone(self.lx.run_status(self.path)["runs"][0]["progress"])

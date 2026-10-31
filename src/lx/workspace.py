@@ -196,6 +196,10 @@ class Workspace:
         """Merge under the lock. A None value removes the field."""
         with self.lock():
             record = self.run(identifier)
+            if changes.get("status") in {"queued", "running"}:
+                record.pop("finished_at", None)
+            elif changes.get("status"):
+                record.setdefault("finished_at", time.time())
             for key, value in changes.items():
                 if value is None:
                     record.pop(key, None)

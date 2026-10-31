@@ -21,6 +21,6 @@ export const active=job=>['queued','running'].includes(job?.status);
 export const resumable=job=>['failed','cancelled','interrupted'].includes(job?.status);
 export const modeName=mode=>mode==='live'?'Live':'Preview';
 const STATUS={queued:'Waiting to start',running:'Running',completed:'Completed',failed:'Failed',cancelled:'Stopped',interrupted:'Interrupted',timed_out:'Timed out'};
-const PHASE={preflight:'Checking providers',improving:'Improving the harness'};
+const PHASE={preflight:'Checking providers',improving:'Improving the harness',trying:'Trying one sample',grading:'Grading'};
 export const statusName=job=>job.status==='running'&&PHASE[job.phase]||STATUS[job.status]||job.status;
 export const tone=job=>active(job)?'run':job?.status==='completed'?'ok':job?'warn':'idle';

@@ -34,7 +34,7 @@ function RunPage({project,job,ui,back}){
   const post=(action,body={})=>ui.act(()=>api(`${path}/${action}`,body));
   return <section className="narrow">
     <button className="link" onClick={back}>← All runs</button>
-    <div className="run-head"><h2>{statusName(job)}</h2><span className="muted">{modeName(job.mode)} · version {job.spec.version} · {when(job.created_at)}</span></div>
+    <div className="run-head"><h2>{statusName(job)}</h2><span className="muted">{modeName(job.mode)} · version {job.spec.version} · {when(job.created_at)}{job.finished_at?` · took ${Math.max(1,Math.round((job.finished_at-job.created_at)/60))} min`:''}</span></div>
     {job.error&&<p className="callout bad">{job.error}</p>}
     {progress&&<div className="progress-line">
       <div className="progress" role="progressbar" aria-valuemin="0" aria-valuemax={progress.total} aria-valuenow={progress.done}><div className="bar" style={{width:`${100*progress.done/progress.total}%`}}/></div>

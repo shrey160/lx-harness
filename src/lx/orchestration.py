@@ -16,7 +16,7 @@ ACTIONS = ("status", "init", "samples", "read_sample", "truth_shape", "spec_show
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
-_RUN_FIELDS = ("id", "kind", "status", "phase", "mode", "created_at", "approved_by", "grant", "progress", "error")
+_RUN_FIELDS = ("id", "kind", "status", "phase", "mode", "created_at", "finished_at", "approved_by", "grant", "progress", "error")
 
 
 class Orchestration:
@@ -93,7 +93,8 @@ class Orchestration:
             raise ValueError("The task text repeats answers from the samples; describe the work without them")
         project = self.engine.draft_spec(identifier, goal=goal, mode=mode, roles=self._roles(current, worker, improver), task=task,
                                          check=check, limits=limits, tools=tools)
-        return {"version": project["draft"]["version"], "blocked": project["blocked"]}
+        live = {"note": "A live run or trial needs a person's approval, or a grant that covers it"} if project["draft"]["mode"] == "live" else {}
+        return {"version": project["draft"]["version"], "blocked": project["blocked"], **live}
 
     def check_test(self, workspace):
         return self.engine.test_check(self._id(workspace))

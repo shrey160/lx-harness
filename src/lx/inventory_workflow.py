@@ -225,7 +225,7 @@ class InventoryAdapter(ImagesAdapter):
         return render_trace(record["trace"], record["final_text"], obs_trunc=obs_trunc)
 
 
-def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None):
+def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None, on_grading=None):
     """E-A: Harness² k=1 (sequential mode) over the stream, then controller-side grading per sample."""
     from harness2.core import tree
     from harness2.core.schedule import Namespace, run_domain
@@ -241,6 +241,8 @@ def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None)
     result = run_domain(adapter.domain_of(stream[0]), stream, 1, adapter=adapter, prop=proposer,
                         runs_root=adapter.spec.runs_root, library_root=output/"library", modes=("seq",),
                         reflector_prop=reflector)
+    if on_grading:
+        on_grading()
     return grade_stream(adapter, output, stream, result)
 
 
