@@ -34,7 +34,7 @@ import zipfile
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
 from .health import read_health
-from . import checks, limits as run_limits, sandbox, tasks, text_task
+from . import checks, launcher, limits as run_limits, sandbox, tasks, text_task
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveChatTransport
@@ -607,12 +607,8 @@ class Engine:
 
     def _launch(self, workspace, identifier):
         # Worker main owns POSIX signal handlers; HTTP request threads do not.
-        # Windows: UTF-8 mode, because the vendored engine reads text with the default encoding.
-        detach = ({"creationflags":subprocess.CREATE_NEW_PROCESS_GROUP|subprocess.CREATE_NO_WINDOW,
-                   "env":{**os.environ,"PYTHONUTF8":"1"}} if os.name == "nt" else {"start_new_session":True})
-        with open(os.devnull,"wb") as output:
-            subprocess.Popen([sys.executable,"-m","lx.worker","--root",str(self.root),"--workspace",str(workspace.folder),"--job",identifier],
-                             stdout=output,stderr=output,**detach)
+        launcher.start([sys.executable,"-m","lx.launcher",sys.executable,"-m","lx.worker","--root",str(self.root),
+                        "--workspace",str(workspace.folder),"--job",identifier]).wait()
 
     def stop(self, identifier, job_id):
         from h2portable.jobs import stop_job
