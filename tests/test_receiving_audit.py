@@ -297,6 +297,21 @@ class GeneratorTests(unittest.TestCase):
         bottles = self.samples["order-changed"]["truth"]["lines"][3]
         self.assertEqual((bottles["received"], bottles["substitute"], bottles["credit"], check.expected_status(bottles)), (3, {"item": "vase", "count": 2}, 6.5, "wrong_item"))
 
+    def test_the_note_points_at_the_swapped_line_without_giving_it_away(self):
+        note = self.samples["order-changed"]["note"]
+        self.assertIn("in place of some of the bottles", note)
+        self.assertNotIn("vase", note)
+
+    def test_no_price_list_offers_a_name_for_what_was_substituted(self):
+        self.assertNotIn("jug", builder.PLANS[2]["extras"])
+
+    def test_a_plan_can_leave_out_a_cutout_without_moving_another_plan(self):
+        used = [ann for entry in self.samples["substitution"]["layout"] if "delivery" in entry for ann in entry["ann_ids"]]
+        plan = dict(builder.PLANS[2], avoid=[used[0]])
+        again = builder.make_sample(plan, 3, self.pools)
+        self.assertNotIn(used[0], [ann for entry in again["layout"] if "delivery" in entry for ann in entry["ann_ids"]])
+        self.assertEqual(builder.make_sample(builder.PLANS[3], 4, self.pools)["photos"], self.samples["retake"]["photos"])
+
     def test_a_worker_that_missed_the_note_fails_each_sample(self):
         plain = {name: {key: value for key, value in plan.items() if key not in ("discount", "free", "min_short")} for name, plan in zip(self.samples, builder.PLANS)}
         for name in ("slip-overclaims", "substitution", "price-rule"):

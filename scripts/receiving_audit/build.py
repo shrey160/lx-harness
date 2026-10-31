@@ -42,13 +42,14 @@ BUYER, SUPPLIER = "Harbour Street Homeware", "Northgate Wholesale"
 
 # paper: quantity on the purchase order. ordered: what stands now, if the note changed it. shipped: the slip's claim, if it
 # differs. backordered: what the slip says is still to come. shots: how many arrived in each delivery photo. substitute: what
-# came instead, by photo. old: the outdated price.
+# came instead, by photo. old: the outdated price. avoid: cutouts unfair in this plan alone; rejects.json would reshuffle every sample.
 PLANS = [
     {"name": "order-changed", "voice": "af_sarah", "date": "6 April", "overlap": 0.25, "extras": {"plate": 3.10, "lamp": 22.00},
      "note": "Hey, a quick note on this delivery before you start. We phoned the supplier on Tuesday and raised the cups from six to twelve, "
              "then called back on Thursday and settled on nine, so nine is what is on order now. On that same call we cancelled the clocks "
-             "completely, so the order for those is zero. Nobody updated the purchase order for any of this. Everything else stands. "
-             "Check what actually came in and put together the claim for anything we are owed. Thanks.",
+             "completely, so the order for those is zero. Nobody updated the purchase order for any of this. Everything else stands, "
+             "but something else may have come in place of some of the bottles. "
+             "Check what came in and put together the claim for anything we are owed. Thanks.",
      "lines": [{"item": "cup", "paper": 6, "ordered": 9, "price": 4.50, "shots": [4, 4]},
                {"item": "bowl", "paper": 8, "price": 6.25, "shots": [4, 3]},
                {"item": "clock", "paper": 3, "ordered": 0, "price": 18.00, "shots": [1, 1]},
@@ -62,7 +63,7 @@ PLANS = [
                {"item": "orange", "paper": 8, "shipped": 8, "price": 0.90, "shots": [4, 3]},
                {"item": "donut", "paper": 6, "shipped": 4, "backordered": 2, "price": 2.50, "shots": [1, 2]},
                {"item": "bowl", "paper": 4, "price": 6.00, "shots": [2, 2]}]},
-    {"name": "substitution", "voice": "bf_emma", "date": "20 April", "overlap": 0, "free": ["clock"], "extras": {"jug": 7.40, "candle": 2.90},
+    {"name": "substitution", "voice": "bf_emma", "date": "20 April", "overlap": 0, "free": ["clock"], "extras": {"tray": 7.40, "candle": 2.90}, "avoid": [1671607],
      "note": "Hello, a note on today's delivery. We have not agreed to any substitutions on this order, so if something other than what we "
              "ordered has turned up, it counts against the line. The clocks are a free promotional line this month, so claim nothing on them, "
              "however many came. Everything else follows the normal rule. Check it all and send me the claim, please.",
@@ -198,7 +199,8 @@ def make_sample(plan, number, pools, seed=SEED):
     """{photos: [JPEG, ...], truth, note, layout} for one plan. pools maps a kind to prepared cutouts."""
     rng = random.Random(f"{seed}:{plan['name']}")
     shots, spare = _shots(plan), {kind: rng.sample(pools[kind], len(pools[kind])) for kind in pools}
-    filled = [[(index, spare[kind].pop()) for index, kind in shot] for shot in shots]
+    spare = {kind: [cutout for cutout in cutouts if cutout["ann_id"] not in plan.get("avoid", ())] for kind, cutouts in spare.items()}
+    filled =[[(index, spare[kind].pop()) for index, kind in shot] for shot in shots]
     if plan.get("retake") is not None:
         filled.append(list(filled[plan["retake"]]))
     delivery = []
