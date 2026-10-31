@@ -6,7 +6,7 @@ import unittest
 from lx import sandbox
 from lx.inventory import write_synthetic
 from lx.orchestration import ACTIONS, Orchestration
-from lx.taskrun import MAX_EDIT_LINES, clean_base, harness_edits, kept_sample, token_report
+from lx.taskrun import MAX_EDIT_LINES, clean_base, harness_edits, token_report
 from lx.worker import execute
 from test_tasks import Base
 
@@ -134,17 +134,6 @@ class Tokens(unittest.TestCase):
     def test_empty_tokens_count_as_zero(self):
         rows = [{"role": "worker", "candidate": "job/lx-oc-agg1/sample-01/base1", "input_tokens": None, "output_tokens": None}]
         self.assertEqual(token_report(rows, [])["total"], 0)
-
-
-class ImprovedMeansEdited(unittest.TestCase):
-    def test_a_gain_with_no_edits_is_not_an_improvement(self):
-        self.assertIsNone(kept_sample("sample-02", {"sample-02": 0.125}, {"a": "x"}, {"a": "x"}))
-
-    def test_a_gain_with_edits_is(self):
-        self.assertEqual(kept_sample("sample-02", {"sample-02": 0.125}, {"a": "x"}, {"a": "y"}), "sample-02")
-
-    def test_edits_with_no_gain_are_not(self):
-        self.assertIsNone(kept_sample("sample-02", {"sample-02": 0.0}, {"a": "x"}, {"a": "y"}))
 
 
 class StartingHarness(unittest.TestCase):

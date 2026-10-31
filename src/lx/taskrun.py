@@ -1,7 +1,8 @@
 """One spec-driven run: the Harness² stream over a task's samples, graded by its check file.
 
 The improver stays grade-blind; the check scores runs on the controller side
-after the loop, and the harness with the largest gain becomes the package.
+after the loop. The package is the harness adopted on the last sample, because
+no harness is kept or chosen by score (D-028). Scores are only reported.
 """
 from __future__ import annotations
 
@@ -55,8 +56,8 @@ def limitations(spec, report, chosen, live, approved_by="person"):
     lines = ["# Limitations", "",
              f"- Measured on {len(rows)} sample(s), one run per harness, so a single unlucky reply can move a score.",
              "- No held-out samples: every score here comes from samples the loop adapted on, so it reads high.",
-             (f"- This harness came from one sample ({chosen}), picked for the largest gain after grading, "
-              "which adds to that optimism." if chosen else "- No sample gained, so this is the base harness."),
+             (f"- This harness was adopted on {chosen}, the last sample in this run's order. Scores played no part in that, "
+              "and another run's order would give another harness." if chosen else "- The last sample in this run's order kept the base harness, so this is the base harness."),
              f"- Learned with {worker} as the agent. A harness can fail on another model; retest it after a swap.",
              "- Reuse on a new sample is not built yet. The harness is plain files you can read and copy.",
              ("- A connected agent set this run up. It could read every file in the workspace, including the answers, "
@@ -77,13 +78,14 @@ def _text(content):
     return content.decode("utf-8", "replace") if isinstance(content, bytes) else str(content)
 
 
-def learned(base, final, report, gains, chosen):
+def learned(base, final, report, chosen):
     """What the loop changed, for a person or an outside agent to read. `base` and `final` map file names to contents."""
     means = report["means"]
-    scores = f"Mean score, each sample with its own harness: {means['base']:.2f} before, {means['harness2']:.2f} after."
+    scores = (f"Mean score, each sample with its own harness: {means['base']:.2f} before, {means['harness2']:.2f} after. "
+              "One run cannot separate a gain from noise, and scores chose nothing here.")
     if chosen is None:
-        return f"# What was learned\n\nNothing the loop tried beat the base harness, so this package is the base harness.\n\n{scores}\n"
-    lines = ["# What was learned", "", f"This package is the harness from {chosen}, the largest gain ({gains[chosen]:+.2f} on that sample).", "", scores, "",
+        return f"# What was learned\n\nThe last sample in this run's order kept the base harness, so this package is the base harness.\n\n{scores}\n"
+    lines = ["# What was learned", "", f"This package is the harness adopted on {chosen}, the last sample in this run's order.", "", scores, "",
              "## Changes from the base harness"]
     changes = file_changes(base, final, MAX_DIFF_LINES)
     lines += [f"- Removed `{item['file']}`" for item in changes if item["change"] == "removed"]
@@ -176,44 +178,42 @@ def token_report(rows, samples):
     return {**totals, "total": sum(totals.values()), "samples": per_sample}
 
 
-def kept_sample(best, gains, base, final):
-    """The sample whose harness counts as an improvement. A rerun of the same harness can score
-    higher by chance, so a gain with no edits is not one."""
-    return best if gains[best] > 0 and final != base else None
+def last_sample(report):
+    """The last sample in this run's order that left a harness. Which sample this is never depends on a score (D-028)."""
+    rows = report["per_sample"]
+    return next((sample for sample in reversed(report["stream"]) if rows.get(sample, {}).get("harness_dir")), None)
 
 
 def _package(adapter, report, output, spec, *, live, check, approved_by="person"):
-    """Copy the best harness (or the base when nothing gained) into package/harness, with what graded it."""
+    """Copy the last sample's harness into package/harness, with what graded it. Returns (that sample, or None
+    if it left none; the package's sample if it differs from the base, else None)."""
     from harness2.core import tree
     surface = adapter.substrate.surface()
-    gains = {task: row["harness2"]["score"]-row["base"]["score"] for task, row in report["per_sample"].items()}
-    best = max(gains, key=lambda task: (gains[task], task))
-    relative = report["per_sample"][best].get("harness_dir")
-    source = adapter.spec.runs_root/relative if gains[best] > 0 and relative else adapter.base_harness()
+    last = last_sample(report)
+    source = adapter.spec.runs_root/report["per_sample"][last]["harness_dir"] if last else adapter.base_harness()
     package = Path(output)/"package"
     package.mkdir(exist_ok=True)
     final = tree.read_tree(surface, source)
     tree.write_tree(surface, final, package/"harness", stubs=False)
     base = tree.read_tree(surface, adapter.base_harness())
-    chosen = kept_sample(best, gains, base, final)
-    (package/"learned.md").write_text(learned(base, final, report, gains, chosen), encoding="utf-8")
+    chosen = last if final != base else None
+    (package/"learned.md").write_text(learned(base, final, report, chosen), encoding="utf-8")
     (package/"spec.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
     (package/"check.py").write_text(check, encoding="utf-8", newline="")
     (package/"limitations.md").write_text(limitations(spec, report, chosen, live, approved_by), encoding="utf-8")
-    return gains, chosen
+    return last, chosen
 
 
-def summarize_report(task, report, gains, chosen, live, folders):
+def summarize_report(task, report, last, chosen, live, folders):
     rows = report["per_sample"]
-    return {"task": task["name"], "live": live, "stream_order": [folders.get(sample) or sample for sample in report["stream"]], "simulated_usage": not live, "improved": chosen is not None,
-            "retained": "harness2" if chosen else "base", "chosen_sample": chosen, "means": report["means"],
-            "gains": gains, "skipped": report["skipped"],
+    return {"task": task["name"], "live": live, "stream_order": [folders.get(sample) or sample for sample in report["stream"]], "simulated_usage": not live,
+            "package_sample": last, "package_is_base": chosen is None, "means": report["means"], "skipped": report["skipped"],
             "checks": {"base": {t: r["base"]["score"] == 1.0 for t, r in rows.items()},
                        "harness2": {t: r["harness2"]["score"] == 1.0 for t, r in rows.items()}},
             "scores": {"base": {t: r["base"]["score"] for t, r in rows.items()},
                        "harness2": {t: r["harness2"]["score"] for t, r in rows.items()}},
             "files_added": {t: r["files_added"] for t, r in rows.items()},
-            "grading": "controller-side check file after the run; never shown to the improver"}
+            "grading": "controller-side check file after the run; never shown to the improver, and never used to choose a harness"}
 
 
 def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=None):
@@ -243,8 +243,8 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     base = clean_base(adapter)
     report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health,
                         on_grading=lambda: workspace.update_run(identifier, phase="grading"))
-    gains, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
-    return {**summarize_report(task, report, gains, chosen, live, _folders(run_dir)), "base_sha256": base}
+    last, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
+    return {**summarize_report(task, report, last, chosen, live, _folders(run_dir)), "base_sha256": base}
 
 
 def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
@@ -286,5 +286,5 @@ def regrade(engine, workspace, job, *, live):
     check = workspace.check_source(spec["check"])
     adapter = _adapter(task, run_dir, output, client, truth, check, live=live, limits=engine.limits_of(spec), tools=spec_tools(spec))
     report = grade_stream(adapter, output, stream, {"regraded": True})
-    gains, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
-    return summarize_report(task, report, gains, chosen, live, _folders(run_dir))
+    last, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
+    return summarize_report(task, report, last, chosen, live, _folders(run_dir))

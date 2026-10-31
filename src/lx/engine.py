@@ -824,7 +824,7 @@ class Engine:
         job = workspace.run(job_id)
         edits = harness_edits(workspace.run_dir(job_id))
         ledger = self._ledger(workspace) if job["spec"].get("mode") == "live" else workspace.preview_ledger
-        return {"status":job["status"],"chosen_sample":(job.get("result") or {}).get("chosen_sample"),**edits,
+        return {"status":job["status"],"package_sample":(job.get("result") or {}).get("package_sample"),**edits,
                 "tokens":token_report(usage_rows(ledger,job_id+"/"),edits["samples"])}
 
     def finish_trial(self, workspace, job, result):

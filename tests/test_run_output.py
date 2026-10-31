@@ -8,7 +8,7 @@ import zipfile
 from lx import sandbox
 from lx.inventory import write_synthetic
 from lx.orchestration import Orchestration
-from lx.taskrun import MAX_DIFF_LINES, learned, limitations, run_order
+from lx.taskrun import MAX_DIFF_LINES, last_sample, learned, limitations, run_order
 from lx.worker import execute
 from test_tasks import Base
 
@@ -16,22 +16,23 @@ REPORT = {"means": {"base": 0.5, "harness2": 0.75}, "per_sample": {"s": {}}, "sk
 
 
 class Learned(unittest.TestCase):
-    def test_no_gain_reads_plainly(self):
-        text = learned({"a.md": "x"}, {"a.md": "x"}, REPORT, {"s": 0}, None)
-        self.assertIn("Nothing the loop tried beat the base harness, so this package is the base harness.", text)
+    def test_a_package_equal_to_the_base_reads_plainly(self):
+        text = learned({"a.md": "x"}, {"a.md": "x"}, REPORT, None)
+        self.assertIn("kept the base harness, so this package is the base harness.", text)
         self.assertIn("0.50 before, 0.75 after", text)
+        self.assertIn("scores chose nothing", text)
         self.assertNotIn("Changes", text)
 
-    def test_a_gain_names_its_sample_and_every_change(self):
+    def test_a_change_names_its_sample_and_every_change(self):
         text = learned({"kept.md": "same", "edited.md": "old line", "gone.md": "x"}, {"kept.md": "same", "edited.md": "new line", "skill.md": "use it"},
-                       REPORT, {"s": 0.25}, "s")
-        self.assertIn("the harness from s, the largest gain (+0.25 on that sample)", text)
+                       REPORT, "s")
+        self.assertIn("the harness adopted on s, the last sample in this run's order", text)
         for line in ("Added `skill.md`", "+use it", "Changed `edited.md`", "-old line", "+new line", "Removed `gone.md`"):
             self.assertIn(line, text)
         self.assertNotIn("kept.md", text)
 
     def test_a_long_change_is_cut_and_says_so(self):
-        text = learned({}, {"long.md": "\n".join(f"line {n}" for n in range(500))}, REPORT, {"s": 1}, "s")
+        text = learned({}, {"long.md": "\n".join(f"line {n}" for n in range(500))}, REPORT, "s")
         self.assertIn("more lines", text)
         self.assertLess(text.count("+line"), MAX_DIFF_LINES+1)
 
@@ -47,6 +48,29 @@ class StreamOrder(unittest.TestCase):
 
     def test_a_resume_keeps_its_order(self):
         self.assertEqual(run_order(self.samples, "a1"), run_order(self.samples[::-1], "a1"))
+
+
+class NoChoiceByScore(unittest.TestCase):
+    def report(self, **scores):
+        rows = {name: {"base": {"score": 0.5}, "harness2": {"score": score}, "harness_dir": f"h/{name}"} for name, score in scores.items()}
+        return {"stream": list(scores), "per_sample": rows}
+
+    def test_the_last_sample_wins_though_another_scored_higher(self):
+        self.assertEqual(last_sample(self.report(a=1.0, b=0.0)), "b")
+        self.assertEqual(last_sample(self.report(b=0.0, a=1.0)), "a")
+
+    def test_a_last_sample_that_left_no_harness_falls_back_to_the_one_before(self):
+        report = self.report(a=1.0, b=0.5)
+        del report["per_sample"]["b"]
+        self.assertEqual(last_sample(report), "a")
+        report["per_sample"]["a"]["harness_dir"] = None
+        self.assertIsNone(last_sample(report))
+
+    def test_the_limits_say_where_the_harness_came_from(self):
+        spec = {"providers": {"worker": {"model_id": "m"}}, "roles": {"orchestrator": "o", "worker": "w"}}
+        report = {"per_sample": {}, "skipped": []}
+        self.assertIn("Scores played no part", limitations(spec, report, "s", True))
+        self.assertIn("kept the base harness", limitations(spec, report, None, True))
 
 
 class WhatTheOrchestratorCouldRead(unittest.TestCase):
@@ -99,6 +123,11 @@ class APreviewPackage(Base):
             self.assertFalse({name for name in names if "trace" in name})
             self.assertIn("connected agent", archive.read("limitations.md").decode("utf-8"))
         self.assertIn("What was learned", self.lx.results(self.path, self.run_id)["learned"])
+
+    def test_its_result_holds_no_verdict_from_scores(self):
+        result = self.lx.results(self.path, self.run_id)
+        self.assertFalse({"improved", "retained", "chosen_sample", "gains"} & set(result))
+        self.assertEqual(result["package_sample"] in {f"sample-{number:02d}" for number in range(1, 7)}, True)
 
     def test_it_records_the_order_its_samples_ran_in(self):
         order = self.lx.results(self.path, self.run_id)["stream_order"]

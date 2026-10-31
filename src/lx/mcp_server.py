@@ -138,7 +138,7 @@ def server_for(engine):
 
     @tool(READ)
     def results(workspace: str, run_id: str) -> dict[str, Any]:
-        """A finished run's scores, gains and learned.md."""
+        """A finished run's scores, its sample order and learned.md."""
         return lx.results(workspace, run_id)
 
     return server

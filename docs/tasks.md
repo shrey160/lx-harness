@@ -125,8 +125,9 @@ the audit, a substitution that no document mentioned failed 12 of 12.
   and tokens.
 - **One run cannot separate a gain from noise.** The same harness moved a sample by 0.2
   or more between runs. Compare at least three runs, as the paper does.
-- **`improved: true` means less than it sounds.** Today it means one sample gained and
-  its harness differs from the base. The mean can still fall, so read the means.
+- **Scores choose nothing.** The package is the harness adopted on the last sample in
+  the run's order, whatever the scores. Each run has its own order, shown as
+  `stream_order`, so read the means across runs before you use a package.
 - A script's `exit_code` 0 shows only that it did not crash. Read what it checks.
 - Do not copy what the improver learned into the task text. That is procedure, and it
   stays with the loop.

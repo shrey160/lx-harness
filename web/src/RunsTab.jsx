@@ -81,8 +81,8 @@ function Edits({project,job}){
     <Tokens tokens={edits.tokens}/>
     <h3>What the improver changed</h3>
     {edits.samples.length===0&&<p className="muted">{running?'Nothing written yet. Edits appear here as the loop writes them.':'This run left no edits.'}</p>}
-    {edits.samples.map(sample=><details key={sample.sample} open={running||sample.sample===edits.chosen_sample}>
-      <summary>{sample.folder||sample.sample}{sample.done?(sample.kept_base?' · kept the base harness':' · kept the improved harness'):' · in progress'}{sample.sample===edits.chosen_sample?(sample.kept_base?' · in the package, unchanged from the base':' · in the package'):''}</summary>
+    {edits.samples.map(sample=><details key={sample.sample} open={running||sample.sample===edits.package_sample}>
+      <summary>{sample.folder||sample.sample}{sample.done?(sample.kept_base?' · kept the base harness':' · kept the improved harness'):' · in progress'}{sample.sample===edits.package_sample?(sample.kept_base?' · in the package, unchanged from the base':' · in the package'):''}</summary>
       {sample.stages.length===0&&<p className="muted">Nothing written yet.</p>}
       {sample.stages.map(stage=><div className="edit-stage" key={stage.label}>
         <h4>{stage.stage}{stage.status==='written'?'':` (${stage.status})`}</h4>
@@ -111,11 +111,13 @@ function TrialResult({project,job}){
 
 function Result({project,job,ui,post,live}){
   const {result}=job;
-  const headline=result.improved?(live?'The harness improved.':'Improvement path exercised with scripted replies.'):'Base harness kept: the candidate did not beat it.';
+  const legacy=result.improved?(live?'The harness improved.':'Improvement path exercised with scripted replies.'):'Base harness kept: the candidate did not beat it.';
+  const headline=!result.stream_order?legacy:result.package_is_base?'The last sample kept the base harness.':"The package is the last sample's harness.";
   return <div className="result">
     <h3>{headline}</h3>
     {result.regraded&&<p className="muted">Graded afterwards from the run's saved answers.</p>}
     {!live&&<p className="muted">Scripted replies say nothing about a model's ability.</p>}
+    {result.stream_order&&<p className="muted">Scores are a report: they chose nothing, and one run cannot separate a gain from noise. Order this run: {result.stream_order.join(', ')}.</p>}
     {scores(result)&&<div className="stats"><Stat value={scores(result).base.toFixed(2)} label="base score"/><Stat value={scores(result).harness2.toFixed(2)} label="after the loop"/></div>}
     <div className="stats">{Object.entries(result.checks).map(([label,checks])=><Stat key={label} value={`${Object.values(checks).filter(Boolean).length}/${Object.keys(checks).length}`} label={{base:'passed before',harness2:'passed after',selected_dev:'passed after',heldout:'held-out passed'}[label]||label.replaceAll('_',' ')}/>)}</div>
     <div className="actions">

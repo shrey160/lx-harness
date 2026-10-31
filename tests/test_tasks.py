@@ -137,7 +137,7 @@ class TaskRunTests(Base):
             notes = archive.read("limitations.md").decode("utf-8")
         self.assertIn("doubles", notes)
         self.assertIn("No held-out samples", notes)
-        if result["improved"]:
+        if not result["package_is_base"]:
             self.assertIn("harness/scripts/sum_counts.py", names)
         self.assertIn("result.json", names)
         for path in (run_dir/"dataset"/"worker_inputs").rglob("*"):

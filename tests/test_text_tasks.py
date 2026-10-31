@@ -120,7 +120,7 @@ class RunTests(Base):
         self.assertFalse(result["live"])
         self.assertEqual(result["means"]["harness2"], 1.0)
         self.assertLess(result["means"]["base"], result["means"]["harness2"])
-        self.assertTrue(result["improved"])
+        self.assertFalse(result["package_is_base"])
         self.assertFalse(any(row["role"] == "tool" for row in self.app.spend_rows(project["id"], job["id"])))
         with zipfile.ZipFile(io.BytesIO(self.app.package_bytes(project["id"], job["id"]))) as archive:
             self.assertIn("harness/scripts/sort_tags.py", archive.namelist())
