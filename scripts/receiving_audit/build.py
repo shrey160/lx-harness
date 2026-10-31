@@ -41,24 +41,27 @@ ALIASES = {"mouse": ["computer mouse"], "teddy bear": ["bear", "teddy"], "plant"
 BUYER, SUPPLIER = "Harbour Street Homeware", "Northgate Wholesale"
 
 # paper: quantity on the purchase order. ordered: what stands now, if the note changed it. shipped: the slip's claim, if it
-# differs. shots: how many arrived in each delivery photo. substitute: what came instead, by photo. old: the outdated price.
+# differs. backordered: what the slip says is still to come. shots: how many arrived in each delivery photo. substitute: what
+# came instead, by photo. old: the outdated price.
 PLANS = [
-    {"name": "order-changed", "voice": "af_sarah", "date": "6 April", "overlap": 0, "extras": {"plate": 3.10, "lamp": 22.00},
-     "note": "Hey, a quick note on this delivery before you start. We phoned the supplier on Tuesday and raised the cups from six to nine, "
-             "and nobody updated the purchase order, so treat nine as what we ordered. Everything else on the order stands. Please check "
-             "what actually came in against the order, and put together the claim for anything we are owed. I need it by the end of the day. Thanks.",
-     "lines": [{"item": "cup", "paper": 6, "ordered": 9, "price": 4.50, "shots": [5, 3]},
-               {"item": "bowl", "paper": 4, "price": 6.25, "shots": [2, 2]},
-               {"item": "clock", "paper": 3, "price": 18.00, "shots": [1, 1]},
-               {"item": "vase", "paper": 2, "price": 14.00, "shots": [0, 2]}]},
-    {"name": "slip-overclaims", "voice": "am_adam", "date": "13 April", "overlap": 0, "discount": 0.10, "extras": {"keyboard": 31.00, "torch": 8.75},
-     "note": "Hi, this delivery is from our usual supplier. Under this quarter's agreement we get ten percent off their list prices, so any "
-             "credit has to be worked out at the list price less ten percent, not the full price. The list itself has not been reprinted, "
-             "so you will need to do that sum yourself. Go through the delivery properly and send me the claim when you are done. Thanks.",
-     "lines": [{"item": "teddy bear", "paper": 5, "shipped": 5, "price": 12.00, "shots": [2, 1]},
-               {"item": "mouse", "paper": 6, "price": 15.50, "shots": [3, 3]},
-               {"item": "remote", "paper": 4, "shipped": 4, "price": 9.50, "shots": [0, 2]},
-               {"item": "umbrella", "paper": 3, "price": 11.00, "shots": [2, 1]}]},
+    {"name": "order-changed", "voice": "af_sarah", "date": "6 April", "overlap": 0.2, "extras": {"plate": 3.10, "lamp": 22.00},
+     "note": "Hey, a quick note on this delivery before you start. We phoned the supplier on Tuesday and raised the cups from six to twelve, "
+             "then called back on Thursday and settled on nine, so nine is what is on order now. On that same call we cancelled the clocks "
+             "completely, so the order for those is zero. Nobody updated the purchase order for any of this. Everything else stands. "
+             "Check what actually came in and put together the claim for anything we are owed. Thanks.",
+     "lines": [{"item": "cup", "paper": 6, "ordered": 9, "price": 4.50, "shots": [3, 3, 2]},
+               {"item": "bowl", "paper": 8, "price": 6.25, "shots": [3, 2, 2]},
+               {"item": "clock", "paper": 3, "ordered": 0, "price": 18.00, "shots": [1, 1, 0]},
+               {"item": "vase", "paper": 5, "price": 14.00, "shots": [2, 1, 2]}]},
+    {"name": "slip-overclaims", "voice": "am_adam", "date": "13 April", "overlap": 0.2, "discount": 0.10, "extras": {"keyboard": 31.00, "torch": 8.75},
+     "note": "Hi, this delivery is from our usual supplier. Under this quarter's agreement we get ten percent off their list prices, so work "
+             "out any credit at the list price less ten percent. The list has not been reprinted, so do that sum yourself. One more thing: do "
+             "not claim for anything the packing slip marks as back-ordered, because that is still on its way next week. Anything else that is "
+             "missing is fair game. Send me the claim when you are done. Thanks.",
+     "lines": [{"item": "teddy bear", "paper": 7, "shipped": 7, "price": 12.00, "shots": [2, 2, 1]},
+               {"item": "mouse", "paper": 8, "shipped": 8, "price": 15.50, "shots": [3, 2, 2]},
+               {"item": "remote", "paper": 6, "shipped": 4, "backordered": 2, "price": 9.50, "shots": [1, 1, 1]},
+               {"item": "umbrella", "paper": 4, "price": 11.00, "shots": [1, 2, 1]}]},
     {"name": "substitution", "voice": "bf_emma", "date": "20 April", "overlap": 0, "free": ["clock"], "extras": {"jug": 7.40, "candle": 2.90},
      "note": "Hello, a note on today's delivery. We have not agreed to any substitutions on this order, so if something other than what we "
              "ordered has turned up, it counts against the line. The clocks are a free promotional line this month, so claim nothing on them, "
@@ -92,7 +95,7 @@ def ordered(line):
 
 def credit(line, plan):
     """What this line earns under the contract's rule and the plan's note."""
-    short = ordered(line)-sum(line["shots"])
+    short = ordered(line)-sum(line["shots"])-line.get("backordered", 0)
     if short <= 0 or line["item"] in plan.get("free", ()) or short/ordered(line) <= plan.get("min_short", 0):
         return 0
     return round(short*line["price"]*(1-plan.get("discount", 0)), 2)
@@ -168,7 +171,8 @@ def paperwork(plan, number, rng):
     names = lambda text: text.capitalize()
     pages = {"order": paper(f"Purchase order PO-{4100+number}", head, ("Item", "Quantity"), [(names(line["item"]), str(line["paper"])) for line in lines], rng),
              "slip": paper("Packing slip", (f"Supplier: {SUPPLIER}", f"Against order PO-{4100+number}"), ("Item", "Shipped"),
-                           [(names(line["item"]), str(line.get("shipped", line["paper"]))) for line in lines], rng)}
+                           [(names(line["item"]), str(line.get("shipped", line["paper"]))+(f", {line['backordered']} back-ordered" if "backordered" in line else ""))
+                            for line in lines], rng)}
     def prices(key, month):
         rows = {line["item"]: line[key] for line in lines}|plan["extras"]
         return paper(f"Price list, {month}", (f"Supplier: {SUPPLIER}", "Unit prices in dollars"), ("Item", "Unit price"),
