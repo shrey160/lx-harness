@@ -25,7 +25,8 @@ export function SpecTab({state,project,ui,setTab}){
     <h2>Task</h2>
     {draft.task?<>
       <p className="capital-first">{draft.task.name.replace(/^lx_/,'').replaceAll('_',' ')} · {draft.task.stream_samples} samples in the loop · check <code>{draft.check.sha256.slice(0,12)}</code></p>
-      <div className="actions"><button className="button" disabled={ui.busy} onClick={testCheck}>Test the check</button>{checkResult&&<span className="muted" role="status">Passed {checkResult.cases} cases on {checkResult.samples} samples.</span>}</div>
+      <div className="actions"><button className="button" disabled={ui.busy} onClick={testCheck}>Test the check</button></div>
+      {checkResult&&<CheckScores result={checkResult}/>}
     </>:<p className="muted">Image annotation demo. Answers need each object's label and box, within one pixel, and the exact transcript.</p>}
 
     <h2>Run mode</h2>
@@ -60,6 +61,14 @@ export function SpecTab({state,project,ui,setTab}){
   </section>;
 }
 
+function CheckScores({result}){
+  const score=value=>value===null?'not tried':value.toFixed(2);
+  return <div role="status">
+    <p className="muted">Passed {result.cases} cases on {result.samples} samples. A correct answer scores 1.00, a blank one at most {score(result.blank_score)}, another sample's answer at most {score(result.wrong_score)}.</p>
+    {result.weaknesses.map(text=><p className="callout warn" key={text}>{text}</p>)}
+  </div>;
+}
+
 function Limits({fields,values,defaults,onChange}){
   const changed=fields.filter(field=>values[field.name]!==defaults[field.name]).length;
   return <details className="limits"><summary>Advanced: run limits{changed?` (${changed} changed)`:''}</summary>
@@ -69,8 +78,9 @@ function Limits({fields,values,defaults,onChange}){
 }
 
 function Review({project,ui,close,done}){
-  const {draft}=project,dialog=useRef(null);
+  const {draft}=project,dialog=useRef(null),[check,setCheck]=useState(null),[checkError,setCheckError]=useState('');
   useEffect(()=>{dialog.current.showModal();},[]);
+  useEffect(()=>{if(draft.task)api(`projects/${project.id}/check-test`,{}).then(setCheck,error=>setCheckError(error.message));},[draft.version]);
   const usesSpark=Object.values(draft.roles).includes('spark-contributor');
   const live=draft.mode==='live';
   const newHosts=live&&project.notice.some(entry=>!project.notice_accepted.includes(entry.host));
@@ -83,6 +93,7 @@ function Review({project,ui,close,done}){
       <dt>Budget</dt><dd>${draft.budget_usd} for this run, ${project.budget.cap_usd} for the workspace</dd>
       {['orchestrator','improver','worker'].map(role=><React.Fragment key={role}><dt className="capital">{role}</dt><dd>{draft.providers[role].name}</dd></React.Fragment>)}
     </dl>
+    {draft.task&&<><h3>How the check scores</h3>{check?<CheckScores result={check}/>:checkError?<p className="callout bad" role="alert">{checkError}</p>:<p className="muted" role="status">Testing the check…</p>}</>}
     {project.external_orchestrator&&<p className="muted">A connected agent is the orchestrator. It uses its own model and account, so the costs shown here leave it out.</p>}
     {live&&<><h3>Who receives what</h3><ul className="plain">{project.notice.map(entry=><li key={entry.who}><strong>{entry.who}</strong> ({entry.host}): {entry.gets}</li>)}</ul></>}
     {usesSpark&&live&&<p className="callout warn">Spark Contributor may use approved content for training.</p>}

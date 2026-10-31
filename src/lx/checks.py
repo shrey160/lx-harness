@@ -23,6 +23,8 @@ MAX_OUTPUT = 2_000_000
 MAX_CHECKS = 200
 # Answers a check meets in a real run: it must grade them, not crash, and never give them full marks.
 JUNK_ANSWERS = (None, {}, [], "", "not json", 7, {"answer": None}, [{}])
+# Above these a person should look before approving: the loop has little left to gain, or the score means little.
+BLANK_LIMIT, WRONG_LIMIT = 0.5, 0.9
 
 
 class CheckError(ValueError):
@@ -90,13 +92,37 @@ def _strings(value):
             yield from _strings(item)
 
 
+def _weaknesses(blank, wrong):
+    """What a person should know about a check that passed: plain sentences, empty if none."""
+    found = [f"A blank answer scores {blank:.2f}, so much of the score is free."] if blank > BLANK_LIMIT else []
+    if wrong is None:
+        return found+["No wrong answer could be tried, because the samples all expect the same answer."]
+    return found+([f"Another sample's answer scores {wrong:.2f}, so the check barely tells right from wrong."] if wrong >= WRONG_LIMIT else [])
+
+
 def self_test(source, truths):
     """Prove a check on {sample id: truth}: raises CheckError, or returns a summary.
 
     A correct answer scores 1.0, junk is graded without crashing and scores
     less, grading repeats exactly, another sample's answer does not pass (with
     two or more distinct samples), and errors do not reveal expected values.
+    The summary says how high blank and wrong answers score, and why that may
+    be weak, for the person approving it. A failure's message reaches whoever
+    wrote the check, so one naming an expected value is withheld.
     """
+    try:
+        return _prove(source, truths)
+    except CheckError as exc:
+        if "crashed:" in str(exc) and _reveals(str(exc).split("crashed:", 1)[1], truths.values()):
+            raise CheckError("The scoring check failed, and its message named an expected value, so it is withheld") from None
+        raise
+
+
+def _reveals(text, truths):
+    return bool({word for truth in truths for item in _strings(truth) for word in _words(item) if len(word) >= 4} & set(_words(text)))
+
+
+def _prove(source, truths):
     if not truths:
         raise CheckError("A check needs at least one sample with an expected answer")
     ids = list(truths)
@@ -125,8 +151,9 @@ def self_test(source, truths):
             raise CheckError(f"{sample}: a malformed answer got full marks")
         if label[0] == "other" and result.score >= 1.0:
             raise CheckError(f"{sample}: another sample's answer got full marks, so the check cannot tell them apart")
-        if label[0] in {"junk", "other"}:
-            words = {word for text in _strings(truths[sample]) for word in _words(text) if len(word) >= 4}
-            if words & {word for error in result.errors for word in _words(error)}:
-                raise CheckError(f"{sample}: a check error reveals an expected value")
-    return {"samples": len(ids), "checks_per_sample": graded[0].n_criteria, "cases": len(items)}
+        if label[0] in {"junk", "other"} and _reveals(" ".join(result.errors), [truths[sample]]):
+            raise CheckError(f"{sample}: a check error reveals an expected value")
+    scores = lambda kind: [graded[position].score for label, position in positions.items() if label[0] == kind]
+    blank, wrong = max(scores("junk")), max(scores("other"), default=None)
+    return {"samples": len(ids), "checks_per_sample": graded[0].n_criteria, "cases": len(items),
+            "blank_score": blank, "wrong_score": wrong, "weaknesses": _weaknesses(blank, wrong)}

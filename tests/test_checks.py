@@ -32,6 +32,44 @@ class CheckProtocolTests(unittest.TestCase):
         self.assertEqual(summary["samples"], 2)
         self.assertEqual(summary["checks_per_sample"], 2)
 
+    def test_a_sound_check_says_how_blank_and_wrong_answers_score(self):
+        summary = checks.self_test(GOOD, TRUTHS)
+        self.assertEqual((summary["blank_score"], summary["wrong_score"], summary["weaknesses"]), (0.5, 0.5, []))
+
+    def test_free_marks_for_a_blank_answer_are_a_weakness(self):
+        filler = '{"name": "ok%d", "passed": True, "error": None},'
+        source = GOOD.replace('"checks": [', '"checks": ['+"".join(filler % n for n in range(3)), 1)
+        summary = checks.self_test(source, TRUTHS)
+        self.assertEqual(summary["blank_score"], 0.8)
+        self.assertEqual(len(summary["weaknesses"]), 1)
+        self.assertIn("blank answer scores 0.80", summary["weaknesses"][0])
+
+    def test_a_check_that_barely_tells_right_from_wrong_is_a_weakness(self):
+        filler = '{"name": "has%d", "passed": isinstance(i["answer"], dict) and "value" in i["answer"], "error": "shape: wrong"},'
+        source = GOOD.replace('"checks": [', '"checks": ['+"".join(filler % n for n in range(8)), 1).replace(
+            '"passed": isinstance(i["answer"], dict), "error"', '"passed": isinstance(i["answer"], dict) and "value" in i["answer"], "error"')
+        summary = checks.self_test(source, TRUTHS)
+        self.assertEqual((summary["blank_score"], summary["wrong_score"]), (0, 0.9))
+        self.assertIn("barely tells right from wrong", summary["weaknesses"][0])
+
+    def test_samples_that_all_expect_the_same_answer_say_so(self):
+        summary = checks.self_test(GOOD, {"a": {"value": "same"}, "b": {"value": "same"}})
+        self.assertIsNone(summary["wrong_score"])
+        self.assertIn("No wrong answer could be tried", summary["weaknesses"][0])
+
+    def test_a_crash_that_prints_an_expected_value_is_withheld(self):
+        source = 'import json,sys\nraise ValueError(str(json.load(sys.stdin)))'
+        with self.assertRaisesRegex(checks.CheckError, "withheld") as raised:
+            checks.self_test(source, TRUTHS)
+        self.assertNotIn("first", str(raised.exception))
+
+    def test_the_inventory_check_is_not_flagged(self):
+        truths = {str(index): truth_of(index) for index in range(6)}
+        summary = checks.self_test(SOURCE, truths)
+        self.assertLess(summary["blank_score"], checks.BLANK_LIMIT)
+        self.assertLess(summary["wrong_score"], checks.WRONG_LIMIT)
+        self.assertEqual(summary["weaknesses"], [])
+
     def test_the_score_is_the_fraction_of_named_checks(self):
         result = checks.run_check(GOOD, {"value": "x"}, {"value": "y"})
         self.assertEqual((result.score, result.n_passed, result.n_criteria, result.accepted), (0.5, 1, 2, False))
