@@ -38,8 +38,8 @@ class BothOnChangesNothing(Base):
         self.assertEqual(tool_identity(TOOLS), FULL_HASH)
 
     def test_the_paused_experiments_keep_their_loop(self):
-        self.assertFalse(InventoryDomain.guided)
-        self.assertTrue(tasks.TaskDomain.guided)
+        self.assertFalse(InventoryDomain.whole_context)
+        self.assertTrue(tasks.TaskDomain.whole_context)
 
     def test_the_first_message_is_byte_identical(self):
         task = tasks.inventory_task()
@@ -194,9 +194,9 @@ class SpecList(Base):
         with patch("lx.inventory_workflow.run_agent", wraps=run_agent) as loop:
             execute(self.app, workspace, job["id"], workspace.run_dir(job["id"])/"snapshot")
         first = loop.call_args_list[0]
-        self.assertTrue(first.kwargs["guided"])
+        self.assertTrue(first.kwargs["whole_context"])
         self.assertGreaterEqual(first.kwargs["keep_images"], 5)
-        self.assertIn("Run rules, set by the controller", first.args[1][0]["content"])
+        self.assertNotIn("Run rules", first.args[1][0]["content"])
         traces = list(workspace.run_dir(job["id"]).glob("outputs/runs/executions/**/trace.json"))
         self.assertTrue(traces)
         for path in traces:

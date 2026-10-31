@@ -31,10 +31,11 @@ PHOTO_ONLY = ("segment_calls", "transcribe_calls")
 
 
 def preset(spark, task=False):
-    """Spark keeps its original numbers. Hosted reasoning and local models can take over a
-    minute a call, and Glimmer made one tool call per turn (live runs, 30 Oct 2026)."""
+    """Spark keeps its original numbers, but for the improver: at 12 turns 2 of its 26 sessions ran out
+    on 31 Oct, and that limits what the loop can learn. Hosted reasoning and local models can take over
+    a minute a call, and Glimmer made one tool call per turn (live runs, 30 Oct 2026)."""
     return {"agent_turns_per_photo": 12, "agent_tools_per_photo": 12, "stop_after_empty_runs": 8,
-            "improver_turns": 12 if spark else 30, "improver_seconds": 180 if spark else 900,
+            "improver_turns": 30, "improver_seconds": 900,
             "call_seconds": 90 if spark else 600 if task else 300,
             "run_seconds": 4*HOUR if task else 900 if spark else HOUR,
             "reply_tokens": 4096 if spark else 8192,

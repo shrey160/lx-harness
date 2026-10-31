@@ -116,7 +116,7 @@ def build_dataset(snapshot, root, task):
 
 class TextDomain(InventoryDomain):
     """A text-request task defined by its spec; answers are scored by its check file."""
-    guided = True
+    whole_context = True
 
     def __init__(self, task, check, scripts_enabled=True):
         super().__init__(scripts_enabled)
@@ -172,7 +172,6 @@ class _NoTools:
 class TextAdapter(InventoryAdapter):
     """Agent executions over text requests; caps count one sample as one unit."""
     protocol = "lx-text-agent-v1"
-    photo_task = False
 
     def __init__(self, snapshot, output, client, truth, *, domain, mode="offline_preview", limits=None, health=None):
         super().__init__(snapshot, output, client, truth, perception=None, catalog=None, mode=mode, domain=domain,

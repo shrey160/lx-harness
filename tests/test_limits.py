@@ -11,7 +11,7 @@ class PresetTests(unittest.TestCase):
     def test_spark_keeps_its_numbers_and_others_get_longer_ones(self):
         spark, other = limits.preset(True), limits.preset(False)
         self.assertEqual((spark["call_seconds"], spark["improver_seconds"], spark["run_seconds"], spark["improver_turns"], spark["reply_tokens"]),
-                         (90, 180, 900, 12, 4096))
+                         (90, 900, 900, 30, 4096))
         self.assertEqual((other["call_seconds"], other["improver_seconds"], other["run_seconds"], other["improver_turns"], other["reply_tokens"]),
                          (300, 900, 3600, 30, 8192))
 
@@ -49,9 +49,9 @@ class CheckTests(unittest.TestCase):
 
 class DefaultsTests(unittest.TestCase):
     def test_a_role_field_comes_from_that_roles_provider(self):
-        mixed = limits.defaults({"orchestrator": (True, {}), "improver": (True, {}), "worker": (False, {})})
+        mixed = limits.defaults({"orchestrator": (True, {}), "improver": (True, {"improver_turns": 12}), "worker": (False, {})})
         self.assertEqual(mixed["improver_turns"], 12)
-        other = limits.defaults({"orchestrator": (True, {}), "improver": (False, {}), "worker": (True, {})})
+        other = limits.defaults({"orchestrator": (True, {"improver_turns": 12}), "improver": (False, {}), "worker": (True, {})})
         self.assertEqual(other["improver_turns"], 30)
 
     def test_a_run_field_takes_the_longest_default(self):

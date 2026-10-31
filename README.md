@@ -15,7 +15,7 @@ nothing runs live until you approve the spec, the data and the budget.
 |---|---|---|
 | Held-out photo inventory, learned harness against base | Muse Spark | 0.47 to 0.70, gain +0.23, 95% range 0.11 to 0.37 |
 | Same harness moved to a small local model | Gemma 4 E4B | 0.40 to 0.30, gain -0.09: it did not transfer |
-| Full loop on 6 inventory samples on the new agent loop | Muse Spark 1.3 Contributor | 0.82 to 0.82, $0.37: all 6 base runs answered, and these samples left the loop little room |
+| Full loop on 6 inventory samples on the new agent loop | Muse Spark 1.3 Contributor | 0.82 to 0.82, $0.37: all 6 base runs answered. That run gave the agent hand-written guidance, since removed, so it is not a baseline |
 | Full loop on 6 inventory samples through OpenRouter | Muse Glimmer | 0.00 to 0.00, $1.27: the agent never answered within the turn limits of the time |
 
 The Glimmer run came before the raised limits and the new agent loop, and Glimmer has

@@ -264,7 +264,7 @@ class ApplicationFlowTests(unittest.TestCase):
 
     def test_limits_are_in_the_spec_and_a_change_is_a_new_version_needing_approval(self):
         p = self.approve(self.project())
-        self.assertEqual(p["draft"]["limits"]["improver_turns"],12)
+        self.assertEqual(p["draft"]["limits"]["improver_turns"],30)
         self.assertEqual(p["draft"]["limits_set"],{})
         saved = self.workspace(p).spec(p["draft"]["version"])
         self.assertEqual(saved["limits"]["run_seconds"],900)

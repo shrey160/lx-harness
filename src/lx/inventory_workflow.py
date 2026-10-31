@@ -18,7 +18,7 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
-from .agent import MAX_WINDOW_IMAGES, PhotoSetTools, render_trace, run_agent, run_rules, tool_identity
+from .agent import MAX_WINDOW_IMAGES, PhotoSetTools, render_trace, run_agent, tool_identity
 from .components import ComponentTools, compose_prompt, scripts, task_tools, validate_components
 from .inventory import (COLOURS, CONTRACT, SHAPES, WORDING, caps, canonical_colour, singular, verify_inventory)
 from .perception import FakeTranscription, media_hash
@@ -42,7 +42,7 @@ SKILLS_ONLY_NOTE = (
     "reads one with load_skill). Mention each skill by name in guardrails.md. Helper scripts are turned "
     "off on this controller (no script sandbox), so put procedures in skills and instructions. "
     "Sub-agents and plugins are not available.")
-GUIDED_LOOP = "guided-v1"  # part of a run's identity: a change here must not reuse older runs
+LOOP_VERSION = "whole-context-v2"  # part of a run's identity: a change here must not reuse older runs
 SCRIPTS_OFF = ("helper scripts are turned off on this controller (no script sandbox); keep procedures in "
                "skills/<name>/SKILL.md and the always-on files")
 
@@ -63,7 +63,7 @@ class InventoryDomain:
     base_prompt = BASE_PROMPT
     task_prompt = CONTRACT
     photos_note = PHOTOS_NOTE
-    guided = False  # spec-driven tasks only; the paused experiments keep their approved loop
+    whole_context = False  # spec-driven tasks only; the paused experiments keep their approved loop
     verify = staticmethod(verify_inventory)
 
     def __init__(self, scripts_enabled=True):
@@ -125,7 +125,6 @@ def _size(data):
 class InventoryAdapter(ImagesAdapter):
     """Agent executions over photo sets; identity covers agent, tools, caps, harness and media."""
     protocol = "lx-inventory-agent-v1"
-    photo_task = True
 
     def __init__(self, snapshot, output, client, truth, *, perception, catalog, mode="offline_preview",
                  script_runner=None, domain=None, limits=None, health=None):
@@ -167,7 +166,7 @@ class InventoryAdapter(ImagesAdapter):
 
     def _window(self, task):
         """Every photo of a sample, and room for close-ups."""
-        return min(len(self.by_id[task]["photos"])+2, MAX_WINDOW_IMAGES) if self.domain.guided else 2
+        return min(len(self.by_id[task]["photos"])+2, MAX_WINDOW_IMAGES) if self.domain.whole_context else 2
 
     def _conversation(self, task, surface, harness, run_id):
         photos = self._photos(task)
@@ -183,7 +182,7 @@ class InventoryAdapter(ImagesAdapter):
                  "agent": {"model": profile.model, "endpoint": profile.endpoint, "images": profile.accepts_images,
                            "tools": profile.supports_tools},
                  "tool_sha256": tool_identity(self.tools), "caps": self._caps(task), **self._inputs(task),
-                 **({"guided": GUIDED_LOOP, "window": self._window(task)} if self.domain.guided else {})}
+                 **({"loop": LOOP_VERSION, "window": self._window(task)} if self.domain.whole_context else {})}
         return hashlib.sha256(json.dumps(extra, sort_keys=True).encode()).hexdigest()
 
     def execute(self, task, harness_dir, run_id, *, timeout=None):
@@ -197,10 +196,8 @@ class InventoryAdapter(ImagesAdapter):
         surface = self.substrate.surface()
         harness = tree.read_tree(surface, harness_dir or self.base_harness())
         messages, handler = self._conversation(task, surface, harness, run_id)
-        guided, window = self.domain.guided, self._window(task)
-        if guided:
-            messages[0]["content"] += "\n\n"+run_rules(**self._caps(task), images=window if self.photo_task else None)
-        text, trace = run_agent(self.client, messages, self.tools, handler, candidate=run_id, keep_images=window, guided=guided,
+        text, trace = run_agent(self.client, messages, self.tools, handler, candidate=run_id, keep_images=self._window(task),
+                                whole_context=self.domain.whole_context,
                                 timeout=timeout or (self.limits or {}).get("call_seconds", 600), **self._caps(task))
         content = text
         if content.startswith("```"):

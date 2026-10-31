@@ -113,7 +113,7 @@ def inventory_check_source():
 
 class TaskDomain(InventoryDomain):
     """A photo-request task defined by its spec; answers are scored by its check file."""
-    guided = True
+    whole_context = True
 
     def __init__(self, task, check, scripts_enabled=True, segmentation=True):
         super().__init__(scripts_enabled)
