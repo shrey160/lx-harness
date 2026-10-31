@@ -62,6 +62,8 @@ EXTERNAL_PROVIDER = {"id":EXTERNAL,"name":"Connected agent","model_id":"","base_
                      "supports_tools":True,"priced":True,"requests_per_minute":None,"limits":{}}
 SHORT_NAMES = {tasks.SEGMENTATION:"SAM",tasks.TRANSCRIPTION:"Transcribe"}
 DEFAULT_WORKSPACE_BUDGET = 5
+GRANT_DAYS, GRANT_RUNS = 7, 3
+MAX_GRANT_DAYS, MAX_GRANT_RUNS = 30, 20
 PROVIDER_TEST_CAP = 1
 PROVIDER_TEST_SECONDS = 60
 
@@ -292,6 +294,7 @@ class Engine:
                 "external_orchestrator": draft["roles"]["orchestrator"] == EXTERNAL,
                 "notice_accepted": self._notice_hosts(record["id"]),
                 "blocked": self._blocked(draft),
+                "grant": self._grant_view(workspace, record["id"]),
                 "budget": {key:value for key,value in self._ledger(workspace).summary().items()
                            if key in {"cap_usd","spent_usd","reserved_usd","remaining_usd"}}}
 
@@ -505,7 +508,7 @@ class Engine:
                         limits=data.get("limits"), tools=data.get("tools"))
         return self._view(workspace)
 
-    def approve(self, identifier, data, by="person"):
+    def approve(self, identifier, data, by="person", grant=None):
         """A human step. Freezes the samples as they are now, whatever was seen earlier."""
         workspace = self.workspace(identifier)
         with workspace.lock():
@@ -536,7 +539,7 @@ class Engine:
                 shutil.rmtree(workspace.snapshot_dir(name), ignore_errors=True)
                 raise
             self.store.save("approval", {"id":identifier,"version":draft["version"],"spec_hash":fingerprint(draft),
-                "data_hash":fingerprint(captured["inventory"]),"inventory":captured["inventory"],"snapshot":name,"self_test":tested,"by":by})
+                "data_hash":fingerprint(captured["inventory"]),"inventory":captured["inventory"],"snapshot":name,"self_test":tested,"by":by,"grant":grant})
         return self._view(workspace)
 
     def approve_preview(self, identifier):
@@ -549,6 +552,100 @@ class Engine:
         if any(j["status"] in {"queued","running"} for j in self._jobs(workspace)):
             raise ValueError("One run is already active")
         return self.approve(identifier, {"version":draft["version"],"data_approved":True,"contributor_accepted":True}, by="preview")
+
+    # Grants
+
+    def _grant(self, identifier):
+        try:
+            return self.store.get("grant", identifier)
+        except ValueError:
+            return None
+
+    def _sample_hash(self, workspace, draft):
+        return fingerprint(workspace.inspect_samples(tasks.MAX_SAMPLE_BYTES if draft.get("task") else MAX_BYTES)["inventory"])
+
+    def set_grant(self, identifier, data):
+        """A human step (D-024): lets a connected agent start live runs here, within a cap, an expiry and a run count.
+        It holds what a person accepts at approval, for these samples, providers and tools; a change needs a person again."""
+        workspace = self.workspace(identifier)
+        draft = workspace.spec(workspace.project()["spec_version"])
+        cap, days, runs = data.get("cap_usd"), data.get("days",GRANT_DAYS), data.get("runs",GRANT_RUNS)
+        if data.get("data_approved") is not True:
+            raise ValueError("Approve the data snapshot first")
+        if DEFAULT_ROLE_ENTRY in draft["roles"].values() and data.get("contributor_accepted") is not True:
+            raise ValueError("Accept the Contributor disclosure for Spark")
+        room = self._ledger(workspace).summary()["remaining_usd"]
+        if isinstance(cap,bool) or not isinstance(cap,(int,float)) or not math.isfinite(cap) or not 0.11 <= cap <= room:
+            raise ValueError(f"A grant's cap must be between $0.11 and the ${room:.2f} left in this workspace")
+        for value,top,name in ((days,MAX_GRANT_DAYS,"days"),(runs,MAX_GRANT_RUNS,"runs")):
+            if isinstance(value,bool) or not isinstance(value,int) or not 1 <= value <= top:
+                raise ValueError(f"A grant's {name} must be from 1 to {top}")
+        connected = {**draft,"roles":{**draft["roles"],"orchestrator":EXTERNAL}}
+        self._accept_notice(identifier, connected, data.get("notice_accepted"))
+        now = time.time()
+        self.store.save("grant", {"id":identifier,"grant":uuid.uuid4().hex,"created_at":now,"expires_at":now+days*86400,"cap_usd":cap,"runs":runs,"revoked":False,
+            "providers":{role:draft["providers"][role] for role in ("improver","worker")},"tools":sorted(tasks.spec_tools(draft)),
+            "hosts":sorted({entry["host"] for entry in self.data_notice(connected)}),"data_hash":self._sample_hash(workspace, draft)})
+        return self._view(workspace)
+
+    def revoke_grant(self, identifier):
+        """Takes effect at the next start; a run already going keeps its own budget and can be stopped."""
+        workspace = self.workspace(identifier)
+        grant = self._grant(identifier)
+        if grant:
+            self.store.save("grant", {**grant,"revoked":True})
+        return self._view(workspace)
+
+    def _grant_view(self, workspace, identifier):
+        """What is left of a grant, read from the runs and ledger, so a crash between steps cannot undercount it."""
+        grant = self._grant(identifier)
+        if grant is None:
+            return None
+        runs = [job["id"] for job in workspace.runs() if job.get("grant") == grant["grant"]]
+        rows = usage_rows(self._ledger(workspace)) if runs else []
+        used = sum(row["actual_nanos"] or 0 if row["status"] == "settled" else row["reserved_nanos"] for row in rows
+                   if row["candidate"].startswith(tuple(job+"/" for job in runs)))
+        return {key:grant[key] for key in ("cap_usd","runs","expires_at","revoked")} | {"runs_used":len(runs),"spent_usd":used/1_000_000_000}
+
+    def _grant_refusal(self, workspace, draft, identifier):
+        """Why the current spec falls outside this workspace's grant."""
+        grant, left = self._grant(identifier), self._grant_view(workspace, identifier)
+        if grant is None:
+            return "A person needs to approve this live run in the LX app"
+        if grant["revoked"]:
+            return "The grant was revoked; a person needs to approve this live run"
+        if time.time() >= grant["expires_at"]:
+            return "The grant has expired; a person needs to approve this live run"
+        if left["runs_used"] >= grant["runs"]:
+            return "The grant's runs are used up; a person needs to approve this live run"
+        if left["spent_usd"]+draft["budget_usd"] > grant["cap_usd"]:
+            return "This run's budget would pass the grant's spending cap; a person needs to decide"
+        if {role:draft["providers"][role] for role in ("improver","worker")} != grant["providers"]:
+            return "The improver or worker changed since the grant; a person needs to approve this live run"
+        if sorted(tasks.spec_tools(draft)) != grant["tools"]:
+            return "The tools changed since the grant; a person needs to approve this live run"
+        if not {entry["host"] for entry in self.data_notice(draft)} <= set(grant["hosts"]):
+            return "This run would send data to a host the grant does not cover; a person needs to approve it"
+        if self._sample_hash(workspace, draft) != grant["data_hash"]:
+            return "The samples changed since the grant; a person needs to approve this live run"
+        return None
+
+    def start_granted(self, identifier, launch=True):
+        """Approves and starts the current live spec under the grant, or says why a person must."""
+        workspace = self.workspace(identifier)
+        draft = workspace.spec(workspace.project()["spec_version"])
+        if any(j["status"] in {"queued","running"} for j in self._jobs(workspace)):
+            raise ValueError("One run is already active")
+        refusal = self._grant_refusal(workspace, draft, identifier)
+        if refusal:
+            return {"status":"pending","reason":refusal}
+        approved = self.approve(identifier, {"version":draft["version"],"data_approved":True,"contributor_accepted":True},
+                                by="grant", grant=self._grant(identifier)["grant"])["approved"]
+        weak = (approved["self_test"] or {}).get("weaknesses")
+        if weak:  # no person reads the scores under a grant, so a weak check is theirs to judge
+            self._drop_approval(workspace, identifier)
+            return {"status":"pending","reason":"A person needs to review this check: "+weak[0]}
+        return {"status":"started","run_id":self.start(identifier, launch=launch)["id"]}
 
     def _prove_task(self, workspace, draft, snapshot):
         """At approval: the frozen samples fit the task and the check proves itself on them."""
@@ -584,7 +681,7 @@ class Engine:
                 shutil.rmtree(workspace.run_dir(job_id))
                 raise ValueError("Snapshot changed since approval; approve again")
             job = {"id":job_id,"project_id":identifier,"name":record["name"],"status":"queued","phase":"queued","created_at":time.time(),
-                   "mode":draft.get("mode","controlled_preview"),"spec":draft,"approved":_approval_identity(approved),"approved_by":approved.get("by","person"),"launch_pending":True}
+                   "mode":draft.get("mode","controlled_preview"),"spec":draft,"approved":_approval_identity(approved),"approved_by":approved.get("by","person"),"grant":approved.get("grant"),"launch_pending":True}
             workspace.write_run(job)
         if launch:
             self._launch(workspace, job_id)

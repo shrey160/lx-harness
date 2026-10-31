@@ -2,7 +2,7 @@
 
 Each action names its workspace folder and returns at once; a run is started,
 then polled. Anything left out stays with a person: approving a live run,
-budgets, keys, provider entries, held spend. The spec has no field for skills,
+grants, budgets, keys, provider entries, held spend. The spec has no field for skills,
 scripts or guidance, because the loop learns those (D-021).
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ ACTIONS = ("status", "init", "samples", "read_sample", "truth_shape", "spec_show
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
-_RUN_FIELDS = ("id", "status", "phase", "mode", "created_at", "approved_by", "progress", "error")
+_RUN_FIELDS = ("id", "status", "phase", "mode", "created_at", "approved_by", "grant", "progress", "error")
 
 
 class Orchestration:
@@ -80,7 +80,7 @@ class Orchestration:
         return {"goal": project["goal"], "version": draft["version"], "mode": draft["mode"], "roles": draft["roles"], "tools": draft.get("tools", []),
                 "budget_usd": draft["budget_usd"], "limits": draft["limits"], "task": draft.get("task"), "check": check, "blocked": project["blocked"],
                 "approved": {"by": approved.get("by", "person")} if approved and approved["version"] == draft["version"] else None,
-                "workspace_budget": project["budget"], "notice": project["notice"], "external_orchestrator": project["external_orchestrator"]}
+                "workspace_budget": project["budget"], "grant": project["grant"], "notice": project["notice"], "external_orchestrator": project["external_orchestrator"]}
 
     def spec_draft(self, workspace, *, goal=None, task=None, check=None, tools=None, limits=None, mode=None, worker=None, improver=None):
         """A new spec version, which clears any approval. `task` holds only the fields that change."""
@@ -101,7 +101,7 @@ class Orchestration:
         return {"status": "started", "run_id": self.engine.start(identifier, launch=self.launch)["id"]}
 
     def run_start(self, workspace):
-        """Starts a live run a person has approved. Otherwise it stays pending for them."""
+        """Starts a live run a person has approved or a grant covers. Otherwise it stays pending for them."""
         identifier = self._id(workspace)
         project = self.engine.project(identifier)
         draft, approved = project["draft"], project["approved"]
@@ -110,7 +110,7 @@ class Orchestration:
         if project["blocked"]:
             return {"status": "blocked", "reason": project["blocked"]}
         if not approved or approved["version"] != draft["version"] or approved.get("by", "person") != "person":
-            return {"status": "pending", "reason": "A person needs to approve this live run in the LX app"}
+            return self.engine.start_granted(identifier, launch=self.launch)
         return {"status": "started", "run_id": self.engine.start(identifier, launch=self.launch)["id"]}
 
     def run_status(self, workspace):

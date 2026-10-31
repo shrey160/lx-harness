@@ -58,7 +58,36 @@ export function SpecTab({state,project,ui,setTab}){
       {specDirty&&<span className="muted" role="status">Save first: approval covers a saved version.</span>}
     </div>
     {reviewing&&<Review project={project} ui={ui} close={()=>setReviewing(false)} done={()=>setTab('runs')}/>}
+    {project.external_orchestrator&&<Grant project={project} ui={ui}/>}
   </section>;
+}
+
+function Grant({project,ui}){
+  const {draft,grant}=project,[cap,setCap]=useState(String(draft.budget_usd)),[days,setDays]=useState('7'),[runs,setRuns]=useState('3'),[granting,setGranting]=useState(false);
+  const active=grant&&!grant.revoked&&grant.expires_at*1000>Date.now();
+  const usesSpark=Object.values(draft.roles).includes('spark-contributor');
+  const give=()=>ui.act(async()=>{await api(`projects/${project.id}/grant`,{cap_usd:Number(cap),days:Number(days),runs:Number(runs),data_approved:true,contributor_accepted:usesSpark,notice_accepted:true});setGranting(false);ui.notify('Grant saved.');});
+  const revoke=()=>ui.act(async()=>{await api(`projects/${project.id}/grant-revoke`,{});ui.notify('Grant revoked. A run already going keeps going until you stop it.');});
+  return <>
+    <h2>Let the agent start live runs</h2>
+    {active?<>
+      <p>{money(grant.spent_usd)} of {money(grant.cap_usd)} used · {grant.runs_used} of {grant.runs} runs · ends {new Date(grant.expires_at*1000).toLocaleDateString()}</p>
+      <div className="actions"><button className="button" disabled={ui.busy} onClick={revoke}>Revoke</button></div>
+    </>:<>
+      <p className="muted">{grant?(grant.revoked?'The last grant was revoked. ':'The last grant has ended. '):''}Without a grant, every live run waits for you here. A grant covers these samples, providers and tools. No person reviews its runs, and a weak check still waits for you.</p>
+      {!granting?<div className="actions"><button className="button" disabled={ui.busy} onClick={()=>setGranting(true)}>Set up a grant</button></div>:<>
+        <div className="three">
+          <label className="field">Spending cap (USD)<input type="number" min="0.11" max={project.budget.remaining_usd} step="0.01" value={cap} onChange={e=>setCap(e.target.value)}/><small className="muted">{money(project.budget.remaining_usd)} left in this workspace</small></label>
+          <label className="field">Days<input type="number" min="1" max="30" step="1" value={days} onChange={e=>setDays(e.target.value)}/></label>
+          <label className="field">Runs<input type="number" min="1" max="20" step="1" value={runs} onChange={e=>setRuns(e.target.value)}/></label>
+        </div>
+        <h3>Who receives what</h3>
+        <ul className="plain">{project.notice.map(entry=><li key={entry.who}><strong>{entry.who}</strong> ({entry.host}): {entry.gets}</li>)}</ul>
+        {usesSpark&&<p className="callout warn">Spark Contributor may use approved content for training.</p>}
+        <div className="actions"><button className="button" onClick={()=>setGranting(false)}>Cancel</button><button className="button primary" disabled={ui.busy} onClick={give}>Accept and grant</button></div>
+      </>}
+    </>}
+  </>;
 }
 
 function CheckScores({result}){

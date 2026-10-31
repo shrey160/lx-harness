@@ -28,7 +28,7 @@ def _adapter(task, run_dir, output, client, truth, check, *, live, limits, tools
                             domain=TaskDomain(task, check, segmentation=SEGMENTATION in tools))
 
 
-def limitations(spec, report, chosen, live):
+def limitations(spec, report, chosen, live, approved_by="person"):
     """What a reader of this package must not assume; written from the run itself."""
     rows, skipped = report["per_sample"], report["skipped"]
     worker = spec["providers"]["worker"].get("model_id") or spec["roles"]["worker"]
@@ -42,6 +42,8 @@ def limitations(spec, report, chosen, live):
              ("- A connected agent set this run up. It could read every file in the workspace, including the answers, "
               "so the task text and check may reflect them." if spec["roles"]["orchestrator"] == EXTERNAL else
               "- The built-in orchestrator can read the file list, sample input text and the shape of the answers, never their values.")]
+    if approved_by == "grant":
+        lines.append("- Started by a connected agent under a person's grant. No person reviewed this spec or check.")
     if skipped:
         lines.append(f"- Not graded, because they produced no reference run: {', '.join(sorted(skipped))}.")
     if not live:
@@ -71,7 +73,7 @@ def learned(base, final, report, gains, chosen):
     return "\n".join(lines)+"\n"
 
 
-def _package(adapter, report, output, spec, *, live, check):
+def _package(adapter, report, output, spec, *, live, check, approved_by="person"):
     """Copy the best harness (or the base when nothing gained) into package/harness, with what graded it."""
     from harness2.core import tree
     surface = adapter.substrate.surface()
@@ -87,7 +89,7 @@ def _package(adapter, report, output, spec, *, live, check):
     (package/"learned.md").write_text(learned(tree.read_tree(surface, adapter.base_harness()), final, report, gains, chosen), encoding="utf-8")
     (package/"spec.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
     (package/"check.py").write_text(check, encoding="utf-8", newline="")
-    (package/"limitations.md").write_text(limitations(spec, report, chosen, live), encoding="utf-8")
+    (package/"limitations.md").write_text(limitations(spec, report, chosen, live, approved_by), encoding="utf-8")
     return gains, chosen
 
 
@@ -128,7 +130,7 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     adapter = _adapter(task, run_dir, output, clients["worker"], truth, check, live=live, limits=limits, tools=tools,
                        perception=perception, health=health)
     report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health)
-    gains, chosen = _package(adapter, report, output, spec, live=live, check=check)
+    gains, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
     return summarize_report(task, report, gains, chosen, live)
 
 
@@ -143,5 +145,5 @@ def regrade(engine, workspace, job, *, live):
     check = workspace.check_source(spec["check"])
     adapter = _adapter(task, run_dir, output, client, truth, check, live=live, limits=engine.limits_of(spec), tools=spec_tools(spec))
     report = grade_stream(adapter, output, stream, {"regraded": True})
-    gains, chosen = _package(adapter, report, output, spec, live=live, check=check)
+    gains, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
     return summarize_report(task, report, gains, chosen, live)
