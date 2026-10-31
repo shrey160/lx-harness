@@ -128,6 +128,7 @@ def parser():
 
     run = commands.add_parser("run", help="start and follow live runs").add_subparsers(dest="run_command", required=True)
     action(run, "start", "run_start", "start an approved or granted live run")
+    action(run, "trial", "trial_start", "try the live spec on one sample with the base harness, within the trial cap")
     action(run, "status", "run_status", "this workspace's runs")
     item = command(run, "stop", lambda engine, lx, args: lx.run_stop(args.workspace, args.run), help="stop a run")
     item.add_argument("run")

@@ -6,19 +6,22 @@ export function RunsTab({project,jobs,ui,setTab}){
   const job=jobs.find(j=>j.id===openId);
   const busyRun=jobs.some(active);
   const start=()=>ui.act(async()=>{const run=await api(`projects/${project.id}/run`,{});if(run?.id)setOpenId(run.id);});
+  const trial=()=>ui.act(async()=>{const run=await api(`projects/${project.id}/trial`,{});if(run?.id)setOpenId(run.id);});
+  const canTry=project.draft.mode==='live'&&project.draft.task;
   if(job)return <RunPage project={project} job={job} ui={ui} back={()=>setOpenId(null)}/>;
   return <section>
     <div className="actions">
       <button className="button primary" disabled={ui.busy||!project.approved||busyRun} onClick={start}>{project.draft.mode==='live'?'Start live run':'Start preview'}</button>
+      {canTry&&<button className="button" disabled={ui.busy||!project.approved||busyRun} onClick={trial} title="One sample on the base harness, with no loop">Try one sample (up to {money(project.trial_cap_usd)})</button>}
       {!project.approved&&<span className="muted">Approve the <button className="link" onClick={()=>setTab('spec')}>spec</button> first.</span>}
     </div>
     {jobs.length?<div className="table-wrap"><table className="table rows">
       <thead><tr><th>Started</th><th>Version</th><th>Mode</th><th>Status</th><th>Score</th><th>Cost</th></tr></thead>
       <tbody>{jobs.map(run=><tr key={run.id} onClick={()=>setOpenId(run.id)}>
         <td><button className="link" onClick={()=>setOpenId(run.id)}>{when(run.created_at)}</button></td>
-        <td>{run.spec.version}</td><td>{modeName(run.mode)}</td>
+        <td>{run.spec.version}</td><td>{run.kind==='trial'?'Trial':modeName(run.mode)}</td>
         <td><span className={'dot '+tone(run)}/>{statusName(run)}</td>
-        <td>{scores(run.result)?`${scores(run.result).base.toFixed(2)} → ${scores(run.result).harness2.toFixed(2)}`:'–'}</td>
+        <td>{run.kind==='trial'&&run.result?run.result.score.toFixed(2):scores(run.result)?`${scores(run.result).base.toFixed(2)} → ${scores(run.result).harness2.toFixed(2)}`:'–'}</td>
         <td>{money(run.usage.spent_usd)}</td>
       </tr>)}</tbody>
     </table></div>:<p className="empty">No runs yet.</p>}
@@ -40,13 +43,26 @@ function RunPage({project,job,ui,back}){
     <div className="actions">
       {active(job)&&<button className="button danger" onClick={()=>post('stop')}>Stop</button>}
       {resumable(job)&&<button className="button" disabled={ui.busy} onClick={()=>post('resume')}>Resume</button>}
-      {job.status==='failed'&&job.spec.task&&<button className="button" disabled={ui.busy} onClick={()=>post('regrade')}>Grade saved answers</button>}
+      {job.status==='failed'&&job.spec.task&&job.kind!=='trial'&&<button className="button" disabled={ui.busy} onClick={()=>post('regrade')}>Grade saved answers</button>}
     </div>
-    {result&&<Result project={project} job={job} ui={ui} post={post} live={live}/>}
+    {result&&(job.kind==='trial'?<TrialResult project={project} job={job}/>:<Result project={project} job={job} ui={ui} post={post} live={live}/>)}
     <Health job={job} busy={ui.busy} release={charged=>post('release',{charged})}/>
     <h3>Usage{live?'':' (simulated)'}</h3>
     <Usage usage={job.usage}/>
   </section>;
+}
+
+function TrialResult({project,job}){
+  const {result}=job,failed=result.checks.filter(check=>!check.passed);
+  return <div className="result">
+    <h3>Trial on one sample</h3>
+    <div className="stats"><Stat value={result.score.toFixed(2)} label={`score on ${result.sample}`}/><Stat value={`${result.checks.length-failed.length}/${result.checks.length}`} label="checks passed"/></div>
+    <p className="muted">{result.note}</p>
+    {result.stopped&&<p className="callout warn">It stopped early: {result.stopped}.</p>}
+    {failed.length>0&&<p>Failed: {failed.map(check=>check.name).join(', ')}</p>}
+    <p className="muted">Tool calls: {Object.entries(result.tool_calls).map(([name,count])=>`${name} ${count}`).join(', ')||'none'}</p>
+    <div className="actions"><a className="button" href={`/api/trajectories/${project.id}/${job.id}/download`} download="trajectories.zip">Download trajectory</a></div>
+  </div>;
 }
 
 function Result({project,job,ui,post,live}){

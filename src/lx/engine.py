@@ -64,6 +64,7 @@ EXTERNAL_PROVIDER = {"id":EXTERNAL,"name":"Connected agent","model_id":"","base_
                      "supports_tools":True,"priced":True,"requests_per_minute":None,"limits":{}}
 SHORT_NAMES = {tasks.SEGMENTATION:"SAM",tasks.TRANSCRIPTION:"Transcribe"}
 DEFAULT_WORKSPACE_BUDGET = 5
+DEFAULT_TRIAL_CAP = 0.25
 GRANT_DAYS, GRANT_RUNS = 7, 3
 MAX_GRANT_DAYS, MAX_GRANT_RUNS = 30, 20
 PROVIDER_TEST_CAP = 1
@@ -190,6 +191,21 @@ class Engine:
         self.store.save("budget", {"id":identifier,"cap_usd":cap_usd})
         return self.project(identifier)
 
+    def trial_cap(self, identifier, draft):
+        """The most one trial may spend: the workspace's setting, within the run budget (D-025)."""
+        try:
+            cap = self.store.get("trial_cap", identifier)["cap_usd"]
+        except ValueError:
+            cap = DEFAULT_TRIAL_CAP
+        return min(cap, draft["budget_usd"])
+
+    def set_trial_cap(self, identifier, cap_usd):
+        self.workspace(identifier)
+        if isinstance(cap_usd, bool) or not isinstance(cap_usd, (int,float)) or not math.isfinite(cap_usd) or not 0.11 <= cap_usd <= 20:
+            raise ValueError("A trial's cap must be between $0.11 and $20")
+        self.store.save("trial_cap", {"id":identifier,"cap_usd":cap_usd})
+        return self.project(identifier)
+
     def _provider(self, entry):
         """What an approval binds for a role: where its data goes and the price. Never the key."""
         if entry == EXTERNAL:
@@ -297,6 +313,7 @@ class Engine:
                 "notice_accepted": self._notice_hosts(record["id"]),
                 "blocked": self._blocked(draft),
                 "grant": self._grant_view(workspace, record["id"]),
+                "trial_cap_usd": self.trial_cap(record["id"], draft),
                 "budget": {key:value for key,value in self._ledger(workspace).summary().items()
                            if key in {"cap_usd","spent_usd","reserved_usd","remaining_usd"}}}
 
@@ -634,8 +651,8 @@ class Engine:
                    if row["candidate"].startswith(tuple(job+"/" for job in runs)))
         return {key:grant[key] for key in ("cap_usd","runs","expires_at","revoked")} | {"runs_used":len(runs),"spent_usd":used/1_000_000_000}
 
-    def _grant_refusal(self, workspace, draft, identifier):
-        """Why the current spec falls outside this workspace's grant."""
+    def _grant_refusal(self, workspace, draft, identifier, cost):
+        """Why a run of this spec, costing at most `cost`, falls outside this workspace's grant."""
         grant, left = self._grant(identifier), self._grant_view(workspace, identifier)
         if grant is None:
             return "A person needs to approve this live run in the LX app"
@@ -645,7 +662,7 @@ class Engine:
             return "The grant has expired; a person needs to approve this live run"
         if left["runs_used"] >= grant["runs"]:
             return "The grant's runs are used up; a person needs to approve this live run"
-        if left["spent_usd"]+draft["budget_usd"] > grant["cap_usd"]:
+        if left["spent_usd"]+cost > grant["cap_usd"]:
             return "This run's budget would pass the grant's spending cap; a person needs to decide"
         if {role:draft["providers"][role] for role in ("improver","worker")} != grant["providers"]:
             return "The improver or worker changed since the grant; a person needs to approve this live run"
@@ -657,13 +674,13 @@ class Engine:
             return "The samples changed since the grant; a person needs to approve this live run"
         return None
 
-    def start_granted(self, identifier, launch=True):
-        """Approves and starts the current live spec under the grant, or says why a person must."""
+    def start_granted(self, identifier, launch=True, trial=False):
+        """Approves and starts the current live spec, or a trial of it, under the grant, or says why a person must."""
         workspace = self.workspace(identifier)
         draft = workspace.spec(workspace.project()["spec_version"])
         if any(j["status"] in {"queued","running"} for j in self._jobs(workspace)):
             raise ValueError("One run is already active")
-        refusal = self._grant_refusal(workspace, draft, identifier)
+        refusal = self._grant_refusal(workspace, draft, identifier, self.trial_cap(identifier, draft) if trial else draft["budget_usd"])
         if refusal:
             return {"status":"pending","reason":refusal}
         approved = self.approve(identifier, {"version":draft["version"],"data_approved":True,"contributor_accepted":True},
@@ -672,7 +689,7 @@ class Engine:
         if weak:  # no person reads the scores under a grant, so a weak check is theirs to judge
             self._drop_approval(workspace, identifier)
             return {"status":"pending","reason":"A person needs to review this check: "+weak[0]}
-        return {"status":"started","run_id":self.start(identifier, launch=launch)["id"]}
+        return {"status":"started","run_id":self.start(identifier, launch=launch, trial=trial)["id"]}
 
     def _prove_task(self, workspace, draft, snapshot):
         """At approval: the frozen samples fit the task and the check proves itself on them."""
@@ -689,12 +706,14 @@ class Engine:
 
     # Runs
 
-    def start(self, identifier, launch=True):
+    def start(self, identifier, launch=True, trial=False):
         workspace = self.workspace(identifier)
         self._jobs(workspace)
         with workspace.lock():
             record = workspace.project()
             draft = workspace.spec(record["spec_version"])
+            if trial and (draft.get("mode") != "live" or not draft.get("task")):
+                raise ValueError("A trial tries a task's live spec on one sample")
             approved = self._approval(identifier)
             if not approved or approved["spec_hash"] != fingerprint(draft):
                 raise ValueError("Approve the current spec before starting")
@@ -708,7 +727,8 @@ class Engine:
                 shutil.rmtree(workspace.run_dir(job_id))
                 raise ValueError("Snapshot changed since approval; approve again")
             job = {"id":job_id,"project_id":identifier,"name":record["name"],"status":"queued","phase":"queued","created_at":time.time(),
-                   "mode":draft.get("mode","controlled_preview"),"spec":draft,"approved":_approval_identity(approved),"approved_by":approved.get("by","person"),"grant":approved.get("grant"),"launch_pending":True}
+                   "mode":draft.get("mode","controlled_preview"),"spec":draft,"approved":_approval_identity(approved),"approved_by":approved.get("by","person"),"grant":approved.get("grant"),"launch_pending":True,
+                   **({"kind":"trial","cap_usd":self.trial_cap(identifier, draft)} if trial else {})}
             workspace.write_run(job)
         if launch:
             self._launch(workspace, job_id)
@@ -779,13 +799,19 @@ class Engine:
         workspace.update_run(identifier,status="completed",phase="complete",result=result,error=None)
         return result
 
+    def finish_trial(self, workspace, job, result):
+        """A trial ends in its result alone: nothing was learned, so there is no package."""
+        result["usage"] = summarize(usage_rows(self._ledger(workspace),job["id"]+"/"))
+        workspace.update_run(job["id"],status="completed",phase="complete",result=result,error=None)
+        return result
+
     def regrade(self, identifier, job_id):
         """Score a failed task run from its saved answers; no model or tool calls."""
         from .taskrun import regrade
         workspace = self.workspace(identifier)
         self._jobs(workspace)
         job = workspace.run(job_id)
-        if job["status"] != "failed" or not job["spec"].get("task"):
+        if job["status"] != "failed" or not job["spec"].get("task") or job.get("kind") == "trial":
             raise ValueError("Only a failed task run can be graded again")
         try:
             result = regrade(self, workspace, job, live=job["spec"].get("mode") == "live")
@@ -864,7 +890,7 @@ class Engine:
             job["usage"] = summarize(usage_rows(self._ledger(workspace) if live else workspace.preview_ledger,job["id"]+"/"))
             job["health"] = read_health(workspace.run_dir(job["id"])/"health.json")
             task = job.get("spec",{}).get("task")
-            if task:  # the loop writes one summary per sample as it finishes it
+            if task and job.get("kind") != "trial":  # the loop writes one summary per sample as it finishes it
                 done = sum(1 for _ in workspace.run_dir(job["id"]).glob("outputs/runs/*-agg1/*/summary.json"))
                 job["progress"] = {"done":done,"total":task["stream_samples"]}
             if not job.get("launch_pending") and job["status"] in {"queued", "running", "interrupted", "cancelled", "failed"}:

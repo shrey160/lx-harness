@@ -70,6 +70,15 @@ def run_check(source, truth, answer):
     return run_checks(source, [(truth, answer)])[0]
 
 
+def named_checks(source, truth, answer):
+    """Each check's name and whether it passed, without its message, which may quote the expected answer."""
+    results = _call(source, {"items": [{"truth": truth, "answer": answer}]}).get("results")
+    if type(results) is not list or len(results) != 1:
+        raise CheckError("The scoring check must return one result per item")
+    _graded(results[0])
+    return [{"name": check["name"], "passed": check["passed"]} for check in results[0]["checks"]]
+
+
 def examples(source, truths):
     answers = _call(source, {"examples": list(truths)}).get("answers")
     if type(answers) is not list or len(answers) != len(truths):

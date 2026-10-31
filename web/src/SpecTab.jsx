@@ -9,12 +9,15 @@ export function SpecTab({state,project,ui,setTab}){
   const [budget,setBudget]=useState(String(draft.budget_usd)),[workspaceBudget,setWorkspaceBudget]=useState(String(project.budget.cap_usd));
   const [limits,setLimits]=useState(draft.limits),[tools,setTools]=useState(draft.tools),[reviewing,setReviewing]=useState(false),[checkResult,setCheckResult]=useState(null),[readyResult,setReadyResult]=useState(null);
   const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||JSON.stringify(tools)!==JSON.stringify(draft.tools)||Number(budget)!==Number(draft.budget_usd);
-  const budgetDirty=Number(workspaceBudget)!==project.budget.cap_usd;
+  const [trialCap,setTrialCap]=useState(String(project.trial_cap_usd));
+  const trialDirty=Number(trialCap)!==project.trial_cap_usd;
+  const budgetDirty=Number(workspaceBudget)!==project.budget.cap_usd||trialDirty;
   const ownLimits=()=>({...(draft.limits_set||{}),...Object.fromEntries(Object.entries(limits).filter(([name,value])=>value!==draft.limits[name]))});
   const save=()=>ui.act(async()=>{
-    if(budgetDirty)await api(`projects/${project.id}/budget`,{cap_usd:Number(workspaceBudget)});
+    if(Number(workspaceBudget)!==project.budget.cap_usd)await api(`projects/${project.id}/budget`,{cap_usd:Number(workspaceBudget)});
+    if(trialDirty)await api(`projects/${project.id}/trial-cap`,{cap_usd:Number(trialCap)});
     if(specDirty)await api(`projects/${project.id}/spec`,{goal,budget_usd:Number(budget),mode,roles,limits:ownLimits(),...(tools?{tools}:{})});
-    ui.notify(specDirty?'Saved as a new version.':'Workspace budget saved.');
+    ui.notify(specDirty?'Saved as a new version.':'Budget saved.');
   });
   const testCheck=()=>ui.act(async()=>{setCheckResult(null);setCheckResult(await api(`projects/${project.id}/check-test`,{}));});
   const checkReady=()=>ui.act(async()=>{setReadyResult(null);setReadyResult(await api(`projects/${project.id}/ready`,{}));});
@@ -50,6 +53,7 @@ export function SpecTab({state,project,ui,setTab}){
     <div className="three two-up">
       <label className="field">This run (USD)<input type="number" min="0.11" max="20" step="0.01" value={budget} onChange={e=>setBudget(e.target.value)}/></label>
       <label className="field">Whole workspace (USD)<input type="number" min="0.11" max="20" step="0.01" value={workspaceBudget} onChange={e=>setWorkspaceBudget(e.target.value)}/><small className="muted">{money(project.budget.spent_usd)} spent, {money(project.budget.reserved_usd)} held</small></label>
+      {draft.task&&<label className="field">One trial (USD)<input type="number" min="0.11" max="20" step="0.01" value={trialCap} onChange={e=>setTrialCap(e.target.value)}/><small className="muted">Never more than this run's budget</small></label>}
     </div>
 
     <Limits fields={state.limit_fields.filter(field=>!(project.hidden_limits||[]).includes(field.name))} values={limits} defaults={project.limit_defaults} onChange={(name,value)=>setLimits({...limits,[name]:value})}/>

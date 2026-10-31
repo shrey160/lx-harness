@@ -391,6 +391,13 @@ live on your samples as they are now: per-sample problems, what blocks a run, an
 check scores. It makes no calls and spends nothing, and it says a run can start, not how
 well it will do. `lx preview` runs the whole flow, but only on the synthetic samples.
 
+`lx run trial`, or "Try one sample" on the Runs tab, runs the worker and tools once on one
+of your samples with the base harness, then scores it with the check. It spends real money
+and sends that sample to your providers, so it needs your approval or a grant, and it counts
+against a grant. There is no loop and no package. Its cap is $0.25 by default, and you can
+change it under Budget on the Spec tab, within the run budget. One sample is a smoke test,
+not a measure.
+
 `lx approve`, `lx grant --cap 2` and `lx run resume <run id>` are a person's steps. Each
 shows what you accept and waits for you to type yes, and each refuses without a real
 terminal. `lx run start` starts a live run you approved, or one your grant covers;
@@ -408,7 +415,8 @@ speaks MCP over stdio. Every tool takes a workspace folder, and a preview or run
 at once for the agent to poll. A run keeps going after the agent closes.
 
 The agent can draft the spec and check, test the check, run previews and start live runs
-you approved. It cannot approve a run, set a grant or a budget, add a key or provider, or
+and trials you approved. From a trial it gets scores, checks by name, how it stopped and
+calls per tool, not the trace or answer; you can read those in the app. It cannot approve a run, set a grant or a budget, add a key or provider, or
 release held spending. To let it start live runs, set a grant on the Spec tab or with
 `lx grant`: a spending cap, an expiry (7 days by default) and a run count (3 by default),
 for these samples, providers and tools. Anything outside that answers pending, and so

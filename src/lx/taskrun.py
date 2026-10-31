@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+from .checks import named_checks
 from .inventory_workflow import InventoryAdapter, grade_stream, preview_transcription, run_stream
 from .tasks import EXTERNAL, SEGMENTATION, TaskDomain, build_dataset, is_text, preview_scenes, spec_tools, tool_catalog
 from .text_task import TextAdapter, TextDomain
@@ -132,6 +133,32 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health)
     gains, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
     return summarize_report(task, report, gains, chosen, live)
+
+
+def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
+    """One stream sample on the base harness, graded by the check (D-025). No improver and no package.
+
+    The result holds no trace or answer, because it reaches an outside agent, and
+    those would invite procedure into the task text, which the loop learns (D-021).
+    """
+    spec, identifier = job["spec"], job["id"]
+    task = spec["task"]
+    run_dir, output = workspace.run_dir(identifier), workspace.run_dir(identifier)/"outputs"
+    stream, truth, _ = build_dataset(snapshot, run_dir/"dataset", task, preview=False)
+    limits, tools = engine.limits_of(spec), spec_tools(spec)
+    perception = None if is_text(task) else engine.build_perception(workspace, identifier, job["cap_usd"], run_dir/"perception-cache", limits, tools)
+    adapter = _adapter(task, run_dir, output, client, truth, check, live=True, limits=limits, tools=tools, perception=perception, health=health)
+    sample = stream[0]
+    run = adapter.execute(sample, adapter.base_harness(), "trial")
+    named = named_checks(check, truth[sample], json.loads(adapter.deliverable_text(run)))
+    steps = json.loads((run/"trace.json").read_text(encoding="utf-8"))["trace"]
+    calls = {}
+    for step in steps:
+        if step["type"] == "tool":
+            calls[step["name"]] = calls.get(step["name"], 0)+1
+    return {"kind": "trial", "task": task["name"], "live": True, "sample": sample, "score": sum(item["passed"] for item in named)/len(named),
+            "checks": named, "stopped": next((step["reason"] for step in steps if step["type"] == "stopped"), None), "tool_calls": calls,
+            "note": "One sample on the base harness: a smoke test, not a measure of what the loop can reach."}
 
 
 def regrade(engine, workspace, job, *, live):

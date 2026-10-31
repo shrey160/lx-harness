@@ -7,7 +7,7 @@ import traceback
 from .engine import ROLES, Engine
 from .health import RunHealth, StoppedEarly
 from .spark import ModelError
-from .taskrun import run_task
+from .taskrun import run_task, run_trial
 from .workflow import optimize_images
 from .workspace import Workspace
 
@@ -21,7 +21,10 @@ def execute(engine, workspace, identifier, snapshot):
     mode = job["spec"].get("mode","controlled_preview")
     live = mode == "live"
     limits = engine.limits_of(job["spec"])
-    clients = engine.build_clients(workspace, job["spec"], identifier, job["spec"]["budget_usd"])
+    trial = job.get("kind") == "trial"
+    clients = engine.build_clients(workspace, job["spec"], identifier, job["cap_usd"] if trial else job["spec"]["budget_usd"])
+    if trial:
+        clients = {"worker": clients["worker"]}
     # Once per provider entry: a bad key or endpoint stops the run before the loop starts.
     for role in {job["spec"]["roles"][r]:r for r in reversed(ROLES) if r in clients}.values():
         message,_ = clients[role].chat([{"role":"developer","content":"LX_PREFLIGHT"},{"role":"user","content":"Reply PREFLIGHT_OK"}],
@@ -29,9 +32,12 @@ def execute(engine, workspace, identifier, snapshot):
                                        timeout=max(120,limits["call_seconds"]))
         if (message["content"] or "").strip() != "PREFLIGHT_OK":
             raise ValueError("Live preflight failed" if live else "Controlled preflight failed")
-    workspace.update_run(identifier,phase="improving")
+    workspace.update_run(identifier,phase="trying" if trial else "improving")
     output = workspace.run_dir(identifier)/"outputs"
     health = RunHealth(workspace.run_dir(identifier)/"health.json",stop_after=limits["stop_after_empty_runs"])
+    if trial:
+        return engine.finish_trial(workspace,job,run_trial(engine,workspace,job,snapshot,clients["worker"],
+                                                           check=workspace.check_source(job["spec"]["check"]),health=health))
     if job["spec"].get("task"):
         result = run_task(engine,workspace,job,snapshot,clients,live=live,check=workspace.check_source(job["spec"]["check"]),health=health)
     else:

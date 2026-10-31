@@ -12,11 +12,11 @@ from pathlib import PurePosixPath
 from . import tasks
 from .engine import EXTERNAL
 
-ACTIONS = ("status", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "ready", "preview", "run_start", "run_status", "run_stop", "results")
+ACTIONS = ("status", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "ready", "preview", "run_start", "trial_start", "run_status", "run_stop", "results")
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
-_RUN_FIELDS = ("id", "status", "phase", "mode", "created_at", "approved_by", "grant", "progress", "error")
+_RUN_FIELDS = ("id", "kind", "status", "phase", "mode", "created_at", "approved_by", "grant", "progress", "error")
 
 
 class Orchestration:
@@ -83,7 +83,7 @@ class Orchestration:
         return {"goal": project["goal"], "version": draft["version"], "mode": draft["mode"], "roles": draft["roles"], "tools": draft.get("tools", []),
                 "budget_usd": draft["budget_usd"], "limits": draft["limits"], "task": draft.get("task"), "check": check, "blocked": project["blocked"],
                 "approved": {"by": approved.get("by", "person")} if approved and approved["version"] == draft["version"] else None,
-                "workspace_budget": project["budget"], "grant": project["grant"], "notice": project["notice"], "external_orchestrator": project["external_orchestrator"]}
+                "workspace_budget": project["budget"], "trial_cap_usd": project["trial_cap_usd"], "grant": project["grant"], "notice": project["notice"], "external_orchestrator": project["external_orchestrator"]}
 
     def spec_draft(self, workspace, *, goal=None, task=None, check=None, tools=None, limits=None, mode=None, worker=None, improver=None):
         """A new spec version, which clears any approval. `task` holds only the fields that change."""
@@ -108,6 +108,13 @@ class Orchestration:
 
     def run_start(self, workspace):
         """Starts a live run a person has approved or a grant covers. Otherwise it stays pending for them."""
+        return self._start(workspace, trial=False)
+
+    def trial_start(self, workspace):
+        """One sample on the base harness, under the same terms as a live run (D-025)."""
+        return self._start(workspace, trial=True)
+
+    def _start(self, workspace, *, trial):
         identifier = self._id(workspace)
         project = self.engine.project(identifier)
         draft, approved = project["draft"], project["approved"]
@@ -116,8 +123,8 @@ class Orchestration:
         if project["blocked"]:
             return {"status": "blocked", "reason": project["blocked"]}
         if not approved or approved["version"] != draft["version"] or approved.get("by", "person") != "person":
-            return self.engine.start_granted(identifier, launch=self.launch)
-        return {"status": "started", "run_id": self.engine.start(identifier, launch=self.launch)["id"]}
+            return self.engine.start_granted(identifier, launch=self.launch, trial=trial)
+        return {"status": "started", "run_id": self.engine.start(identifier, launch=self.launch, trial=trial)["id"]}
 
     def run_status(self, workspace):
         cost = lambda run: sum(role["spent_usd"] for role in (run.get("usage") or {}).get("per_role", {}).values())
