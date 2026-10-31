@@ -41,7 +41,7 @@ You need [uv](https://docs.astral.sh/uv/), Node.js and Python 3.12 or 3.13. uv c
 supply Python on Windows. You also need a script sandbox to run scoring checks and
 helper scripts. That is Docker Desktop on Windows, or Docker or `unshare` on Linux.
 Without one, checks do not run, so graded tasks cannot start, and helper scripts
-are turned off.
+are turned off. If a task needs more, read [Preparing an environment](docs/environment.md).
 
 ### Windows
 
@@ -361,7 +361,7 @@ Each folder has its own README:
 | [scripts](scripts/README.md) | Start, build and validation scripts |
 | [docker](docker/README.md) | The sandbox image definition |
 | [tests](tests/README.md) | The offline test suite |
-| [docs](docs/README.md) | Task contracts, experiment reviews and history |
+| [docs](docs/README.md) | Guides, task contracts, experiment reviews and history |
 | [evidence](evidence/README.md) | Saved results of tests and live runs |
 | [harnesses](harnesses/README.md) | Frozen harnesses from experiments |
 

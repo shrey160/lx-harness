@@ -1,11 +1,12 @@
 # docs
 
-Task contracts and the reviews written before each live experiment. Reviews are
-records of what was approved, so they are not updated afterwards. For how the product
-works today, read the [main README](../README.md).
+Guides, task contracts and the reviews written before each live experiment. Reviews
+are records of what was approved, so they are not updated afterwards. For how the
+product works today, read the [main README](../README.md).
 
 | File | Purpose |
 |---|---|
+| [environment.md](environment.md) | Preparing an environment: keys, Python libraries and system tools for a task |
 | [history.md](history.md) | Earlier product history, moved out of the main README |
 
 ## Contracts

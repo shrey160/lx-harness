@@ -7,3 +7,5 @@ wheel pinned in `uv.lock`.
 Build it with `scripts/build_sandbox_image.py`, which assembles the build context under
 `.lx/sandbox-image/`. Containers run with no network, a read-only root, no capabilities
 and an unprivileged user (`lx.sandbox`).
+
+To add a library or a system tool, read [Preparing an environment](../docs/environment.md).
