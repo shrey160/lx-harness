@@ -562,8 +562,12 @@ class Engine:
         except ValueError:
             return None
 
+    def sample_files(self, workspace, draft):
+        """The sample folder as it is now; a project's stored inventory dates from its last intake or approval."""
+        return workspace.inspect_samples(tasks.MAX_SAMPLE_BYTES if draft.get("task") else MAX_BYTES)["inventory"]
+
     def _sample_hash(self, workspace, draft):
-        return fingerprint(workspace.inspect_samples(tasks.MAX_SAMPLE_BYTES if draft.get("task") else MAX_BYTES)["inventory"])
+        return fingerprint(self.sample_files(workspace, draft))
 
     def set_grant(self, identifier, data):
         """A human step (D-024): lets a connected agent start live runs here, within a cap, an expiry and a run count.

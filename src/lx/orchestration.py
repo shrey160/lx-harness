@@ -47,18 +47,21 @@ class Orchestration:
         return {"workspace": project["path"], "version": project["draft"]["version"]}
 
     def samples(self, workspace):
-        return {"inventory": self.engine.project(self._id(workspace))["inventory"]["inventory"]}
+        return {"inventory": self._files(self._id(workspace))}
+
+    def _files(self, identifier):
+        return self.engine.sample_files(self.engine.workspace(identifier), self.engine.project(identifier)["draft"])
 
     def read_sample(self, workspace, path):
         """One listed input file as text, never an answer file."""
-        project = self.engine.project(self._id(workspace))
+        identifier = self._id(workspace)
         if PurePosixPath(path).name == "truth.json":
             raise ValueError("Answer files cannot be read")
-        if path not in {item["path"] for item in project["inventory"]["inventory"]}:
+        if path not in {item["path"] for item in self._files(identifier)}:
             raise ValueError("That file is not in the sample list")
         if PurePosixPath(path).suffix.lower() not in {".txt", ".json", ".md", ".csv"}:
             raise ValueError("Only text files can be read here")
-        data = (self.engine.workspace(project["id"]).samples_path/path).read_bytes()
+        data = (self.engine.workspace(identifier).samples_path/path).read_bytes()
         return {"text": data[:MAX_SAMPLE_TEXT].decode("utf-8", "replace"), "cut": len(data) > MAX_SAMPLE_TEXT}
 
     def truth_shape(self, workspace):
@@ -115,7 +118,8 @@ class Orchestration:
 
     def run_status(self, workspace):
         cost = lambda run: sum(role["spent_usd"] for role in (run.get("usage") or {}).get("per_role", {}).values())
-        return {"runs": [{field: run.get(field) for field in _RUN_FIELDS} | {"cost_usd": cost(run)} for run in self.engine.runs(self._id(workspace))]}
+        return {"runs": [{field: run.get(field) for field in _RUN_FIELDS} | {"cost_usd": cost(run), "simulated_cost": run["mode"] != "live"}
+                         for run in self.engine.runs(self._id(workspace))]}
 
     def run_stop(self, workspace, run_id):
         return {"status": self.engine.stop(self._id(workspace), run_id)["status"]}

@@ -140,6 +140,8 @@ def parser():
 
 def main(argv=None):
     args = parser().parse_args(argv)
+    if hasattr(args, "workspace"):
+        args.workspace = str(Path(args.workspace).resolve())
     engine = Engine(args.root)
     try:
         print(json.dumps(args.handler(engine, Orchestration(engine), args), indent=2))

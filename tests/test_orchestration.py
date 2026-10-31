@@ -39,6 +39,18 @@ class WhatItMayDo(Actions):
         self.assertNotIn("dummy-ui-key", str(status))
         self.assertFalse({"has_key", "api_key", "base_url"} & set(status["models"][0]))
 
+    def test_samples_show_the_folder_as_it_is_now(self):
+        self.begin()
+        added = Path(self.path)/"samples"/"sample-01"/"notes.txt"
+        added.write_text("new", encoding="utf-8")
+        self.assertIn("sample-01/notes.txt", {item["path"] for item in self.lx.samples(self.path)["inventory"]})
+        self.assertEqual(self.lx.read_sample(self.path, "sample-01/notes.txt")["text"], "new")
+
+    def test_a_preview_cost_says_it_is_simulated(self):
+        self.begin()
+        self.lx.preview(self.path)
+        self.assertIs(self.lx.run_status(self.path)["runs"][0]["simulated_cost"], True)
+
     def test_the_budget_a_person_set_stays(self):
         self.begin()
         project = self.app.open_workspace(self.path)

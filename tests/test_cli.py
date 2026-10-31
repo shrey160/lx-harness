@@ -61,6 +61,12 @@ class Actions(Commands):
         self.assertEqual(self.here("preview")[1]["status"], "started")
         self.assertEqual(len(self.here("run", "status")[1]["runs"]), 1)
 
+    def test_the_folder_you_are_in_is_the_default_workspace(self):
+        self.begin()
+        with contextlib.chdir(self.path):
+            code, shown = self.lx("spec", "show")
+        self.assertEqual((code, shown["goal"]), (0, "Count things"))
+
     def test_a_sample_reads_but_an_answer_does_not(self):
         self.begin()
         self.assertTrue(self.here("samples", "--read", "sample-01/request.txt")[1]["text"])

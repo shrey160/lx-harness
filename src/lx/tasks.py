@@ -193,7 +193,7 @@ def require_preview_samples(root, count):
     for folder in sample_folders(root):
         for path in (folder/"photos").iterdir():
             if media_hash(normalize_photo(path.read_bytes())) not in scenes:
-                raise ValueError("A preview runs only on the synthetic demo samples; use a live run for your own")
+                raise ValueError("A preview runs only on the synthetic demo samples; your own need a live run, which a person decides on")
 
 
 def build_dataset(snapshot, root, task, *, preview):

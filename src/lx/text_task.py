@@ -87,7 +87,7 @@ def require_preview_samples(root, count):
     known = {request for request, _ in synthetic_samples(count)}
     for folder in sample_folders(root):
         if check_sample_folder(folder)[0] not in known:
-            raise ValueError("A preview runs only on the synthetic samples; use a live run for your own")
+            raise ValueError("A preview runs only on the synthetic samples; your own need a live run, which a person decides on")
 
 
 def build_dataset(snapshot, root, task):
