@@ -691,6 +691,24 @@ class Engine:
             return {"status":"pending","reason":"A person needs to review this check: "+weak[0]}
         return {"status":"started","run_id":self.start(identifier, launch=launch, trial=trial)["id"]}
 
+    def approve_as_agent(self, identifier):
+        """A connected agent approves the current live spec (D-026). It accepts the data notice and the Contributor
+        disclosure for the person who connected it, and the record says so. Money stays with a person: the agent
+        cannot set a budget, and approve refuses a run budget above the workspace's."""
+        workspace = self.workspace(identifier)
+        draft = workspace.spec(workspace.project()["spec_version"])
+        if draft.get("mode") != "live":
+            raise ValueError("This spec is a preview; use preview")
+        if any(j["status"] in {"queued","running"} for j in self._jobs(workspace)):
+            raise ValueError("One run is already active")
+        approved = self.approve(identifier, {"version":draft["version"],"data_approved":True,"contributor_accepted":True,"notice_accepted":True},
+                                by="agent")["approved"]
+        weak = (approved["self_test"] or {}).get("weaknesses")
+        if weak:  # the check decides what counts as a good run, so one that gives marks away waits for a person
+            self._drop_approval(workspace, identifier)
+            return {"status":"pending","reason":"A person needs to review this check: "+weak[0]}
+        return {"status":"approved","version":draft["version"]}
+
     def _prove_task(self, workspace, draft, snapshot):
         """At approval: the frozen samples fit the task and the check proves itself on them."""
         task = draft["task"]

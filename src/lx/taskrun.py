@@ -47,6 +47,8 @@ def limitations(spec, report, chosen, live, approved_by="person"):
               "- The built-in orchestrator can read the file list, sample input text and the shape of the answers, never their values.")]
     if approved_by == "grant":
         lines.append("- Started by a connected agent under a person's grant. No person reviewed this spec or check.")
+    if approved_by == "agent":
+        lines.append("- Approved by a connected agent, which accepted the data notice for its owner. No person reviewed this spec or check.")
     if skipped:
         lines.append(f"- Not graded, because they produced no reference run: {', '.join(sorted(skipped))}.")
     if not live:

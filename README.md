@@ -420,14 +420,22 @@ It gives the setup for Claude Code and Muse Code with this install's paths. The 
 speaks MCP over stdio. Every tool takes a workspace folder, and a preview or run returns
 at once for the agent to poll. A run keeps going after the agent closes.
 
-The agent can draft the spec and check, test the check, run previews and start live runs
-and trials you approved. From a trial it gets scores, checks by name, how it stopped and
-calls per tool, not the trace or answer; you can read those in the app. It cannot approve a run, set a grant or a budget, add a key or provider, or
-release held spending. To let it start live runs, set a grant on the Spec tab or with
-`lx grant`: a spending cap, an expiry (7 days by default) and a run count (3 by default),
-for these samples, providers and tools. Anything outside that answers pending, and so
-does a check that scores a blank or wrong answer too well, since no person reads it. Revoke
-a grant at any time; a run already going keeps its budget until you stop it.
+The agent can draft the spec and check, test the check, run previews, approve a live spec
+and start live runs and trials. Approving spends your money and sends your samples to the
+providers, so a connected agent can do both without asking you. It accepts the data notice
+for you, and the run record and package say an agent approved it. Connect only agents you
+trust with that. What limits it is the run and workspace budgets you set: it cannot change
+them. It also cannot set a grant, add a key or provider, or release held spending. A check
+that scores a blank or wrong answer too well waits for you.
+
+From a trial it gets scores, checks by name, how it stopped and calls per tool, not the
+trace or answer; you can read those in the app.
+
+A grant is the older, tighter option: a spending cap, an expiry (7 days by default) and a
+run count (3 by default), for these samples, providers and tools, set on the Spec tab or
+with `lx grant`. An agent that can approve does not need one, so it only binds an agent you
+tell to work under it. Revoke a grant at any time; a run already going keeps its budget
+until you stop it.
 
 **Known limit.** This guards against mistakes and bad sample content, not a hostile
 agent. A program on your machine, running as you, can read the keychain, edit files, or

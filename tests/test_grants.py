@@ -102,6 +102,12 @@ class Inside(Grants):
         self.assertIn("under a person's grant", limitations(spec, report, None, True, "grant"))
         self.assertNotIn("grant", limitations(spec, report, None, True))
 
+    def test_an_agent_approved_run_does_not_use_it(self):
+        self.grant()
+        self.assertEqual(self.lx.approve(self.path)["status"], "approved")
+        self.assertEqual(self.start()["status"], "started")
+        self.assertEqual(self.lx.spec_show(self.path)["grant"]["runs_used"], 0)
+
     def test_it_shows_what_is_left(self):
         self.grant(cap=3)
         self.finish(self.start()["run_id"], 0.25)

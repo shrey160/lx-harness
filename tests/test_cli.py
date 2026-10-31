@@ -100,6 +100,13 @@ class PersonSteps(Commands):
         self.assertIn("person at a terminal", self.err)
         self.assertIsNone(self.here("spec", "show")[1]["approved"])
 
+    def test_an_agent_approves_without_a_terminal_and_the_record_says_so(self):
+        self.live()
+        self.assertEqual(self.here("approve", "--as-agent")[1]["status"], "approved")
+        self.assertEqual(self.here("spec", "show")[1]["approved"], {"by": "agent"})
+        self.assertEqual(self.here("run", "start")[1]["status"], "started")
+        self.assertEqual(self.here("run", "status")[1]["runs"][0]["approved_by"], "agent")
+
     def test_no_terminal_means_no_grant(self):
         self.live()
         self.assertEqual(self.here("grant", "--cap", "2")[0], 1)

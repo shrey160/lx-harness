@@ -1,8 +1,7 @@
 """What an orchestrator may do (D-024). The built-in one, the CLI and the MCP server all come through here.
 
 Each action names its workspace folder and returns at once; a run is started,
-then polled. Anything left out stays with a person: approving a live run,
-grants, budgets, keys, provider entries, held spend. The spec has no field for skills,
+then polled. Anything left out stays with a person: grants, budgets, keys, provider entries, held spend. The spec has no field for skills,
 scripts or guidance, because the loop learns those (D-021).
 """
 from __future__ import annotations
@@ -12,7 +11,7 @@ from pathlib import PurePosixPath
 from . import tasks
 from .engine import EXTERNAL
 
-ACTIONS = ("status", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "ready", "preview", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
+ACTIONS = ("status", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
@@ -107,8 +106,12 @@ class Orchestration:
         self.engine.approve_preview(identifier)
         return {"status": "started", "run_id": self.engine.start(identifier, launch=self.launch)["id"]}
 
+    def approve(self, workspace):
+        """Approves the current live spec for the person who connected this agent (D-026)."""
+        return self.engine.approve_as_agent(self._id(workspace))
+
     def run_start(self, workspace):
-        """Starts a live run a person has approved or a grant covers. Otherwise it stays pending for them."""
+        """Starts an approved live run, or one a grant covers. Otherwise it stays pending."""
         return self._start(workspace, trial=False)
 
     def trial_start(self, workspace):
@@ -123,7 +126,7 @@ class Orchestration:
             raise ValueError("This spec is a preview; use preview")
         if project["blocked"]:
             return {"status": "blocked", "reason": project["blocked"]}
-        if not approved or approved["version"] != draft["version"] or approved.get("by", "person") != "person":
+        if not approved or approved["version"] != draft["version"] or approved.get("by", "person") not in {"person", "agent"}:
             return self.engine.start_granted(identifier, launch=self.launch, trial=trial)
         return {"status": "started", "run_id": self.engine.start(identifier, launch=self.launch, trial=trial)["id"]}
 

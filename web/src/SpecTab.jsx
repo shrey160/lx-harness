@@ -80,7 +80,7 @@ function Grant({project,ui}){
       <p>{money(grant.spent_usd)} of {money(grant.cap_usd)} used · {grant.runs_used} of {grant.runs} runs · ends {new Date(grant.expires_at*1000).toLocaleDateString()}</p>
       <div className="actions"><button className="button" disabled={ui.busy} onClick={revoke}>Revoke</button></div>
     </>:<>
-      <p className="muted">{grant?(grant.revoked?'The last grant was revoked. ':'The last grant has ended. '):''}Without a grant, every live run waits for you here. A grant covers these samples, providers and tools. No person reviews its runs, and a weak check still waits for you.</p>
+      <p className="muted">{grant?(grant.revoked?'The last grant was revoked. ':'The last grant has ended. '):''}A connected agent can approve a live run itself. A grant adds a spending cap, an expiry and a run count for these samples, providers and tools, for an agent you tell to work under it. No person reviews its runs, and a weak check still waits for you.</p>
       {!granting?<div className="actions"><button className="button" disabled={ui.busy} onClick={()=>setGranting(true)}>Set up a grant</button></div>:<>
         <div className="three">
           <label className="field">Spending cap (USD)<input type="number" min="0.11" max={project.budget.remaining_usd} step="0.01" value={cap} onChange={e=>setCap(e.target.value)}/><small className="muted">{money(project.budget.remaining_usd)} left in this workspace</small></label>

@@ -54,7 +54,7 @@ function Tools({state,system,ui,refresh}){
 function ConnectAgent({setup}){
   return <>
     <h3>Connect an agent</h3>
-    <p className="muted">An agent can set up tasks here with its own model and account. It needs no keys, because workers, the improver and tools run through LX. It can run previews, and starts a live run only if you approve it or set a grant on the Spec tab.</p>
+    <p className="muted">An agent can set up tasks here with its own model and account. It needs no keys, because workers, the improver and tools run through LX. It can run previews, and it can approve and start live runs, which spend your money and send your samples to your providers, up to the budgets you set. Connect only agents you trust with that.</p>
     {!setup.installed&&<p className="callout warn">The MCP extra is not installed. Run your <code>uv sync</code> command again with <code>--extra mcp</code>.</p>}
     <p>Claude Code: run this in the folder you will work in.</p>
     <pre className="setup"><code>{setup.claude}</code></pre>

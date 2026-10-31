@@ -1,8 +1,8 @@
 """The `lx` command: the orchestrator's actions in a terminal, with results as JSON on stdout.
 
-`approve`, `grant` and `run resume` are a person's, so they stay out of the
-actions and read a typed answer from a real terminal. An agent gets the same
-actions over MCP and has no route to these.
+`grant`, `run resume` and `approve` are a person's, and read a typed answer from
+a real terminal. An agent approves with `approve --as-agent` or over MCP (D-026),
+and has no route to the other two.
 """
 import argparse
 import json
@@ -35,6 +35,8 @@ def review(project):
 
 
 def approve(engine, lx, args):
+    if args.as_agent:
+        return lx.approve(args.workspace)
     project = engine.open_workspace(args.workspace)
     summary = review(project)
     if project["draft"].get("task"):
@@ -119,7 +121,8 @@ def parser():
 
     action(commands, "ready", "ready", "whether this spec could run live on the samples as they are now; no calls")
     action(commands, "preview", "preview", "run on doubles: no calls, no spending")
-    command(commands, "approve", approve, help="accept the current spec, as a person")
+    item = command(commands, "approve", approve, help="accept the current spec, as a person")
+    item.add_argument("--as-agent", action="store_true", help="approve for the person who connected this agent, with no prompt")
     item = command(commands, "grant", grant, help="let a connected agent start live runs here, as a person")
     item.add_argument("--cap", type=float, help="spending cap in USD")
     item.add_argument("--days", type=int, default=GRANT_DAYS)

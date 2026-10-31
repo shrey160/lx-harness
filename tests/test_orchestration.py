@@ -11,7 +11,7 @@ from lx.orchestration import ACTIONS, Orchestration
 from lx.worker import execute
 from test_tasks import Base
 
-PERSON_ONLY = ("approve", "approve_preview", "set_budget", "create", "update", "delete", "release_held", "edit_spec", "discuss")
+PERSON_ONLY = ("approve_preview", "set_budget", "create", "update", "delete", "release_held", "edit_spec", "discuss")
 
 
 class Actions(Base):
