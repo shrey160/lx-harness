@@ -1,5 +1,6 @@
 """The orchestrator's actions (D-024): a scripted caller reaches a finished preview, and what stays with a person is refused."""
 from pathlib import Path
+import shutil
 import unittest
 from unittest.mock import patch
 
@@ -104,6 +105,15 @@ class WhatItMayDo(Actions):
         self.assertEqual(after["check"], check)
         self.assertEqual(after["task"]["contract"], before["task"]["contract"])
         self.assertEqual(self.lx.check_test(self.path)["samples"], 6)
+
+    def test_a_new_task_is_read_by_its_own_rules_not_the_old_drafts(self):
+        self.begin()
+        samples = Path(self.path)/"samples"
+        for folder in samples.iterdir():
+            (folder/"truth.json").write_text('{"lines": []}', encoding="utf-8")
+        shutil.rmtree(samples/"sample-06")
+        before = self.lx.spec_show(self.path)["version"]
+        self.assertEqual(self.lx.spec_draft(self.path, task={"truth_schema": "free", "stream_samples": 5})["version"], before+1)
 
     def test_a_task_needs_its_tools(self):
         self.begin()

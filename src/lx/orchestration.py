@@ -67,11 +67,11 @@ class Orchestration:
         """Field names and types of the answers, so a check can be written without seeing them."""
         return tasks.truth_shape(self._truths(self._id(workspace)))
 
-    def _truths(self, identifier):
+    def _truths(self, identifier, changes=None):
         task = self.engine.project(identifier)["draft"].get("task")
         if not task:
             raise ValueError("This workflow has a built-in task and check")
-        return tasks.sample_truths(self.engine.workspace(identifier).samples_path, task)
+        return tasks.sample_truths(self.engine.workspace(identifier).samples_path, {**task, **(changes or {})})
 
     def spec_show(self, workspace):
         project = self.engine.project(self._id(workspace))
@@ -88,7 +88,7 @@ class Orchestration:
         """A new spec version, which clears any approval. `task` holds only the fields that change."""
         identifier = self._id(workspace)
         current = self.engine.project(identifier)["draft"]["roles"]
-        if task and tasks.quotes_answers(" ".join(str(value) for value in task.values()), self._truths(identifier)):
+        if task and tasks.quotes_answers(" ".join(str(value) for value in task.values()), self._truths(identifier, task)):
             raise ValueError("The task text repeats answers from the samples; describe the work without them")
         project = self.engine.draft_spec(identifier, goal=goal, mode=mode, roles=self._roles(current, worker, improver), task=task,
                                          check=check, limits=limits, tools=tools)
