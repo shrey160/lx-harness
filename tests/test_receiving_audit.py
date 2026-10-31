@@ -1,9 +1,11 @@
 """The receiving audit's check and task, on five truths shaped like the planned samples."""
 import copy
 import importlib.util
+from io import BytesIO
 import json
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 from lx import checks, sandbox, tasks
 
@@ -13,6 +15,9 @@ TASK = json.loads((FOLDER/"task.json").read_text(encoding="utf-8"))
 spec = importlib.util.spec_from_file_location("receiving_audit_check", FOLDER/"check.py")
 check = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(check)
+spec = importlib.util.spec_from_file_location("receiving_audit_build", FOLDER/"build.py")
+builder = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(builder)
 
 
 def row(photo, count, *, top=20):
@@ -242,6 +247,99 @@ class SandboxTests(unittest.TestCase):
     def test_a_bad_truth_fails_the_self_test(self):
         with self.assertRaisesRegex(checks.CheckError, "crashed"):
             checks.self_test(SOURCE, {"bad": dict(TRUTHS["retake"], total_claim=1.0)})
+
+
+def pools():
+    """Plain squares standing in for cutouts, so these tests need no COCO data."""
+    from PIL import Image
+    colours = {}
+    for plan in builder.PLANS:
+        for planned in plan["lines"]:
+            colours.setdefault(planned["item"], len(colours))
+            colours.setdefault((planned.get("substitute") or planned)["item"], len(colours))
+    made = {}
+    for kind, shade in colours.items():
+        made[kind] = [{"ann_id": f"{kind}-{index}", "kind": kind, "image": Image.new("RGBA", (120, 100), (30+shade*20, 90, 200-shade*15, 255))} for index in range(30)]
+    return made
+
+
+class GeneratorTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.pools = pools()
+        cls.samples = {plan["name"]: builder.make_sample(plan, number, cls.pools) for number, plan in enumerate(builder.PLANS, 1)}
+
+    def test_each_sample_is_a_sound_audit_within_the_photo_limits(self):
+        self.assertEqual(len(self.samples), TASK["stream_samples"])
+        for name, sample in self.samples.items():
+            check.validate_truth(sample["truth"])
+            self.assertTrue(3 <= len(sample["photos"]) <= 7, name)
+            self.assertEqual(check.chains(sample["truth"], check.example_answer(sample["truth"]))[-1][1], True, name)
+
+    def test_credits_follow_each_note(self):
+        self.assertEqual({name: sample["truth"]["total_claim"] for name, sample in self.samples.items()},
+                         {"order-changed": 22.5, "slip-overclaims": 38.7, "substitution": 13.0, "retake": 7.3, "price-rule": 40.4})
+
+    def test_a_worker_that_missed_the_note_fails_each_sample(self):
+        plain = {name: {key: value for key, value in plan.items() if key not in ("discount", "free", "min_short")} for name, plan in zip(self.samples, builder.PLANS)}
+        for name in ("slip-overclaims", "substitution", "price-rule"):
+            self.assertNotEqual(sum(builder.credit(entry, plain[name]) for entry in plain[name]["lines"]), self.samples[name]["truth"]["total_claim"], name)
+        line_one = self.samples["order-changed"]["truth"]["lines"][0]
+        self.assertEqual((builder.PLANS[0]["lines"][0]["paper"], line_one["ordered"], check.expected_status(line_one)), (6, 9, "short"))
+
+    def test_the_slip_overclaims(self):
+        lines = builder.PLANS[1]["lines"]
+        self.assertTrue(any(entry["shipped"] > sum(entry["shots"]) for entry in lines if "shipped" in entry))
+
+    def test_notes_run_about_twenty_to_forty_seconds_and_name_real_photos(self):
+        for name, sample in self.samples.items():
+            self.assertTrue(50 <= len(sample["note"].split()) <= 100, name)
+            self.assertNotIn("{", sample["note"])
+        layout = self.samples["retake"]["layout"]
+        left_out = [number for number, entry in enumerate(layout, 1) if entry.get("ignored")]
+        retaken = [number for number, entry in enumerate(layout, 1) if entry.get("delivery") == 2]
+        self.assertIn(f"Use photo {builder.WORDS[retaken[0]]} and leave photo {builder.WORDS[left_out[0]]} out", self.samples["retake"]["note"])
+
+    def test_a_retaken_photo_has_the_same_objects_and_no_expected_boxes(self):
+        layout = self.samples["retake"]["layout"]
+        shots = {entry["delivery"]: entry for entry in layout if "delivery" in entry}
+        self.assertEqual(sorted(shots[1]["ann_ids"]), sorted(shots[2]["ann_ids"]))
+        expected = {box["photo"] for entry in self.samples["retake"]["truth"]["lines"] for box in entry["boxes"]}
+        self.assertNotIn(layout.index(shots[1])+1, expected)
+
+    def test_no_cutout_is_used_twice_in_a_sample_outside_a_retake(self):
+        for name, sample in self.samples.items():
+            used = [ann for entry in sample["layout"] if "delivery" in entry and not entry["ignored"] for ann in entry["ann_ids"]]
+            self.assertEqual(len(used), len(set(used)), name)
+
+    def test_boxes_lie_inside_the_photo_they_name(self):
+        from PIL import Image
+        for sample in self.samples.values():
+            for entry in sample["truth"]["lines"]:
+                for placed in entry["boxes"]:
+                    with Image.open(BytesIO(sample["photos"][placed["photo"]-1])) as photo:
+                        x1, y1, x2, y2 = placed["box"]
+                        self.assertTrue(0 <= x1 <= x2 < photo.width and 0 <= y1 <= y2 < photo.height)
+
+    def test_the_crowded_sample_overlaps_within_its_limit(self):
+        shots = [entry for entry in self.samples["price-rule"]["layout"] if "delivery" in entry]
+        overlapping = 0
+        for entry in shots:
+            boxes = [box for _, box in entry["objects"]]
+            overlapping += sum(check.iou(a, b) > 0 for index, a in enumerate(boxes) for b in boxes[index+1:])
+        self.assertGreater(overlapping, 0)
+
+    def test_an_object_hidden_past_the_limit_is_refused(self):
+        import random
+        from PIL import Image
+        cutouts = [{"image": Image.new("RGBA", (300, 300), (9, 9, 9, 255))}]*2
+        with patch.object(builder, "SCENE_SIZE", (340, 340)), patch.object(random.Random, "randint", lambda self, low, high: low):
+            self.assertIsNone(builder.compose(cutouts, random.Random(1), 1.0, "x"))
+
+    def test_the_same_seed_gives_the_same_sample(self):
+        again = builder.make_sample(builder.PLANS[3], 4, self.pools)
+        self.assertEqual(again["photos"], self.samples["retake"]["photos"])
+        self.assertEqual(again["truth"], self.samples["retake"]["truth"])
 
 
 if __name__ == "__main__":
