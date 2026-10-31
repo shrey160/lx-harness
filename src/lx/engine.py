@@ -27,6 +27,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from urllib.parse import urlsplit
 import uuid
@@ -468,6 +469,27 @@ class Engine:
         if not draft.get("task"):
             raise ValueError("This workflow has a built-in check")
         return checks.self_test(workspace.check_source(draft["check"]), tasks.sample_truths(workspace.samples_path, draft["task"]))
+
+    def ready(self, identifier):
+        """Whether the current spec could run live on the samples as they are now. No model and no network:
+        it says this can run, never that it is good. Works on any samples, unlike a preview."""
+        workspace = self.workspace(identifier)
+        draft = workspace.spec(workspace.project()["spec_version"])
+        if not draft.get("task"):
+            raise ValueError("This workflow has a built-in task and check")
+        problems, check, blocked = tasks.sample_problems(workspace.samples_path, draft["task"]), None, None
+        if not problems:
+            try:
+                with tempfile.TemporaryDirectory() as folder:
+                    tasks.build_dataset(workspace.samples_path, Path(folder)/"dataset", draft["task"], preview=False)
+                check = self.test_check(identifier)
+            except ValueError as exc:
+                problems.append({"sample":None,"problem":str(exc)})
+        try:
+            self._check_providers({**draft,"mode":"live"})
+        except ValueError as exc:
+            blocked = str(exc)
+        return {"ready":not problems and not blocked,"problems":problems,"blocked":blocked,"check":check}
 
     def _drop_approval(self, workspace, identifier):
         approval = self._approval(identifier)

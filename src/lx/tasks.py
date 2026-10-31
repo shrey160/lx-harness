@@ -19,7 +19,7 @@ from .checks import CheckError, run_check
 from .inventory import CONTRACT, GRID, CELL, synthetic_sample
 from .inventory_data import _tone, add_user_samples, check_sample_folder, finalize_inventory, normalize_photo
 from .inventory_workflow import BASE_PROMPT, PHOTOS_NOTE, VIEW_NOTE, InventoryDomain
-from .perception import media_hash
+from .perception import MAX_IMAGE_BYTES, media_hash
 from .text_task import sample_folders
 
 TEMPLATE = "photo-request"
@@ -175,6 +175,41 @@ def require_audio(root):
     missing = [folder.name for folder in sample_folders(root) if not (folder/"request.wav").is_file()]
     if missing:
         raise ValueError(f"A live run needs request.wav in every sample; missing in {', '.join(missing[:6])}")
+
+
+def _media_problems(folder, inventory):
+    """What would stop this photo sample in a live run. Photos are read as the worker and SAM will get them."""
+    from .agent import render_view
+    from .inventory_probe import MAX_VIEW_BYTES
+    photos, _, wav, _ = check_sample_folder(folder, inventory=inventory)
+    found = [] if wav else ["add request.wav: a live run needs the spoken request"]
+    for path in photos:
+        try:
+            data = normalize_photo(path.read_bytes())
+        except ValueError as exc:
+            found.append(f"photos/{path.name}: {exc}")
+            continue
+        if len(data) > MAX_IMAGE_BYTES or len(render_view(data)[0]) > MAX_VIEW_BYTES:
+            found.append(f"photos/{path.name}: still too large for the model after resizing; use a simpler or smaller photo")
+    return found
+
+
+def sample_problems(root, task):
+    """[{sample, problem}] across every sample, so one bad file does not hide the next."""
+    folders, problems = sample_folders(root), []
+    if len(folders) < task["stream_samples"]:
+        problems.append({"sample": None, "problem": f"This task needs at least {task['stream_samples']} sample folders; found {len(folders)}"})
+    for folder in folders:
+        try:
+            if is_text(task):
+                text_task.check_sample_folder(folder)
+                found = []
+            else:
+                found = _media_problems(folder, task.get("truth_schema") == "inventory")
+        except ValueError as exc:
+            found = [str(exc).removeprefix(folder.name+": ")]
+        problems += [{"sample": folder.name, "problem": text} for text in found]
+    return problems
 
 
 def preview_scenes(count, *, seed=PREVIEW_SEED):

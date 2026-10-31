@@ -7,7 +7,7 @@ export function SpecTab({state,project,ui,setTab}){
   const {draft}=project;
   const [goal,setGoal]=useState(draft.goal),[mode,setMode]=useState(draft.mode||'controlled_preview'),[roles,setRoles]=useState(draft.roles);
   const [budget,setBudget]=useState(String(draft.budget_usd)),[workspaceBudget,setWorkspaceBudget]=useState(String(project.budget.cap_usd));
-  const [limits,setLimits]=useState(draft.limits),[tools,setTools]=useState(draft.tools),[reviewing,setReviewing]=useState(false),[checkResult,setCheckResult]=useState(null);
+  const [limits,setLimits]=useState(draft.limits),[tools,setTools]=useState(draft.tools),[reviewing,setReviewing]=useState(false),[checkResult,setCheckResult]=useState(null),[readyResult,setReadyResult]=useState(null);
   const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||JSON.stringify(tools)!==JSON.stringify(draft.tools)||Number(budget)!==Number(draft.budget_usd);
   const budgetDirty=Number(workspaceBudget)!==project.budget.cap_usd;
   const ownLimits=()=>({...(draft.limits_set||{}),...Object.fromEntries(Object.entries(limits).filter(([name,value])=>value!==draft.limits[name]))});
@@ -17,6 +17,7 @@ export function SpecTab({state,project,ui,setTab}){
     ui.notify(specDirty?'Saved as a new version.':'Workspace budget saved.');
   });
   const testCheck=()=>ui.act(async()=>{setCheckResult(null);setCheckResult(await api(`projects/${project.id}/check-test`,{}));});
+  const checkReady=()=>ui.act(async()=>{setReadyResult(null);setReadyResult(await api(`projects/${project.id}/ready`,{}));});
   const hosts=ROLES.map(role=>{const model=state.models.find(m=>m.id===roles[role]);return model?new URL(model.base_url).host:null;});
   return <section className="narrow spec">
     <div className="spec-status"><span className="muted">Version {draft.version}</span>{project.approved&&!specDirty&&<span className="chip ok">Approved</span>}</div>
@@ -25,8 +26,9 @@ export function SpecTab({state,project,ui,setTab}){
     <h2>Task</h2>
     {draft.task?<>
       <p className="capital-first">{draft.task.name.replace(/^lx_/,'').replaceAll('_',' ')} · {draft.task.stream_samples} samples in the loop · check <code>{draft.check.sha256.slice(0,12)}</code></p>
-      <div className="actions"><button className="button" disabled={ui.busy} onClick={testCheck}>Test the check</button></div>
+      <div className="actions"><button className="button" disabled={ui.busy} onClick={testCheck}>Test the check</button><button className="button" disabled={ui.busy} onClick={checkReady}>Check these samples</button></div>
       {checkResult&&<CheckScores result={checkResult}/>}
+      {readyResult&&<Ready result={readyResult}/>}
     </>:<p className="muted">Image annotation demo. Answers need each object's label and box, within one pixel, and the exact transcript.</p>}
 
     <h2>Run mode</h2>
@@ -95,6 +97,15 @@ function CheckScores({result}){
   return <div role="status">
     <p className="muted">Passed {result.cases} cases on {result.samples} samples. A correct answer scores 1.00, a blank one at most {score(result.blank_score)}, another sample's answer at most {score(result.wrong_score)}.</p>
     {result.weaknesses.map(text=><p className="callout warn" key={text}>{text}</p>)}
+  </div>;
+}
+
+function Ready({result}){
+  return <div role="status">
+    {result.ready?<p className="muted">These samples can run live. This says the run can start, not how well it will do.</p>:<p className="callout bad">Not ready for a live run yet.</p>}
+    {result.blocked&&<p className="callout bad">{result.blocked}</p>}
+    {result.problems.length>0&&<ul className="plain">{result.problems.map((item,i)=><li key={i}>{item.sample&&<strong>{item.sample}: </strong>}{item.problem}</li>)}</ul>}
+    {result.check&&<CheckScores result={result.check}/>}
   </div>;
 }
 

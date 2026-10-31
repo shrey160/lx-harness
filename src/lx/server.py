@@ -124,6 +124,7 @@ def server_for(app, port=8765):
                     elif action=="budget": result=app.set_budget(identifier,data.get("cap_usd"))
                     elif action=="task": result=app.set_task(identifier,data.get("task"),data.get("check"))
                     elif action=="check-test": result=app.test_check(identifier)
+                    elif action=="ready": result=app.ready(identifier)
                     elif action=="approve": result=app.approve(identifier,data)
                     elif action=="grant": result=app.set_grant(identifier,data)
                     elif action=="grant-revoke": result=app.revoke_grant(identifier)

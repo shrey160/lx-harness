@@ -117,6 +117,7 @@ def parser():
     action(check, "test", "check_test", "self-test the check on the samples")
     action(check, "shape", "truth_shape", "field names and types of the answers, never their values")
 
+    action(commands, "ready", "ready", "whether this spec could run live on the samples as they are now; no calls")
     action(commands, "preview", "preview", "run on doubles: no calls, no spending")
     command(commands, "approve", approve, help="accept the current spec, as a person")
     item = command(commands, "grant", grant, help="let a connected agent start live runs here, as a person")

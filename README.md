@@ -380,10 +380,16 @@ lx samples
 lx spec show
 lx spec draft --mode live --tools sam-catalog,transcribe-catalog
 lx check test
+lx ready
 lx preview
 lx run status
 lx results <run id>
 ```
+
+`lx ready`, or "Check these samples" on the Spec tab, tells you whether this spec could run
+live on your samples as they are now: per-sample problems, what blocks a run, and how the
+check scores. It makes no calls and spends nothing, and it says a run can start, not how
+well it will do. `lx preview` runs the whole flow, but only on the synthetic samples.
 
 `lx approve`, `lx grant --cap 2` and `lx run resume <run id>` are a person's steps. Each
 shows what you accept and waits for you to type yes, and each refuses without a real
