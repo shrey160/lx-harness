@@ -127,6 +127,10 @@ What the list gives depends on the provider. Checked on 31 October 2026:
 | Unsloth Studio | `http://127.0.0.1:8888/v1` | Names, plus which model is loaded and, for that one, context size and image and tool support. Counted as free |
 | Local server | Any local address; starts at `http://127.0.0.1:8080/v1` | Usually names only. Counted as free |
 
+A model's Advanced settings also hold Thinking, for llama.cpp servers such as
+Unsloth Studio: server default, on or off. An approval binds it, so changing it
+means approving the spec again.
+
 For example, `meta/muse-spark-1.3-contributor` on OpenRouter lists $0.10 and $0.20
 per million tokens, and $0.002 for cached input.
 

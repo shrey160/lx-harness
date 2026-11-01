@@ -47,7 +47,7 @@ class RegistryTests(unittest.TestCase):
         for model in models:
             self.assertEqual(set(model), {
                 "id", "name", "model_id", "capabilities", "kind", "base_url", "accepts_images",
-                "supports_tools", "pricing", "context_limit", "requests_per_minute", "limits", "enabled", "role_ready", "priced", "has_key", "credential_source",
+                "supports_tools", "pricing", "context_limit", "requests_per_minute", "limits", "enabled", "thinking", "role_ready", "priced", "has_key", "credential_source",
             })
             self.assertNotIn("secret", json.dumps(model).lower())
             self.assertEqual(model["base_url"], "https://api.meta.ai/v1")
@@ -252,6 +252,22 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(profile.endpoint, "https://openrouter.ai/api/v1/chat/completions")
         with self.assertRaises(RegistryError):
             self.registry.update(free["id"], context_limit=10)
+
+    def test_an_entry_can_set_thinking_and_hand_it_back_to_the_server(self):
+        entry = self.registry.create("Local", "local/model", ["General"], base_url="http://127.0.0.1:8888/v1")
+        self.assertEqual(entry["thinking"], "default")
+        self.assertIsNone(self.registry.profile(entry["id"]).enable_thinking)
+        for setting, sent in (("off", False), ("on", True)):
+            self.assertEqual(self.registry.update(entry["id"], thinking=setting)["thinking"], setting)
+            self.assertIs(self.registry.profile(entry["id"]).enable_thinking, sent)
+        self.assertEqual(self.registry.update(entry["id"], name="Renamed")["thinking"], "on")
+        self.assertEqual(self.registry.update(entry["id"], thinking="default")["thinking"], "default")
+        self.assertIsNone(self.registry.profile(entry["id"]).enable_thinking)
+        made = self.registry.create("Off", "local/off", ["General"], base_url="http://127.0.0.1:8888/v1", thinking="off")
+        self.assertIs(self.registry.profile(made["id"]).enable_thinking, False)
+        for bad in ("maybe", True, 1):
+            with self.subTest(bad), self.assertRaises(RegistryError):
+                self.registry.update(entry["id"], thinking=bad)
 
     def test_an_entry_holds_a_rate_and_its_own_limits(self):
         entry = self.registry.create("Paced", "muse/paced", ["General"], base_url="https://openrouter.ai/api/v1",

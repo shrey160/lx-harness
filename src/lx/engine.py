@@ -218,8 +218,9 @@ class Engine:
             raise ValueError(f"{model['name']} is switched off in Settings, under Providers. Switch it on or choose another.")
         if model is None or not model["role_ready"]:
             raise ValueError("Each role needs a chat provider entry with an endpoint")
-        return {key:model[key] for key in ("id","name","model_id","base_url","pricing","context_limit","accepts_images","supports_tools","priced",
-                                           "requests_per_minute","limits")}
+        return {**{key:model[key] for key in ("id","name","model_id","base_url","pricing","context_limit","accepts_images","supports_tools","priced",
+                                              "requests_per_minute","limits")},
+                **({} if model["thinking"] == "default" else {"thinking":model["thinking"]})}  # left out so older approvals still match
 
     def data_notice(self, draft):
         """Who receives what in a live run, for the owner to accept (D-015(8))."""

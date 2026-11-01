@@ -51,7 +51,7 @@ _COLUMNS = {"kind": "TEXT NOT NULL DEFAULT 'chat'", "base_url": "TEXT",
             "accepts_images": "INTEGER NOT NULL DEFAULT 0", "supports_tools": "INTEGER NOT NULL DEFAULT 0",
             "pricing": "TEXT NOT NULL DEFAULT '{}'", "context_limit": "INTEGER",
             "requests_per_minute": "INTEGER", "limits": "TEXT NOT NULL DEFAULT '{}'",
-            "enabled": "INTEGER NOT NULL DEFAULT 1"}
+            "enabled": "INTEGER NOT NULL DEFAULT 1", "thinking": "TEXT"}
 _PRICE_FIELDS = ("input_per_million", "output_per_million")
 _CACHED_PRICE = "cached_per_million"
 _MAX_NAME = 120
@@ -60,6 +60,7 @@ _MAX_CAPABILITY = 240
 _MAX_CAPABILITIES = 20
 _MAX_KEY = 8192
 _KEYCHAIN = "keychain:"
+_THINKING = {"on": True, "off": False}  # anything else leaves it to the server
 
 
 class Registry:
@@ -207,6 +208,12 @@ class Registry:
         except ValueError as exc:
             raise RegistryError(str(exc)) from None
 
+    @staticmethod
+    def _thinking(value: Any) -> str | None:
+        if value is not None and value != "default" and value not in _THINKING:
+            raise RegistryError("thinking must be on, off or default")
+        return value
+
     def _public(self, row: sqlite3.Row) -> dict[str, Any]:
         prices = json.loads(row["pricing"])
         return {
@@ -223,6 +230,7 @@ class Registry:
             "requests_per_minute": row["requests_per_minute"],
             "limits": json.loads(row["limits"]),
             "enabled": bool(row["enabled"]),
+            "thinking": row["thinking"] or "default",
             # Any chat entry with an endpoint can fill any role; live spending also needs prices.
             "role_ready": row["kind"] == "chat" and bool(row["base_url"]) and bool(row["enabled"]),
             "priced": bool(row["builtin"]) or set(_PRICE_FIELDS) <= set(prices),
@@ -256,6 +264,7 @@ class Registry:
         requests_per_minute: int | None = None,
         limits: dict[str, int] | None = None,
         key_from: str | None = None,
+        thinking: str | None = None,
     ) -> dict[str, Any]:
         name = self._text(name, "name", _MAX_NAME)
         model_id = self._text(model_id, "model_id", _MAX_MODEL_ID)
@@ -276,6 +285,7 @@ class Registry:
         context = self._context_limit(context_limit)
         rate = self._rate(requests_per_minute) or None
         own_limits = self._limits(limits) or {}
+        thought = self._thinking(thinking)
         if type(accepts_images) is not bool or type(supports_tools) is not bool:
             raise RegistryError("invalid model flags")
         record_id = uuid.uuid4().hex
@@ -285,11 +295,11 @@ class Registry:
                 db.execute("BEGIN IMMEDIATE")
                 db.execute(
                     "INSERT INTO models (id,name,model_id,capabilities,builtin,secret_ref,"
-                    "kind,base_url,accepts_images,supports_tools,pricing,context_limit,requests_per_minute,limits) "
-                    "VALUES (?,?,?,?,0,?,?,?,?,?,?,?,?,?)",
+                    "kind,base_url,accepts_images,supports_tools,pricing,context_limit,requests_per_minute,limits,thinking) "
+                    "VALUES (?,?,?,?,0,?,?,?,?,?,?,?,?,?,?)",
                     (record_id, name, model_id, json.dumps(caps), secret_ref,
                      kind, url, int(accepts_images), int(supports_tools), json.dumps(prices), context,
-                     rate, json.dumps(own_limits)),
+                     rate, json.dumps(own_limits), None if thought == "default" else thought),
                 )
                 row = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
                 db.commit()
@@ -317,6 +327,7 @@ class Registry:
         context_limit: int | None = None,
         requests_per_minute: int | None = None,
         limits: dict[str, int] | None = None,
+        thinking: str | None = None,
     ) -> dict[str, Any]:
         if name is not None:
             name = self._text(name, "name", _MAX_NAME)
@@ -326,9 +337,10 @@ class Registry:
         context = self._context_limit(context_limit)
         rate = self._rate(requests_per_minute)
         own_limits = self._limits(limits)
+        thought = self._thinking(thinking)
         if any(flag is not None and type(flag) is not bool for flag in (accepts_images, supports_tools)):
             raise RegistryError("invalid model flags")
-        provider_change = any(v is not None for v in (base_url, accepts_images, supports_tools, pricing, context, rate, own_limits))
+        provider_change = any(v is not None for v in (base_url, accepts_images, supports_tools, pricing, context, rate, own_limits, thought))
         key = self._api_key(api_key)
         new_ref = self._write_secret(key) if key is not None else None
         old_ref: str | None = None
@@ -347,14 +359,15 @@ class Registry:
                 db.execute(
                     "UPDATE models SET name=?, capabilities=?, secret_ref=?, base_url=?, "
                     "accepts_images=?, supports_tools=?, pricing=?, context_limit=?, "
-                    "requests_per_minute=?, limits=? WHERE id=?",
+                    "requests_per_minute=?, limits=?, thinking=? WHERE id=?",
                     (next_name, next_caps, next_ref, url if url is not None else row["base_url"],
                      int(accepts_images) if accepts_images is not None else row["accepts_images"],
                      int(supports_tools) if supports_tools is not None else row["supports_tools"],
                      json.dumps(prices) if prices is not None else row["pricing"],
                      context if context is not None else row["context_limit"],
                      row["requests_per_minute"] if rate is None else rate or None,
-                     json.dumps(own_limits) if own_limits is not None else row["limits"], record_id),
+                     json.dumps(own_limits) if own_limits is not None else row["limits"],
+                     row["thinking"] if thought is None else None if thought == "default" else thought, record_id),
                 )
                 result = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
                 db.commit()
@@ -471,7 +484,8 @@ class Registry:
                 output_price=per_token("output_per_million"),
                 token_param="max_completion_tokens" if row["base_url"] == META_API else "max_tokens",
                 **({"context_limit": row["context_limit"]} if row["context_limit"] else {}),
-                accepts_images=bool(row["accepts_images"]), supports_tools=bool(row["supports_tools"]))
+                accepts_images=bool(row["accepts_images"]), supports_tools=bool(row["supports_tools"]),
+                enable_thinking=_THINKING.get(row["thinking"]))
         except ValueError as exc:
             raise RegistryError(str(exc)) from None
 

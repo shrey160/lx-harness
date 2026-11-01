@@ -219,6 +219,15 @@ class ApplicationFlowTests(unittest.TestCase):
                   "pricing":{"input_per_million":0.0375,"output_per_million":0.15},"context_limit":32768}
         return self.app.registry.create(name,"test/"+name,["General"],**{**values,**fields})
 
+    def test_a_thinking_setting_is_bound_by_approval_and_the_default_changes_nothing(self):
+        entry = self.entry("thinker",base_url="http://127.0.0.1:8888/v1")
+        before = self.app._provider(entry["id"])
+        self.assertNotIn("thinking",before)
+        self.app.registry.update(entry["id"],thinking="off")
+        self.assertEqual({**before,"thinking":"off"},self.app._provider(entry["id"]))
+        self.app.registry.update(entry["id"],thinking="default")
+        self.assertEqual(before,self.app._provider(entry["id"]))
+
     def three_roles(self):
         return {"orchestrator":self.entry("gilmer",api_key="dummy-key-gilmer")["id"],
                 "improver":self.entry("local",base_url="http://127.0.0.1:8888/v1",pricing={"input_per_million":0,"output_per_million":0})["id"],

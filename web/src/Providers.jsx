@@ -25,14 +25,14 @@ export function Providers({state,ui}){
   const [form,setForm]=useState(null),[editing,setEditing]=useState(''),[adding,setAdding]=useState(false),[addingTo,setAddingTo]=useState(null),[tests,setTests]=useState({});
   const set=(field,value)=>setForm({...form,[field]:value});
   const close=()=>{setForm(null);setEditing('');};
-  const edit=model=>{setEditing(model.id);setForm({key:'',name:model.name,modelId:model.model_id,capabilities:model.capabilities.join(', '),baseUrl:model.base_url||'',inputPrice:model.pricing.input_per_million??'',outputPrice:model.pricing.output_per_million??'',cachedPrice:model.pricing.cached_per_million??'',contextLimit:model.context_limit??'',acceptsImages:model.accepts_images,supportsTools:model.supports_tools,rate:model.requests_per_minute??'',callSeconds:model.limits.call_seconds??'',replyTokens:model.limits.reply_tokens??''});};
+  const edit=model=>{setEditing(model.id);setForm({key:'',name:model.name,modelId:model.model_id,capabilities:model.capabilities.join(', '),baseUrl:model.base_url||'',inputPrice:model.pricing.input_per_million??'',outputPrice:model.pricing.output_per_million??'',cachedPrice:model.pricing.cached_per_million??'',contextLimit:model.context_limit??'',acceptsImages:model.accepts_images,supportsTools:model.supports_tools,rate:model.requests_per_minute??'',callSeconds:model.limits.call_seconds??'',replyTokens:model.limits.reply_tokens??'',thinking:model.thinking});};
   const test=id=>ui.act(async()=>{const result=await api(`models/${id}/test`,{});setTests({...tests,[id]:result});});
   const remove=model=>ui.act(()=>api(`models/${model.id}/delete`,{}));
   const save=()=>ui.act(async()=>{
     const builtIn=editing==='spark-contributor';
     const provider=builtIn?{}:{accepts_images:form.acceptsImages,supports_tools:form.supportsTools,...(form.baseUrl?{base_url:form.baseUrl}:{}),
       ...(form.inputPrice!==''&&form.outputPrice!==''?{pricing:{input_per_million:Number(form.inputPrice),output_per_million:Number(form.outputPrice),...(form.cachedPrice!==''?{cached_per_million:Number(form.cachedPrice)}:{})}}:{}),
-      ...(form.contextLimit!==''?{context_limit:Number(form.contextLimit)}:{}),requests_per_minute:Number(form.rate||0),
+      ...(form.contextLimit!==''?{context_limit:Number(form.contextLimit)}:{}),requests_per_minute:Number(form.rate||0),thinking:form.thinking,
       limits:{...(form.callSeconds!==''?{call_seconds:Number(form.callSeconds)}:{}),...(form.replyTokens!==''?{reply_tokens:Number(form.replyTokens)}:{})}};
     const body={name:form.name,capabilities:form.capabilities.split(',').map(s=>s.trim()).filter(Boolean),...provider,...(form.key?{api_key:form.key}:{})};
     await api(`models/${editing}/update`,body);
@@ -147,6 +147,7 @@ function EditProvider({form,set,editing,ui,save,close}){
         {!builtIn&&<div className="checks"><label className="check"><input type="checkbox" checked={form.acceptsImages} onChange={e=>set('acceptsImages',e.target.checked)}/>Accepts images</label><label className="check"><input type="checkbox" checked={form.supportsTools} onChange={e=>set('supportsTools',e.target.checked)}/>Supports tool calls</label></div>}
         {!builtIn&&Text('Context limit in tokens','contextLimit',{type:'number',min:1024,placeholder:'Each call reserves this much at the input price'})}
         {!builtIn&&Text('Requests per minute','rate',{type:'number',min:0,step:1,placeholder:'Blank for no pacing'})}
+        {!builtIn&&<label className="field">Thinking<select value={form.thinking} onChange={e=>set('thinking',e.target.value)}><option value="default">Server default</option><option value="on">On</option><option value="off">Off</option></select><small className="muted">For llama.cpp servers such as Unsloth Studio, whose models can think before they answer. Other providers ignore or refuse it. Changing it means approving a spec again.</small></label>}
         {!builtIn&&<div className="three two-up">{Text('Default seconds per call','callSeconds',{type:'number',min:10,max:1800,step:1})}{Text('Default reply tokens','replyTokens',{type:'number',min:256,max:32768,step:1})}</div>}
       </div></details>
       <div className="actions"><button className="button primary" disabled={ui.busy||!form.name||!form.capabilities} onClick={save}>Save</button><button className="button" disabled={ui.busy} onClick={close}>Cancel</button></div>
