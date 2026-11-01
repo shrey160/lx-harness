@@ -102,6 +102,32 @@ class Trajectories(Base):
     def test_an_agent_cannot_ask_for_them(self):
         self.assertFalse(hasattr(Orchestration, "trajectory_bytes"))
 
+    def test_a_trace_can_be_listed_and_read_and_nothing_outside_the_list(self):
+        path = self.folder()
+        write_synthetic(Path(path)/"samples", 6)
+        lx = Orchestration(self.app, launch=False)
+        lx.init(path, "photo-request")
+        run = lx.preview(path)["run_id"]
+        project = self.app.open_workspace(path)
+        self.app.stop(project["id"], run)
+        self.assertEqual(self.app.run_trajectories(project["id"], run)["executions"], [])
+        workspace = self.app.workspace(project["id"])
+        folder = workspace.run_dir(run)/"outputs"/"runs"/"executions"/"task-x"/"sample-01"/"base1"
+        folder.mkdir(parents=True)
+        trace = [{"type": "tools", "names": ["view"]},
+                 {"type": "assistant", "content": "looking", "tool_calls": [{"name": "view", "arguments": {"photo": 1}}], "output_tokens": 5},
+                 {"type": "tool", "name": "view", "arguments": {"photo": 1}, "result": {"photo": 1}},
+                 {"type": "assistant", "content": "done", "tool_calls": [], "output_tokens": 2}]
+        (folder/"trace.json").write_text(json.dumps({"final_text": "done", "trace": trace}), encoding="utf-8")
+        (workspace.run_dir(run)/"secret.txt").write_text("not a trace", encoding="utf-8")
+        listed = self.app.run_trajectories(project["id"], run)["executions"]
+        self.assertEqual(listed, [{"path": "task-x/sample-01/base1", "turns": 2, "tool_calls": {"view": 1}, "stopped": None, "answered": True}])
+        one = self.app.run_trajectory(project["id"], run, "task-x/sample-01/base1")
+        self.assertEqual((one["final_text"], len(one["trace"])), ("done", 4))
+        for bad in ("", None, "../secret.txt", "/etc/passwd", "task-x/..", "task-x\sample-01", "task-x/sample-01", "task-x/sample-01/base1/trace.json"):
+            with self.subTest(path=bad), self.assertRaisesRegex(ValueError, "Unknown trajectory"):
+                self.app.run_trajectory(project["id"], run, bad)
+
 
 @unittest.skipUnless(sandbox.available(), "needs the script sandbox")
 class APreviewPackage(Base):

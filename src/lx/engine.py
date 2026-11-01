@@ -1203,6 +1203,46 @@ class Engine:
                 archive.write(path,path.relative_to(folder).as_posix())
         return stream.getvalue()
 
+    def _execution_traces(self, workspace, job_id):
+        folder = workspace.run_dir(job_id)/"outputs"/"runs"/"executions"
+        traces = sorted(path for path in folder.rglob("trace.json") if path.is_file() and not path.is_symlink()) if folder.is_dir() else []
+        return folder, traces
+
+    def run_trajectories(self, identifier, job_id):
+        """What each agent run of this job did, in brief. A trace is written when its agent run ends, so a running job shows the finished ones."""
+        workspace = self.workspace(identifier)
+        job = workspace.run(job_id)
+        folder, traces = self._execution_traces(workspace, job_id)
+        found = []
+        for path in traces:
+            try:
+                record = json.loads(path.read_text(encoding="utf-8"))
+                steps = record["trace"]
+                calls = {}
+                for step in steps:
+                    if step["type"] == "tool":
+                        calls[step["name"]] = calls.get(step["name"], 0)+1
+                stopped = next((step["reason"] for step in steps if step["type"] == "stopped"), None)
+                found.append({"path":path.parent.relative_to(folder).as_posix(),"turns":sum(step["type"] == "assistant" for step in steps),
+                              "tool_calls":calls,"stopped":stopped,"answered":bool((record.get("final_text") or "").strip())})
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+        return {"status":job["status"],"executions":found}
+
+    def run_trajectory(self, identifier, job_id, path):
+        """One agent run's trace, as recorded. Only a path under this job's executions folder is read."""
+        workspace = self.workspace(identifier)
+        workspace.run(job_id)
+        folder, traces = self._execution_traces(workspace, job_id)
+        wanted = PurePosixPath(path or "")
+        if not path or wanted.is_absolute() or ".." in wanted.parts or "\\" in path:
+            raise ValueError("Unknown trajectory")
+        target = next((item for item in traces if item.parent.relative_to(folder).as_posix() == wanted.as_posix()), None)
+        if target is None or target.stat().st_size > 20_000_000:
+            raise ValueError("Unknown trajectory")
+        record = json.loads(target.read_text(encoding="utf-8"))
+        return {"path":wanted.as_posix(),"final_text":record.get("final_text") or "","trace":record["trace"]}
+
     def fresh(self, identifier, job_id):
         workspace = self.workspace(identifier)
         job = workspace.run(job_id)

@@ -171,6 +171,19 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .settings-nav .nav-row { width: auto; }
 }
 .setup { margin: 8px 0 16px; padding: 12px; overflow-x: auto; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; }
+.trajectories { margin-top: 4px; }
+.execution { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 12px; }
+.execution > summary { cursor: pointer; padding: 4px 0; }
+.steps { list-style: none; margin: 8px 0 4px; padding: 0; display: grid; gap: 8px; }
+.step { padding: 8px 10px; border-left: 3px solid var(--line); background: var(--panel); border-radius: var(--radius); font-size: 13px; overflow-wrap: anywhere; }
+.step.agent { border-left-color: var(--accent); }
+.step.tool { border-left-color: var(--run); }
+.step.tool.bad { border-left-color: var(--bad); background: var(--bad-soft); }
+.step.final { border-left-color: var(--warn); }
+.step.meta { background: transparent; }
+.step .said { margin: 4px 0; white-space: pre-wrap; }
+.step .call { margin-top: 4px; }
+.step pre { margin: 6px 0 0; max-height: 360px; overflow: auto; white-space: pre-wrap; }
 .edits { margin-top: 16px; }
 .edits details { margin: 8px 0; }
 .edits summary { cursor: pointer; }

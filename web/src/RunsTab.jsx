@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react';
+import {Trajectories} from './Trajectories.jsx';
 import {active, api, modeName, money, plural, resumable, scores, statusName, tone, when} from './api.js';
 
 export function RunsTab({project,jobs,ui,setTab}){
@@ -33,6 +34,7 @@ function RunPage({project,job,ui,back,canTry,tryHarness}){
   const path=`jobs/${project.id}/${job.id}`;
   const {result,progress}=job,live=job.mode==='live';
   const post=(action,body={})=>ui.act(()=>api(`${path}/${action}`,body));
+  const [view,setView]=useState('overview');
   return <section className="narrow">
     <button className="link" onClick={back}>← All runs</button>
     <div className="run-head"><h2>{statusName(job)}</h2><span className="muted">{modeName(job.mode)} · version {job.spec.version} · {when(job.created_at)}{job.finished_at?` · took ${Math.max(1,Math.round((job.finished_at-job.created_at)/60))} min`:''}</span></div>
@@ -46,11 +48,14 @@ function RunPage({project,job,ui,back,canTry,tryHarness}){
       {resumable(job)&&<button className="button" disabled={ui.busy} onClick={()=>post('resume')}>Resume</button>}
       {job.status==='failed'&&job.spec.task&&job.kind!=='trial'&&<button className="button" disabled={ui.busy} onClick={()=>post('regrade')}>Grade saved answers</button>}
     </div>
+    {job.spec.task&&<div className="tabs" role="tablist">{[['overview','Overview'],['trajectories','Trajectories']].map(([id,label])=><button key={id} role="tab" aria-selected={view===id} className={view===id?'current':''} onClick={()=>setView(id)}>{label}</button>)}</div>}
+    {view==='trajectories'&&job.spec.task?<Trajectories project={project} job={job}/>:<>
     {result&&(job.kind==='trial'?<TrialResult project={project} job={job}/>:<Result project={project} job={job} ui={ui} post={post} live={live} canTry={canTry} tryHarness={tryHarness}/>)}
     {job.kind!=='trial'&&job.spec.task&&<Edits project={project} job={job}/>}
     <Health job={job} busy={ui.busy} release={charged=>post('release',{charged})}/>
     <h3>Usage{live?'':' (simulated)'}</h3>
     <Usage usage={job.usage}/>
+    </>}
   </section>;
 }
 
