@@ -64,6 +64,11 @@ def server_for(app, port=8765):
                     return self.respond(app.run_trajectory(pieces[2],pieces[3],parse_qs(urlparse(self.path).query).get("path",[""])[0]))
                 if len(pieces)==4 and pieces[:2]==["api","edits"]:
                     return self.respond(app.run_edits(pieces[2],pieces[3]))
+                if len(pieces)==3 and pieces[:2]==["api","samples"]:
+                    data,mime = app.sample_media(pieces[2],parse_qs(urlparse(self.path).query).get("path",[""])[0])
+                    return self.respond(data,mime=mime)
+                if len(pieces)==3 and pieces[:2]==["api","check"]:
+                    return self.respond({"source":app.check_text(pieces[2])})
                 allowed = {"/":"index.html","/app.js":"app.js","/app.css":"app.css"}
                 if path not in allowed:
                     return self.respond({"error":"Not found"},404)

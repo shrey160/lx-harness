@@ -32,6 +32,7 @@ export function SpecTab({state,project,ui,setTab}){
     <h2>Task</h2>
     {draft.task?<>
       <p className="capital-first">{draft.task.name.replace(/^lx_/,'').replaceAll('_',' ')} · {draft.task.stream_samples} samples in the loop · check <code>{draft.check.sha256.slice(0,12)}</code></p>
+      <TaskText project={project}/>
       <div className="actions"><button className="button" disabled={ui.busy} onClick={testCheck}>Test the check</button><button className="button" disabled={ui.busy} onClick={checkReady}>Check these samples</button></div>
       {checkResult&&<CheckScores result={checkResult}/>}
       {readyResult&&<Ready result={readyResult}/>}
@@ -83,6 +84,20 @@ export function SpecTab({state,project,ui,setTab}){
     {reviewing&&<Review project={project} ui={ui} close={()=>setReviewing(false)} done={()=>setTab('runs')}/>}
     {project.external_orchestrator&&<Grant project={project} ui={ui}/>}
   </section>;
+}
+
+const TASK_TEXT=[['contract','Task text and reply format'],['yardstick','What a good result is'],['selection_checks','Checks before an answer is final']];
+
+function TaskText({project}){
+  const {task}=project.draft,[check,setCheck]=useState(null),[problem,setProblem]=useState('');
+  const loadCheck=open=>{if(open&&check===null&&!problem)api(`check/${project.id}`).then(reply=>setCheck(reply.source),e=>setProblem(e.message));};
+  return <div className="task-text">
+    {TASK_TEXT.filter(([field])=>task[field]).map(([field,label])=><details key={field} open={field==='contract'}><summary>{label}</summary><pre className="setup"><code>{task[field]}</code></pre></details>)}
+    <details onToggle={e=>loadCheck(e.currentTarget.open)}><summary>Scoring check</summary>
+      {problem?<p className="callout bad">{problem}</p>:check===null?<p className="muted">Loading…</p>:<pre className="setup check-source"><code>{check}</code></pre>}
+    </details>
+    <p className="muted">To change these, ask a connected agent or use Discuss. Each change is a new version and needs a new approval.</p>
+  </div>;
 }
 
 function Grant({project,ui}){

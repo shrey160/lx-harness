@@ -59,7 +59,8 @@ from .workspace import Workspace, native_path, write_json
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ROOT = home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
 SAMPLES = "samples"
-ROLES = ("orchestrator","improver","worker")
+SAMPLE_MEDIA = {".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".wav":"audio/wav"}
+ROLES =("orchestrator","improver","worker")
 DEFAULT_ROLE_ENTRY = "spark-contributor"
 EXTERNAL = tasks.EXTERNAL
 EXTERNAL_PROVIDER = {"id":EXTERNAL,"name":"Connected agent","model_id":"","base_url":"","pricing":{},"context_limit":0,"accepts_images":False,
@@ -1175,6 +1176,23 @@ class Engine:
                 "jobs": jobs, "preview_usage": summarize(rows),
                 "usage_events": (rows + spent)[-80:],
                 "live_usage": self.pilot_ledger.summary() if self.pilot_ledger else None}
+
+    def sample_media(self, identifier, path):
+        """A listed photo or voice note for the Samples tab. Nothing else in the folder, so never an answer file."""
+        workspace = self.workspace(identifier)
+        mime = SAMPLE_MEDIA.get(PurePosixPath(path or "").suffix.lower())
+        target = workspace.samples_path/(path or "")
+        if mime is None or path not in {item["path"] for item in workspace.project()["inventory"]["inventory"]} or target.is_symlink() or not target.is_file():
+            raise ValueError("Only a listed photo or voice note can be shown")
+        return target.read_bytes(), mime
+
+    def check_text(self, identifier):
+        """The scoring check of the current version, for the Spec tab. It reads the answers when it runs and holds none."""
+        workspace = self.workspace(identifier)
+        draft = workspace.spec(workspace.project()["spec_version"])
+        if not draft.get("task"):
+            raise ValueError("This workflow has a built-in check")
+        return workspace.check_source(draft["check"])
 
     def runs(self, identifier):
         """A workspace's runs, newest first, reconciled with the core's job state."""

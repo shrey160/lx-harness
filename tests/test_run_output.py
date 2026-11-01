@@ -102,6 +102,29 @@ class Trajectories(Base):
     def test_an_agent_cannot_ask_for_them(self):
         self.assertFalse(hasattr(Orchestration, "trajectory_bytes"))
 
+    def test_the_samples_tab_shows_listed_media_and_nothing_else(self):
+        path = self.folder()
+        write_synthetic(Path(path)/"samples", 6)
+        Orchestration(self.app, launch=False).init(path, "photo-request")
+        project = self.app.open_workspace(path)
+        listed = {item["kind"]: item["path"] for item in project["inventory"]["inventory"]}
+        data, mime = self.app.sample_media(project["id"], listed["image"])
+        self.assertEqual((data, mime[:6]), ((self.app.workspace(project["id"]).samples_path/listed["image"]).read_bytes(), "image/"))
+        answers = next(item["path"] for item in project["inventory"]["inventory"] if item["path"].endswith("truth.json"))
+        for refused in (answers, "../secret.jpg", "missing.jpg", "", None):
+            with self.subTest(refused), self.assertRaisesRegex(ValueError, "listed photo or voice note"):
+                self.app.sample_media(project["id"], refused)
+
+    def test_the_spec_tab_can_read_the_check_of_a_task_only(self):
+        path = self.folder()
+        write_synthetic(Path(path)/"samples", 6)
+        Orchestration(self.app, launch=False).init(path, "photo-request")
+        project = self.app.open_workspace(path)
+        self.assertIn("def ", self.app.check_text(project["id"]))
+        demo = self.app.create_project({"source": "demo", "name": "Demo", "path": self.folder()})
+        with self.assertRaisesRegex(ValueError, "built-in check"):
+            self.app.check_text(demo["id"])
+
     def test_a_trace_can_be_listed_and_read_and_nothing_outside_the_list(self):
         path = self.folder()
         write_synthetic(Path(path)/"samples", 6)
