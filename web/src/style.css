@@ -144,6 +144,10 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .list { list-style: none; padding: 0; margin-top: 8px; border-top: 1px solid var(--line); }
 .list > li { display: grid; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.provider-card { margin-top: 16px; padding: 4px 14px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.provider-card > .section-head { margin-top: 8px; }
+.provider-card h3 { margin-top: 0; font-size: 14px; }
+.provider-card h3 small { margin-left: 8px; font-weight: 400; }
 .provider-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
 .provider-row > div:first-child { flex: 1; min-width: 180px; }
 .provider-row > div:first-child > span { display: block; }

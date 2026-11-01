@@ -89,8 +89,8 @@ class SettingsSwitch(Base):
         again = Registry(root/"a.sqlite3", root/"secrets")
         self.assertFalse(next(m for m in again.list_models() if m["id"] == SAM)["enabled"])
 
-    def test_it_takes_only_a_tool_and_a_true_or_false(self):
-        with self.assertRaisesRegex(RegistryError, "model tool"):
+    def test_it_refuses_the_default_model_and_takes_only_true_or_false(self):
+        with self.assertRaisesRegex(RegistryError, "stays on"):
             self.app.registry.set_enabled("spark-contributor", False)
         with self.assertRaisesRegex(RegistryError, "unknown"):
             self.app.registry.set_enabled("missing", False)

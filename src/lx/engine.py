@@ -213,6 +213,8 @@ class Engine:
         if entry == EXTERNAL:
             return dict(EXTERNAL_PROVIDER)
         model = next((m for m in self.registry.list_models() if m["id"] == entry), None)
+        if model is not None and model["kind"] == "chat" and model["base_url"] and not model["enabled"]:
+            raise ValueError(f"{model['name']} is switched off in Settings, under Providers. Switch it on or choose another.")
         if model is None or not model["role_ready"]:
             raise ValueError("Each role needs a chat provider entry with an endpoint")
         return {key:model[key] for key in ("id","name","model_id","base_url","pricing","context_limit","accepts_images","supports_tools","priced",
@@ -1032,10 +1034,14 @@ class Engine:
                 ledger.release(row["id"], charged=charged)
         return self._view(workspace)
 
-    def provider_models(self, base_url, api_key=None):
-        """What a provider lists, for the add form to fill in. Calls no model and spends nothing."""
+    def provider_models(self, base_url, api_key=None, key_from=None):
+        """What a provider lists, for the add form to fill in. Calls no model and spends nothing.
+
+        `key_from` names a model already on this provider, whose stored key is used and never returned."""
         if self._model_list is None and not self.live_enabled:
             raise ValueError("Live runs are unavailable here; use the local app workspace")
+        if key_from:
+            api_key = self.registry.sibling_key(key_from, base_url)
         try:
             return {"models":(self._model_list or read_models)(base_url, api_key or None)}
         except ModelError as exc:

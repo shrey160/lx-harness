@@ -391,6 +391,16 @@ class ApplicationFlowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"provider changed"):
             self.app.start(project["id"],launch=False)
 
+    def test_a_model_switched_off_stops_the_run_and_cannot_be_assigned(self):
+        roles = self.three_roles()
+        project = self.app.edit_spec(self.project()["id"],{"goal":"g","budget_usd":1,"roles":roles})
+        project = self.app.approve(project["id"],{"version":project["draft"]["version"],"data_approved":True})
+        self.app.registry.set_enabled(roles["worker"],False)
+        with self.assertRaisesRegex(ValueError,"switched off"):
+            self.app.start(project["id"],launch=False)
+        with self.assertRaisesRegex(ValueError,"switched off"):
+            self.app.edit_spec(project["id"],{"goal":"g","budget_usd":1,"roles":roles})
+
     def test_roles_need_the_abilities_they_use(self):
         p = self.project()
         good = self.entry("good")["id"]

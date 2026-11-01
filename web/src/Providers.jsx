@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {api} from './api.js';
 
 // Where each provider is called. Everything else comes from its model list (D-020).
@@ -17,7 +17,7 @@ const facts=model=>[
 ].filter(Boolean).join(' · ');
 
 export function Providers({state,ui}){
-  const [form,setForm]=useState(null),[editing,setEditing]=useState(''),[adding,setAdding]=useState(false),[tests,setTests]=useState({});
+  const [form,setForm]=useState(null),[editing,setEditing]=useState(''),[adding,setAdding]=useState(false),[addingTo,setAddingTo]=useState(null),[tests,setTests]=useState({});
   const set=(field,value)=>setForm({...form,[field]:value});
   const close=()=>{setForm(null);setEditing('');};
   const edit=model=>{setEditing(model.id);setForm({key:'',name:model.name,modelId:model.model_id,capabilities:model.capabilities.join(', '),baseUrl:model.base_url||'',inputPrice:model.pricing.input_per_million??'',outputPrice:model.pricing.output_per_million??'',cachedPrice:model.pricing.cached_per_million??'',contextLimit:model.context_limit??'',acceptsImages:model.accepts_images,supportsTools:model.supports_tools,rate:model.requests_per_minute??'',callSeconds:model.limits.call_seconds??'',replyTokens:model.limits.reply_tokens??''});};
@@ -34,34 +34,61 @@ export function Providers({state,ui}){
     ui.notify('Provider saved. A blank key keeps the existing one.');
     close();
   });
+  const toggle=(model,enabled)=>ui.act(()=>api(`models/${model.id}/enabled`,{enabled}));
   if(adding)return <AddProvider ui={ui} close={()=>setAdding(false)}/>;
+  if(addingTo)return <AddProvider ui={ui} provider={addingTo} close={()=>setAddingTo(null)}/>;
   if(form)return <EditProvider form={form} set={set} editing={editing} ui={ui} save={save} close={close}/>;
-  const chat=state.models.filter(m=>m.kind==='chat');
+  const groups=providerGroups(state.models.filter(m=>m.kind==='chat'));
   return <section>
     <div className="section-head"><h2>Providers</h2><button className="button primary" onClick={()=>setAdding(true)}>Add provider</button></div>
-    <p className="muted">Any chat provider with an endpoint can fill any role. Assign them on a workspace's Spec tab.</p>
-    <ul className="list providers">{chat.map(model=><li key={model.id}>
-      <div className="provider-row">
-        <div><strong>{model.name}</strong><small className="muted">{model.model_id}{model.requests_per_minute?` · ${model.requests_per_minute} requests a minute`:''}</small></div>
-        <span className={'chip '+(model.role_ready&&model.priced?'ok':'warn')}>{!model.role_ready?'Needs an endpoint':model.priced?'Ready':'No published price'}</span>
-        <div className="actions tight"><button className="button small" disabled={ui.busy||!model.role_ready} title="Sends one short live message" onClick={()=>test(model.id)}>Test</button><button className="button small" onClick={()=>edit(model)}>Edit</button>{model.id!=='spark-contributor'&&<button className="button small danger" onClick={()=>remove(model)}>Remove</button>}</div>
-      </div>
-      {tests[model.id]&&<p className={tests[model.id].ok?'muted':'callout bad'} role="status">{tests[model.id].ok?`Answered in ${tests[model.id].seconds} s: ${tests[model.id].reply}`:tests[model.id].error}</p>}
-    </li>)}</ul>
-    <p className="muted">Test sends one short live message, which may cost a fraction of a cent. It checks the key, endpoint and model, not images or tool calls.</p>
+    <p className="muted">A provider can host many models. Add the ones you want from its list, switch each on or off, or remove it. Any model that is on and has an endpoint can fill any role; assign them on a workspace's Spec tab.</p>
+    {groups.map(group=><div className="provider-card" key={group.url}>
+      <div className="section-head"><h3>{group.label}<small className="muted">{group.host}</small></h3>
+        {group.keyFrom!==undefined&&<button className="button small" disabled={ui.busy} onClick={()=>setAddingTo({label:group.label,baseUrl:group.url,keyFrom:group.keyFrom,free:group.free,rate:group.rate})}>Add a model</button>}</div>
+      <ul className="list providers">{group.models.map(model=><li key={model.id}>
+        <div className="provider-row">
+          <div><strong>{model.name}</strong><small className="muted">{model.model_id}{model.requests_per_minute?` · ${model.requests_per_minute} requests a minute`:''}</small></div>
+          <span className={'chip '+(!model.enabled?'':model.role_ready&&model.priced?'ok':'warn')}>{!model.enabled?'Off':!model.role_ready?'Needs an endpoint':model.priced?'Ready':'No published price'}</span>
+          {model.id!=='spark-contributor'&&<label className="check"><input type="checkbox" aria-label={model.name+' on'} checked={model.enabled} disabled={ui.busy} onChange={e=>toggle(model,e.target.checked)}/>On</label>}
+          <div className="actions tight"><button className="button small" disabled={ui.busy||!model.role_ready} title="Sends one short live message" onClick={()=>test(model.id)}>Test</button><button className="button small" onClick={()=>edit(model)}>Edit</button>{model.id!=='spark-contributor'&&<button className="button small danger" onClick={()=>remove(model)}>Remove</button>}</div>
+        </div>
+        {tests[model.id]&&<p className={tests[model.id].ok?'muted':'callout bad'} role="status">{tests[model.id].ok?`Answered in ${tests[model.id].seconds} s: ${tests[model.id].reply}`:tests[model.id].error}</p>}
+      </li>)}</ul>
+    </div>)}
+    <p className="muted">Test sends one short live message, which may cost a fraction of a cent. It checks the key, endpoint and model, not images or tool calls. A model that is off cannot be chosen for a role, and a workspace that uses it will not start until it is back on.</p>
   </section>;
 }
 
-function AddProvider({ui,close}){
-  const [source,setSource]=useState(null),[baseUrl,setBaseUrl]=useState(''),[key,setKey]=useState('');
+const hostOf=url=>{try{return new URL(url).host;}catch{return url||'';}};
+
+// One card per endpoint. A model with a stored key lends it to the others on that endpoint, so only the first needs a paste.
+function providerGroups(models){
+  const byUrl=new Map();
+  for(const model of models){
+    const url=(model.base_url||'').replace(/\/$/,'');
+    if(!byUrl.has(url))byUrl.set(url,[]);
+    byUrl.get(url).push(model);
+  }
+  return [...byUrl].map(([url,list])=>{
+    const known=SOURCES.find(s=>s.baseUrl&&s.baseUrl.replace(/\/$/,'')===url);
+    const builtIn=list.some(m=>m.id==='spark-contributor');
+    const lender=list.find(m=>m.has_key&&m.id!=='spark-contributor');
+    return {url,host:hostOf(url),label:builtIn?'Meta':known?known.label:hostOf(url)||'No endpoint',models:list,
+      keyFrom:builtIn||!url?undefined:lender?lender.id:null,free:known?.free,rate:known?.rate};
+  });
+}
+
+function AddProvider({ui,close,provider}){
+  const [source,setSource]=useState(provider||null),[baseUrl,setBaseUrl]=useState(provider?.baseUrl||''),[key,setKey]=useState('');
   const [models,setModels]=useState(null),[problem,setProblem]=useState(''),[looking,setLooking]=useState(false);
   const [search,setSearch]=useState(''),[chosen,setChosen]=useState(''),[typed,setTyped]=useState('');
   const look=async url=>{
     setLooking(true);setProblem('');setModels(null);setChosen('');
-    try{setModels((await api('models/lookup',{base_url:url,...(key?{api_key:key}:{})})).models);}
+    try{setModels((await api('models/lookup',{base_url:url,...(key?{api_key:key}:provider?.keyFrom?{key_from:provider.keyFrom}:{})})).models);}
     catch(e){setProblem(e.message);setModels([]);}
     finally{setLooking(false);}
   };
+  useEffect(()=>{if(provider&&(provider.keyFrom||provider.free))look(provider.baseUrl);},[]);
   const pick=item=>{setSource(item);setBaseUrl(item.baseUrl);setModels(null);setProblem('');if(item.baseUrl)look(item.baseUrl);};
   const wanted=search.trim().toLowerCase();
   const found=(models||[]).filter(m=>!wanted||m.name.toLowerCase().includes(wanted)||m.id.toLowerCase().includes(wanted));
@@ -71,16 +98,16 @@ function AddProvider({ui,close}){
     await api('models',{name:`${model.name} (${source.label})`,model_id:model.id,base_url:baseUrl,capabilities:['General reasoning'+(images?', images':'')+(tools?', tool calls':'')],
       accepts_images:images,supports_tools:tools,...(model.context_limit?{context_limit:model.context_limit}:{}),
       ...(model.pricing?{pricing:model.pricing}:source.free?{pricing:{input_per_million:0,output_per_million:0}}:{}),
-      ...(source.rate?{requests_per_minute:source.rate}:{}),...(key?{api_key:key}:{})});
-    ui.notify('Provider added.');close();
+      ...(source.rate?{requests_per_minute:source.rate}:{}),...(key?{api_key:key}:provider?.keyFrom?{key_from:provider.keyFrom}:{})});
+    ui.notify(provider?'Model added.':'Provider added.');close();
   });
   return <section className="narrow">
     <button className="link" onClick={close}>← Providers</button>
-    <h2>Add provider</h2>
-    <div className="actions tight">{SOURCES.map(item=><button key={item.label} aria-pressed={source===item} className={'button small '+(source===item?'primary':'')} onClick={()=>pick(item)}>{item.label}</button>)}</div>
+    <h2>{provider?`Add a model to ${provider.label}`:'Add provider'}</h2>
+    {!provider&&<div className="actions tight">{SOURCES.map(item=><button key={item.label} aria-pressed={source===item} className={'button small '+(source===item?'primary':'')} onClick={()=>pick(item)}>{item.label}</button>)}</div>}
     {source&&<div className="stack">
       {source.other&&<div className="key-row"><label className="field">Server address<input value={baseUrl} placeholder="https://example.com/v1" onChange={e=>setBaseUrl(e.target.value)}/></label><button className="button" disabled={ui.busy||looking||!baseUrl} onClick={()=>look(baseUrl)}>Find models</button></div>}
-      {source.keyed&&<label className="field">API key<input type="password" autoComplete="new-password" value={key} onChange={e=>setKey(e.target.value)}/><small className="muted">Goes to your system keychain and cannot be read back.</small></label>}
+      {(provider?provider.keyFrom===null&&!provider.free:source.keyed)&&<label className="field">API key<input type="password" autoComplete="new-password" value={key} onChange={e=>setKey(e.target.value)}/><small className="muted">Goes to your system keychain and cannot be read back.</small></label>}
       {looking&&<p className="muted" role="status">Reading the model list…</p>}
       {problem&&<p className="callout warn" role="status">{problem}</p>}
       {models&&models.length>0&&<>
@@ -90,7 +117,7 @@ function AddProvider({ui,close}){
       {models&&models.length===0&&<label className="field">Model name<input value={typed} onChange={e=>setTyped(e.target.value)}/><small className="muted">The model list gave no models, so this is the one thing to enter.</small></label>}
       {model&&<p className="muted" role="status">{facts(model)}</p>}
       {model&&!model.pricing&&!source.free&&<p className="callout warn">This provider publishes no price, so a budget cannot count it. Only the call limits apply.</p>}
-      <div className="actions"><button className="button primary" disabled={ui.busy||!model||!baseUrl} onClick={add}>Add provider</button><button className="button" disabled={ui.busy} onClick={close}>Cancel</button></div>
+      <div className="actions"><button className="button primary" disabled={ui.busy||!model||!baseUrl} onClick={add}>{provider?'Add model':'Add provider'}</button><button className="button" disabled={ui.busy} onClick={close}>Cancel</button></div>
     </div>}
   </section>;
 }

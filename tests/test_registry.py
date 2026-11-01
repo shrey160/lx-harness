@@ -310,6 +310,38 @@ class RegistryTests(unittest.TestCase):
         with self.assertRaisesRegex(RegistryError, "credential unavailable"):
             registry.credential(record["id"])
 
+    def test_a_second_model_on_a_provider_takes_the_first_ones_key(self):
+        root = Path(self.tempdir.name)/"shared"
+        keychain = MemoryKeychain()
+        registry = Registry(root/"a.sqlite3", root/"secrets", keychain)
+        url = "https://openrouter.ai/api/v1"
+        first = registry.create("First", "muse/first", ["General"], "dummy-shared-key", base_url=url)
+        second = registry.create("Second", "muse/second", ["General"], base_url=url, key_from=first["id"])
+        self.assertTrue(second["has_key"])
+        self.assertEqual(registry.credential(second["id"]), "dummy-shared-key")
+        self.assertNotEqual(first["id"], second["id"])
+        registry.delete(first["id"])  # each model owns its copy, so removing one leaves the other working
+        self.assertEqual(registry.credential(second["id"]), "dummy-shared-key")
+
+    def test_a_key_is_lent_only_to_the_same_endpoint(self):
+        first = self.registry.create("First", "muse/first", ["General"], "dummy-shared-key", base_url="https://openrouter.ai/api/v1")
+        with self.assertRaisesRegex(RegistryError, "no stored key"):
+            self.registry.create("Other", "x/y", ["General"], base_url="https://integrate.api.nvidia.com/v1", key_from=first["id"])
+        with self.assertRaisesRegex(RegistryError, "not both"):
+            self.registry.create("Both", "x/y", ["General"], "dummy-other", base_url="https://openrouter.ai/api/v1", key_from=first["id"])
+        with self.assertRaisesRegex(RegistryError, "no stored key"):
+            self.registry.create("Spark", "x/y", ["General"], base_url="https://openrouter.ai/api/v1", key_from="spark-contributor")
+
+    def test_a_chat_model_can_be_switched_off_and_is_then_not_ready(self):
+        entry = self.registry.create("Glimmer", "muse/glimmer", ["General"], base_url="https://openrouter.ai/api/v1")
+        self.assertTrue(entry["enabled"] and entry["role_ready"])
+        off = self.registry.set_enabled(entry["id"], False)
+        self.assertFalse(off["enabled"])
+        self.assertFalse(off["role_ready"])
+        self.assertTrue(self.registry.set_enabled(entry["id"], True)["role_ready"])
+        with self.assertRaisesRegex(RegistryError, "stays on"):
+            self.registry.set_enabled("spark-contributor", False)
+
 
 if __name__ == "__main__":
     unittest.main()

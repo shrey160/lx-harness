@@ -117,12 +117,12 @@ def server_for(app, port=8765):
                     elif route[3]=="remove": result = app.mcp_remove(route[2])
                     else: return self.respond({"error":"Not found"},404)
                 elif route == ["api","models","lookup"]:
-                    result = app.provider_models(data.get("base_url"),data.get("api_key"))
+                    result = app.provider_models(data.get("base_url"),data.get("api_key"),data.get("key_from"))
                 elif route == ["api","models"]:
                     result = app.registry.create(data.get("name"),data.get("model_id"),data.get("capabilities"),data.get("api_key"),
                         base_url=data.get("base_url"),accepts_images=data.get("accepts_images",False),
                         supports_tools=data.get("supports_tools",False),pricing=data.get("pricing"),context_limit=data.get("context_limit"),
-                        requests_per_minute=data.get("requests_per_minute"),limits=data.get("limits"))
+                        requests_per_minute=data.get("requests_per_minute"),limits=data.get("limits"),key_from=data.get("key_from"))
                 elif len(route)==4 and route[:2]==["api","models"]:
                     if route[3]=="update": result = app.registry.update(route[2],name=data.get("name"),capabilities=data.get("capabilities"),api_key=data.get("api_key"),
                         base_url=data.get("base_url"),accepts_images=data.get("accepts_images"),

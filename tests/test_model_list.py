@@ -147,6 +147,13 @@ class Engine_(unittest.TestCase):
         self.app._model_list = lambda base, key: [{"id": base, "key": key}]
         self.assertEqual(self.app.provider_models("https://x.example/v1", "")["models"], [{"id": "https://x.example/v1", "key": None}])
 
+    def test_a_model_already_on_the_provider_lends_its_key_to_the_lookup(self):
+        url = "https://x.example/v1"
+        first = self.app.registry.create("First", "x/first", ["General"], "dummy-lent-key", base_url=url)
+        self.app._model_list = lambda base, key: [{"id": base, "key": key}]
+        self.assertEqual(self.app.provider_models(url, None, first["id"])["models"], [{"id": url, "key": "dummy-lent-key"}])
+        with self.assertRaisesRegex(Exception, "no stored key"):
+            self.app.provider_models("https://y.example/v1", None, first["id"])
 
 if __name__ == "__main__":
     unittest.main()

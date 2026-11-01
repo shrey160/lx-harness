@@ -224,7 +224,7 @@ class Registry:
             "limits": json.loads(row["limits"]),
             "enabled": bool(row["enabled"]),
             # Any chat entry with an endpoint can fill any role; live spending also needs prices.
-            "role_ready": row["kind"] == "chat" and bool(row["base_url"]),
+            "role_ready": row["kind"] == "chat" and bool(row["base_url"]) and bool(row["enabled"]),
             "priced": bool(row["builtin"]) or set(_PRICE_FIELDS) <= set(prices),
             "has_key": row["secret_ref"] is not None,
             "credential_source": (
@@ -254,6 +254,7 @@ class Registry:
         context_limit: int | None = None,
         requests_per_minute: int | None = None,
         limits: dict[str, int] | None = None,
+        key_from: str | None = None,
     ) -> dict[str, Any]:
         name = self._text(name, "name", _MAX_NAME)
         model_id = self._text(model_id, "model_id", _MAX_MODEL_ID)
@@ -265,6 +266,10 @@ class Registry:
         if kind != "chat":
             raise RegistryError("registered models must be chat providers")
         url = self._base_url(base_url)
+        if key_from is not None:
+            if key is not None:
+                raise RegistryError("give an API key or a model to take it from, not both")
+            key = self.sibling_key(key_from, url)
         prices = self._pricing(pricing)
         context = self._context_limit(context_limit)
         rate = self._rate(requests_per_minute) or None
@@ -359,19 +364,30 @@ class Registry:
             self._remove_secret(old_ref)
         return self._public(result)
 
+    def sibling_key(self, record_id: str, base_url: Any) -> str:
+        """The key of another model on the same provider, so a second model needs no second paste.
+
+        It stays on the server and goes only to the endpoint it was registered for."""
+        url = self._base_url(base_url)
+        with self._connect() as db:
+            row = db.execute("SELECT base_url, secret_ref, builtin FROM models WHERE id=?", (record_id,)).fetchone()
+        if row is None or row["builtin"] or not row["secret_ref"] or (row["base_url"] or "").rstrip("/") != url:
+            raise RegistryError("no stored key on this provider to reuse")
+        return self._read_secret(row["secret_ref"])
+
     def set_enabled(self, record_id: str, enabled: bool) -> dict[str, Any]:
-        """A model tool's switch in Settings. Startup seeding leaves it alone (D-019)."""
+        """A switch in Settings, for a model tool or a registered chat model. Startup seeding leaves it alone (D-019)."""
         if type(enabled) is not bool:
             raise RegistryError("invalid switch value")
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT kind FROM models WHERE id=?", (record_id,)).fetchone()
+            row = db.execute("SELECT kind, builtin FROM models WHERE id=?", (record_id,)).fetchone()
             if row is None:
                 db.rollback()
                 raise RegistryError("unknown model id")
-            if row["kind"] == "chat":
+            if row["kind"] == "chat" and row["builtin"]:
                 db.rollback()
-                raise RegistryError("only a model tool can be switched off")
+                raise RegistryError("the default model fills every new role and stays on")
             db.execute("UPDATE models SET enabled=? WHERE id=?", (int(enabled), record_id))
             result = db.execute("SELECT * FROM models WHERE id=?", (record_id,)).fetchone()
             db.commit()
