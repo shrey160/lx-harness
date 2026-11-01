@@ -58,23 +58,50 @@ def _model(raw):
             "pricing": _pricing(raw.get("pricing")),
             "context_limit": min(context, RESERVED_CONTEXT) if type(context) is int and context >= 1024 else None,
             "accepts_images": "image" in inputs if isinstance(inputs, list) else None,
-            "supports_tools": "tools" in parameters if isinstance(parameters, list) else None}
+            "supports_tools": "tools" in parameters if isinstance(parameters, list) else None,
+            **({"loaded": True} if raw.get("loaded") is True else {})}
+
+
+def _loaded_first(models):
+    """Local servers say what is in memory. It goes on top, once: `name:quant` repeats a loaded `name`."""
+    loaded = {model["id"] for model in models if model.get("loaded")}
+    kept = [model for model in models if not (model["id"] in loaded and model["id"].rpartition(":")[0] in loaded)]
+    return sorted(kept, key=lambda model: not model.get("loaded"))
 
 
 def parse_models(payload):
     rows = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(rows, list):
         raise ModelError("This provider's model list was not in the expected form")
-    return [model for model in map(_model, rows[:MAX_MODELS]) if model]
+    return _loaded_first([model for model in map(_model, rows[:MAX_MODELS]) if model])
+
+
+def _add_server_facts(model, base, headers, opener):
+    """llama-server states what its loaded model takes at /props. Optional: with no answer those details stay unknown."""
+    url = base[:-3]+"/props" if base.endswith("/v1") else base+"/props"
+    try:
+        with opener.open(urllib.request.Request(url, headers=headers), timeout=TIMEOUT) as response:
+            body = response.read(MAX_REPLY_BYTES+1)
+        props = json.loads(body) if len(body) <= MAX_REPLY_BYTES else None
+    except (OSError, ValueError):
+        return
+    props = props if isinstance(props, dict) else {}
+    modalities, caps = props.get("modalities"), props.get("chat_template_caps")
+    vision = modalities.get("vision") if isinstance(modalities, dict) else None
+    tools = caps.get("supports_tools") if isinstance(caps, dict) else None
+    if type(vision) is bool:
+        model["accepts_images"] = vision
+    if type(tools) is bool:
+        model["supports_tools"] = tools
 
 
 def read_models(base_url, api_key=None, *, opener=None):
     """The provider's models. A key is sent only to this provider, and only when one is given."""
-    url = validate_endpoint(base_url).rstrip("/")+"/models"
+    base = validate_endpoint(base_url).rstrip("/")
     headers = {"User-Agent": "lx-harness", **({"Authorization": "Bearer "+api_key} if api_key else {})}
     opener = opener or urllib.request.build_opener(_NoRedirect())
     try:
-        with opener.open(urllib.request.Request(url, headers=headers), timeout=TIMEOUT) as response:
+        with opener.open(urllib.request.Request(base+"/models", headers=headers), timeout=TIMEOUT) as response:
             body = response.read(MAX_REPLY_BYTES+1)
     except urllib.error.HTTPError as exc:
         needs_key = " Add your API key and try again." if exc.code in {401, 403} else ""
@@ -84,6 +111,10 @@ def read_models(base_url, api_key=None, *, opener=None):
     if len(body) > MAX_REPLY_BYTES:
         raise ModelError("That provider's model list is too large")
     try:
-        return parse_models(json.loads(body))
+        models = parse_models(json.loads(body))
     except ValueError:
         raise ModelError("This provider's model list was not in the expected form") from None
+    loaded = [model for model in models if model.get("loaded")]
+    if len(loaded) == 1:  # /props speaks for one model, so with several loaded it cannot be matched to any
+        _add_server_facts(loaded[0], base, headers, opener)
+    return models

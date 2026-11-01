@@ -124,7 +124,8 @@ What the list gives depends on the provider. Checked on 31 October 2026:
 |---|---|---|
 | OpenRouter | `https://openrouter.ai/api/v1` | Names, prices with the cached rate, context size, image and tool support |
 | NVIDIA | `https://integrate.api.nvidia.com/v1` | Names only. The app paces it at 40 requests a minute |
-| Local server | `http://127.0.0.1:8888/v1` | Usually names only. Counted as free |
+| Unsloth Studio | `http://127.0.0.1:8888/v1` | Names, plus which model is loaded and, for that one, context size and image and tool support. Counted as free |
+| Local server | Any local address; starts at `http://127.0.0.1:8080/v1` | Usually names only. Counted as free |
 
 For example, `meta/muse-spark-1.3-contributor` on OpenRouter lists $0.10 and $0.20
 per million tokens, and $0.002 for cached input.

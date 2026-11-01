@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 import urllib.error
+import urllib.parse
 from decimal import Decimal
 from pathlib import Path
 
@@ -30,6 +31,20 @@ class Opener:
         if self.error:
             raise self.error
         return io.BytesIO(self.body)
+
+
+class Routes:
+    """A server with a reply per path; any other path answers 404."""
+
+    def __init__(self, replies):
+        self.replies, self.requests = replies, []
+
+    def open(self, request, timeout):
+        self.requests.append(request)
+        path = urllib.parse.urlsplit(request.full_url).path
+        if path not in self.replies:
+            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", None, None)
+        return io.BytesIO(self.replies[path])
 
 
 def listed(*rows):
@@ -69,6 +84,38 @@ class Reading(unittest.TestCase):
         self.assertEqual(parse_models({"data": [{"name": "no id"}, 7, {"id": ""}]}), [])
         with self.assertRaisesRegex(ModelError, "expected form"):
             parse_models(["x"])
+
+    def test_a_local_server_puts_its_loaded_model_first_and_once(self):
+        rows = [{"id": "other/model"}, {"id": "liquid/vl", "loaded": True}, {"id": "liquid/vl:Q8", "loaded": True}, {"id": "liquid/vl:BF16", "loaded": False}]
+        models = parse_models({"data": rows})
+        self.assertEqual([m["id"] for m in models], ["liquid/vl", "other/model", "liquid/vl:BF16"])
+        self.assertTrue(models[0]["loaded"])
+        self.assertNotIn("loaded", models[1])
+
+    def test_a_tagged_model_on_a_hosted_list_is_left_alone(self):
+        rows = [{"id": "a/b"}, {"id": "a/b:free"}]
+        self.assertEqual([m["id"] for m in parse_models({"data": rows})], ["a/b", "a/b:free"])
+
+    def test_the_servers_props_fill_in_the_loaded_model(self):
+        props = {"modalities": {"vision": True}, "chat_template_caps": {"supports_tools": False}}
+        opener = Routes({"/v1/models": listed({"id": "m", "loaded": True}, {"id": "n"}), "/props": json.dumps(props).encode()})
+        models = read_models("http://127.0.0.1:8888/v1", "dummy-key", opener=opener)
+        self.assertEqual((models[0]["accepts_images"], models[0]["supports_tools"]), (True, False))
+        self.assertEqual((models[1]["accepts_images"], models[1]["supports_tools"]), (None, None))
+        self.assertEqual([r.full_url for r in opener.requests], ["http://127.0.0.1:8888/v1/models", "http://127.0.0.1:8888/props"])
+        self.assertEqual({r.get_header("Authorization") for r in opener.requests}, {"Bearer dummy-key"})
+
+    def test_props_are_not_asked_for_without_exactly_one_loaded_model(self):
+        for rows in ([{"id": "m"}], [{"id": "m", "loaded": True}, {"id": "n", "loaded": True}]):
+            opener = Routes({"/v1/models": listed(*rows)})
+            read_models("http://127.0.0.1:8888/v1", opener=opener)
+            self.assertEqual(len(opener.requests), 1)
+
+    def test_missing_or_strange_props_leave_the_details_unknown(self):
+        for props in (None, b"not json", b"[]", b'{"modalities": {"vision": "yes"}, "chat_template_caps": 3}'):
+            opener = Routes({"/v1/models": listed({"id": "m", "loaded": True}), **({"/props": props} if props else {})})
+            model = read_models("http://127.0.0.1:8888/v1", opener=opener)[0]
+            self.assertEqual((model["accepts_images"], model["supports_tools"]), (None, None))
 
     def test_no_key_is_sent_unless_given_and_then_only_to_that_url(self):
         opener = Opener(listed(NAME_ONLY))
