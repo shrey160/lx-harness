@@ -243,7 +243,11 @@ class ApplicationFlowTests(unittest.TestCase):
             self.assertGreater(usage[role]["input_tokens"],0,role)
         self.assertEqual(usage["improver"]["spent_usd"],0)  # its entry is free
         self.assertGreater(usage["worker"]["spent_usd"],0)
-        self.assertEqual(self.app.state()["jobs"][0]["status"],"completed")
+        listed = self.app.state()["jobs"][0]
+        self.assertEqual(listed["status"],"completed")
+        self.assertEqual(listed["spec"]["models"],{"improver":"local","worker":"vision"})  # the page's list names who did the work
+        self.assertNotIn("providers",listed["spec"])
+        self.assertIn("providers",self.app.runs(project["id"])[0]["spec"])
         for path in [*Path(project["path"]).rglob("*"),*self.app.root.rglob("*")]:
             if path.is_file():
                 self.assertNotIn(b"dummy-key-",path.read_bytes(),path)

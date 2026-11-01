@@ -20,6 +20,7 @@ export const when=seconds=>new Date(seconds*1000).toLocaleString([], {month:'sho
 export const active=job=>['queued','running'].includes(job?.status);
 export const resumable=job=>['failed','cancelled','interrupted'].includes(job?.status);
 export const modeName=mode=>mode==='live'?'Live':'Preview';
+export const runName=run=>run.kind==='trial'?(run.from_run?'Trial of a package':'Trial'):run.mode==='live'?'Full run':'Preview';
 const STATUS={queued:'Waiting to start',running:'Running',completed:'Completed',failed:'Failed',cancelled:'Stopped',interrupted:'Interrupted',timed_out:'Timed out'};
 const PHASE={preflight:'Checking providers',improving:'Improving the harness',trying:'Trying one sample',grading:'Grading'};
 export const statusName=job=>job.status==='running'&&PHASE[job.phase]||STATUS[job.status]||job.status;

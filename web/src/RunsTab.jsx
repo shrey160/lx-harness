@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {Trajectories} from './Trajectories.jsx';
-import {active, api, modeName, money, plural, resumable, scores, statusName, tone, when} from './api.js';
+import {active, api, money, plural, resumable, runName, scores, statusName, tone, when} from './api.js';
 
 export function RunsTab({project,jobs,ui,setTab}){
   const [openId,setOpenId]=useState(null);
@@ -18,10 +18,10 @@ export function RunsTab({project,jobs,ui,setTab}){
       {!project.approved&&<span className="muted">Approve the <button className="link" onClick={()=>setTab('spec')}>spec</button> first.</span>}
     </div>
     {jobs.length?<div className="table-wrap"><table className="table rows">
-      <thead><tr><th>Started</th><th>Version</th><th>Mode</th><th>Status</th><th>Score</th><th>Cost</th></tr></thead>
+      <thead><tr><th>Started</th><th>Version</th><th>Kind</th><th>Worker</th><th>Status</th><th>Score</th><th>Cost</th></tr></thead>
       <tbody>{jobs.map(run=><tr key={run.id} onClick={()=>setOpenId(run.id)}>
         <td><button className="link" onClick={()=>setOpenId(run.id)}>{when(run.created_at)}</button></td>
-        <td>{run.spec.version}</td><td>{run.kind==='trial'?(run.from_run?'Trial of a package':'Trial'):modeName(run.mode)}</td>
+        <td>{run.spec.version}</td><td>{runName(run)}</td><td>{run.spec.models.worker||'–'}</td>
         <td><span className={'dot '+tone(run)}/>{statusName(run)}</td>
         <td>{run.kind==='trial'&&run.result?run.result.score.toFixed(2):scores(run.result)?`${scores(run.result).base.toFixed(2)} → ${scores(run.result).harness2.toFixed(2)}`:'–'}</td>
         <td>{money(run.usage.spent_usd)}</td>
@@ -32,12 +32,12 @@ export function RunsTab({project,jobs,ui,setTab}){
 
 export function RunPage({project,job,ui,back,canTry,tryHarness}){
   const path=`jobs/${project.id}/${job.id}`;
-  const {result,progress}=job,live=job.mode==='live';
+  const {result,progress}=job,live=job.mode==='live',{worker,improver}=job.spec.models;
   const post=(action,body={})=>ui.act(()=>api(`${path}/${action}`,body));
   const [view,setView]=useState('overview');
   return <section className="narrow">
     <button className="link" onClick={back}>← All runs</button>
-    <div className="run-head"><h2>{statusName(job)}</h2><span className="muted">{modeName(job.mode)} · version {job.spec.version} · {when(job.created_at)}{job.finished_at?` · took ${Math.max(1,Math.round((job.finished_at-job.created_at)/60))} min`:''}</span></div>
+    <div className="run-head"><h2>{statusName(job)}</h2><span className="muted">{runName(job)} · version {job.spec.version}{worker?` · worker ${worker}`:''}{job.kind!=='trial'&&improver?` · improver ${improver}`:''} · {when(job.created_at)}{job.finished_at?` · took ${Math.max(1,Math.round((job.finished_at-job.created_at)/60))} min`:''}</span></div>
     {job.error&&<p className="callout bad">{job.error}</p>}
     {progress&&<div className="progress-line">
       <div className="progress" role="progressbar" aria-valuemin="0" aria-valuemax={progress.total} aria-valuenow={progress.done}><div className="bar" style={{width:`${100*progress.done/progress.total}%`}}/></div>

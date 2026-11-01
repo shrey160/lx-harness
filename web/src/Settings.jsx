@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {api, modeName, money, statusName, when} from './api.js';
+import {api, money, runName, statusName, when} from './api.js';
 import {McpServers} from './McpServers.jsx';
 import {Providers} from './Providers.jsx';
 import {Usage} from './RunsTab.jsx';
@@ -111,8 +111,8 @@ function UsagePage({state}){
     {state.projects.length?<div className="table-wrap"><table className="table"><thead><tr><th>Workspace</th><th>Spent</th><th>Held</th><th>Left</th><th>Budget</th></tr></thead>
       <tbody>{state.projects.map(p=><tr key={p.id}><td>{p.name}</td><td>{money(p.budget.spent_usd)}</td><td>{money(p.budget.reserved_usd)}</td><td>{money(p.budget.remaining_usd)}</td><td>{money(p.budget.cap_usd)}</td></tr>)}</tbody></table></div>:<p className="muted">No workspaces yet.</p>}
     <h3>Runs</h3>
-    {runs.length?<div className="table-wrap"><table className="table"><thead><tr><th>Started</th><th>Workspace</th><th>Mode</th><th>Status</th><th>Calls</th><th>Cost</th></tr></thead>
-      <tbody>{runs.map(run=><tr key={run.id}><td>{when(run.created_at)}</td><td>{name(run.project_id)}</td><td>{modeName(run.mode)}</td><td>{statusName(run)}</td><td>{run.usage.settled_calls}</td><td>{money(run.usage.spent_usd)}{run.mode==='live'?'':' (simulated)'}</td></tr>)}</tbody></table></div>:<p className="muted">No runs yet.</p>}
+    {runs.length?<div className="table-wrap"><table className="table"><thead><tr><th>Started</th><th>Workspace</th><th>Kind</th><th>Status</th><th>Calls</th><th>Cost</th></tr></thead>
+      <tbody>{runs.map(run=><tr key={run.id}><td>{when(run.created_at)}</td><td>{name(run.project_id)}</td><td>{runName(run)}</td><td>{statusName(run)}</td><td>{run.usage.settled_calls}</td><td>{money(run.usage.spent_usd)}{run.mode==='live'?'':' (simulated)'}</td></tr>)}</tbody></table></div>:<p className="muted">No runs yet.</p>}
     <h3>Preview totals (simulated)</h3>
     <Usage usage={state.preview_usage}/>
   </section>;
