@@ -254,12 +254,13 @@ def build(args):
 
     if SAMPLES.exists():
         raise SystemExit(f"{SAMPLES} exists; remove it to rebuild")
+    plans = [{**plan, **({"overlap": args.overlap} if args.overlap is not None else {}), "avoid": [*plan.get("avoid", ()), *args.avoid]} for plan in PLANS[:args.plans]]
     rejected, pools = set(json.loads((HERE/"rejects.json").read_text(encoding="utf-8"))["ann_ids"]), {}
     for cutout in build_inventory_mix.load_cutouts():
         if cutout["ann_id"] not in rejected:
             pools.setdefault(cutout["kind"], []).append(cutout)
     check, scripts, layouts = load_check(), {}, {}
-    for number, plan in enumerate(PLANS, 1):
+    for number, plan in enumerate(plans, 1):
         sample = make_sample(plan, number, pools)
         check.validate_truth(sample["truth"])
         folder = SAMPLES/f"sample-{number:02d}"
@@ -272,7 +273,7 @@ def build(args):
     (WORK/"controller_truth").mkdir(parents=True, exist_ok=True)
     (WORK/"controller_truth"/"scripts.json").write_text(json.dumps(scripts, indent=1)+"\n", encoding="utf-8")
     (WORK/"layouts.json").write_text(json.dumps(layouts)+"\n", encoding="utf-8")
-    print(f"{len(PLANS)} samples in {SAMPLES}")
+    print(f"{len(plans)} samples in {SAMPLES}")
 
 
 def voice(args):
@@ -335,7 +336,14 @@ def sheet(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("step", choices=("build", "voice", "sheet"))
+    parser.add_argument("--overlap", type=float, default=None, help="one overlap for every plan, such as 0 for objects that never touch")
+    parser.add_argument("--avoid", type=int, nargs="*", default=[], help="COCO annotation ids to leave out of every plan, such as cutouts a person could not name by colour")
+    parser.add_argument("--plans", type=int, default=len(PLANS), help="build only the first N plans")
+    parser.add_argument("--samples", type=Path, default=None, help="where the sample folders go, instead of the receiving-audit workspace")
+    parser.add_argument("--work", type=Path, default=None, help="where the build files go, instead of .lx/receiving-audit-build")
     args = parser.parse_args(argv)
+    global SAMPLES, WORK
+    SAMPLES, WORK = args.samples or SAMPLES, args.work or WORK
     {"build": build, "voice": voice, "sheet": sheet}[args.step](args)
 
 
