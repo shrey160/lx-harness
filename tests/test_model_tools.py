@@ -226,7 +226,7 @@ class SpecList(Base):
             execute(self.app, workspace, job["id"], workspace.run_dir(job["id"])/"snapshot")
         first = loop.call_args_list[0]
         self.assertTrue(first.kwargs["whole_context"])
-        self.assertGreaterEqual(first.kwargs["keep_images"], 5)
+        self.assertIsNone(first.kwargs["keep_images"])
         self.assertNotIn("Run rules", first.args[1][0]["content"])
         traces = list(workspace.run_dir(job["id"]).glob("outputs/runs/executions/**/trace.json"))
         self.assertTrue(traces)

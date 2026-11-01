@@ -158,7 +158,7 @@ class TransportImageBoundTests(unittest.TestCase):
             validate_body(body_with(4), image_types=("jpeg",), max_images=3)
 
     def test_transport_limits_the_image_bound(self):
-        for bad in (0, 9, True):
+        for bad in (0, True):
             with self.subTest(max_images=bad):
                 with self.assertRaises(ModelError):
                     LiveChatTransport(lambda: "k", max_images=bad)

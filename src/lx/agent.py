@@ -18,8 +18,7 @@ REGIONS = ("whole", "left", "right", "top", "bottom")
 MAX_BOXES_SHOWN = 300
 # A tool result carrying an image for the agent (JPEG bytes); see run_agent.
 IMAGE_KEY = "_image"
-# Whole-context loop: images held in one request. A sample has at most 7 photos, so all stay, with room for a close-up.
-MAX_WINDOW_IMAGES = 8
+# Whole-context loop: no count of images is fixed; only the size of the request bounds the window.
 WINDOW_CHARS = 1_400_000  # base64 text; the transport allows 2 MB for the whole request
 NOTE_CHARS = 1_500
 
@@ -348,7 +347,7 @@ def _hold_images(history, window, images, keep):
     history.append({"role": "user", "content": parts+[{"type": "image_url", "image_url": {"url": i["url"]}} for i in added]})
     earlier, gone = window[:], {}
     window += added
-    while earlier and (len(window) > keep or sum(len(i["url"]) for i in window) > WINDOW_CHARS):
+    while earlier and ((keep is not None and len(window) > keep) or sum(len(i["url"]) for i in window) > WINDOW_CHARS):
         leaving = next((i for i in earlier if i["zoom"]), earlier[0])
         earlier.remove(leaving)
         window.remove(leaving)

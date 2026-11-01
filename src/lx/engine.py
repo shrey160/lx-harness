@@ -156,9 +156,8 @@ class Engine:
         elif tasks.is_text(spec.get("task")):
             contract = {"agent_tools":self._agent_tools(spec)}
         elif spec.get("task"):
-            from .agent import MAX_WINDOW_IMAGES
             from .inventory_probe import MAX_VIEW_BYTES
-            contract = {"agent_tools":self._agent_tools(spec),"image_types":("jpeg",),"max_image_bytes":MAX_VIEW_BYTES,"max_images":MAX_WINDOW_IMAGES}
+            contract = {"agent_tools":self._agent_tools(spec),"image_types":("jpeg",),"max_image_bytes":MAX_VIEW_BYTES,"max_images":None}
         transports, clients = {}, {}
         for role in ROLES:
             entry = spec["roles"][role]

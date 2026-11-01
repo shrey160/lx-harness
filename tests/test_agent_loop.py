@@ -2,8 +2,8 @@
 import json
 import unittest
 
-from lx.agent import IMAGE_KEY, MAX_WINDOW_IMAGES, WINDOW_CHARS, render_trace, run_agent
-from lx.live_transport import MAX_IMAGES_PER_REQUEST
+from lx.agent import IMAGE_KEY, WINDOW_CHARS, render_trace, run_agent
+from lx.live_transport import validate_body
 from lx.spark import normalize
 from lx.spike import wire_reply
 
@@ -102,9 +102,12 @@ class ImageWindow(unittest.TestCase):
         self.assertLessEqual(sum(len(url) for url in images_in(client.seen[-1])), WINDOW_CHARS)
         self.assertGreaterEqual(len(images_in(client.seen[-1])), 2)
 
-    def test_the_transport_allows_the_window(self):
-        self.assertGreaterEqual(MAX_IMAGES_PER_REQUEST, MAX_WINDOW_IMAGES)
-        self.assertGreaterEqual(MAX_WINDOW_IMAGES, 7+1)
+    def test_no_count_of_images_is_fixed(self):
+        """Only the user sets a limit: a turn of twelve views is sent whole when no count is given."""
+        client = self.run_views(calls(*[("view", {"photo": n}) for n in range(1, 13)]), keep=None)
+        self.assertEqual(len(images_in(client.seen[-1])), 12)
+        body = {"model": "m", "messages": [{"role": "user", "content": [{"type": "text", "text": "x"}]}]}
+        self.assertIs(validate_body(body, model="m", max_images=None), body)
 
 
 class NoStrategy(unittest.TestCase):

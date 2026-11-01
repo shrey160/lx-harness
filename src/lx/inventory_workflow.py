@@ -18,7 +18,7 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
-from .agent import MAX_WINDOW_IMAGES, PhotoSetTools, render_trace, run_agent, tool_identity
+from .agent import PhotoSetTools, render_trace, run_agent, tool_identity
 from .mcp_client import Conversation
 from .components import ComponentTools, compose_prompt, experiment_tools, scripts, task_tools, validate_components
 from .inventory import (COLOURS, CONTRACT, SHAPES, WORDING, caps, canonical_colour, singular, verify_inventory)
@@ -167,8 +167,8 @@ class InventoryAdapter(ImagesAdapter):
         return {"photos_sha256": [media_hash(p) for p in self._photos(task)], "audio_sha256": media_hash(self._audio(task))}
 
     def _window(self, task):
-        """Every photo of a sample, and room for close-ups."""
-        return min(len(self.by_id[task]["photos"])+2, MAX_WINDOW_IMAGES) if self.domain.whole_context else 2
+        """No count of images when the conversation stays in view; the request's size bounds it."""
+        return None if self.domain.whole_context else 2
 
     def _conversation(self, task, surface, harness, run_id):
         photos = self._photos(task)

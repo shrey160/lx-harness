@@ -26,7 +26,6 @@ MAX_IMAGE_BYTES = 262_144
 MAX_RESPONSE_BYTES = 4_000_000
 DISCUSSION_CALL_LIMIT = 20
 RUN_CALL_LIMIT = 200
-MAX_IMAGES_PER_REQUEST = 8
 
 _ROLES = {"developer", "system", "user", "assistant", "tool"}
 
@@ -91,7 +90,7 @@ def validate_body(body, *, model=MODEL, tool_sets=(TOOLS,), image_types=("png",)
         calls = message.get("tool_calls")
         if calls is not None and not isinstance(calls, list):
             raise ModelError("request tool history malformed")
-    if len(images) > max_images:
+    if max_images is not None and len(images) > max_images:
         raise ModelError("only one inline image may be sent per request" if max_images == 1
                          else "request carries more inline images than approved")
     try:
@@ -112,9 +111,9 @@ class LiveChatTransport:
         """Defaults are the approved O-11 contract. PROD-003 (D-008) may pass a
         provider profile, the exact agent tool set, JPEG images up to a stated
         bound and a call ceiling set from measured counts; a keyless local
-        provider passes no credential loader. PROD-004 may allow up to
-        MAX_IMAGES_PER_REQUEST images per request (view results kept in the
-        agent history); the body size bound still applies. D-017: the spec may
+        provider passes no credential loader. PROD-004 may pass a count of images
+        per request, or None for no count (view results kept in the agent
+        history); the body size bound still applies. D-017: the spec may
         set the call bound, and a provider entry's rate spaces calls evenly,
         within one run only."""
         if credential_loader is None and profile is SPARK:
@@ -123,7 +122,7 @@ class LiveChatTransport:
             raise ModelError("a runtime credential loader is required")
         if profile.kind != "chat" or not set(image_types) <= {"png", "jpeg"}:
             raise ModelError("transport outside the approved chat contract")
-        if type(max_images) is not int or not 1 <= max_images <= MAX_IMAGES_PER_REQUEST:
+        if max_images is not None and (type(max_images) is not int or max_images < 1):
             raise ModelError("image count outside approved bounds")
         if type(call_ceiling) is not int or not 1 <= call_ceiling <= 5000:
             raise ModelError("call ceiling outside approved bounds")
