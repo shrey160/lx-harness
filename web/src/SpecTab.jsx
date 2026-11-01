@@ -8,10 +8,10 @@ export function SpecTab({state,project,ui,setTab}){
   const [goal,setGoal]=useState(draft.goal),[mode,setMode]=useState(draft.mode||'controlled_preview'),[roles,setRoles]=useState(draft.roles);
   const [budget,setBudget]=useState(String(draft.budget_usd)),[workspaceBudget,setWorkspaceBudget]=useState(String(project.budget.cap_usd));
   const [limits,setLimits]=useState(draft.limits),[tools,setTools]=useState(draft.tools),[mcpTools,setMcpTools]=useState((draft.mcp_tools||[]).map(entry=>`${entry.server}/${entry.tool}`)),[reviewing,setReviewing]=useState(false),[checkResult,setCheckResult]=useState(null),[readyResult,setReadyResult]=useState(null);
-  const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||JSON.stringify(mcpTools)!==JSON.stringify((draft.mcp_tools||[]).map(entry=>`${entry.server}/${entry.tool}`))||JSON.stringify(tools)!==JSON.stringify(draft.tools)||Number(budget)!==Number(draft.budget_usd)||hintsDirty;
   const [hintAll,setHintAll]=useState((draft.hints&&draft.hints.all)||''),[hintSamples,setHintSamples]=useState((draft.hints&&draft.hints.samples)||{});
-  const folders=[...new Set((project.inventory||[]).map(item=>item.path.split('/')[0]).filter(name=>/^sample-/.test(name)))].sort();
+  const folders=[...new Set((project.inventory.inventory||[]).map(item=>item.path.split('/')[0]).filter(name=>/^sample-/.test(name)))].sort();
   const hintsDirty=hintAll!==((draft.hints&&draft.hints.all)||'')||JSON.stringify(hintSamples)!==JSON.stringify((draft.hints&&draft.hints.samples)||{});
+  const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||JSON.stringify(mcpTools)!==JSON.stringify((draft.mcp_tools||[]).map(entry=>`${entry.server}/${entry.tool}`))||JSON.stringify(tools)!==JSON.stringify(draft.tools)||Number(budget)!==Number(draft.budget_usd)||hintsDirty;
   const [trialCap,setTrialCap]=useState(String(project.trial_cap_usd));
   const trialDirty=Number(trialCap)!==project.trial_cap_usd;
   const budgetDirty=Number(workspaceBudget)!==project.budget.cap_usd||trialDirty;
