@@ -61,9 +61,10 @@ function SampleGroup({project,folder,files,open}){
 function Discuss({project,ui}){
   const [text,setText]=useState(''),[consent,setConsent]=useState(false);
   const live=project.draft.mode==='live';
+  if(project.external_orchestrator)return <section className="narrow"><p className="muted">A connected agent is this workspace's orchestrator, so talk to it where it runs. To use Discuss here, choose a model for Orchestrator on the Spec tab.</p></section>;
   const send=()=>ui.act(async()=>{await api(`projects/${project.id}/discuss`,{text,data_approved:!live||consent,mode:project.draft.mode});setText('');});
   return <section className="narrow">
-    <p className="muted">Tell the orchestrator what you want. It remembers this conversation, reads the text of your samples and can edit the spec, which clears any approval. It never sees the answers, and only you can approve or start a run.</p>
+    <p className="muted">Tell the orchestrator ({project.draft.providers.orchestrator.name}) what you want. It remembers this conversation, reads the text of your samples and can edit the spec, which clears any approval. It never sees the answers, and only you can approve or start a run.</p>
     <div className="chat">{project.messages.map((m,i)=><div key={i} className={'message '+m.role}><strong>{m.role==='user'?'You':live?'Orchestrator':'Scripted reply'}</strong><p>{m.content}</p></div>)}</div>
     <div className="stack">
       <textarea aria-label="Message" rows="3" value={text} onChange={e=>setText(e.target.value)}/>
