@@ -154,8 +154,8 @@ class InventoryAdapter(ImagesAdapter):
 
     def _caps(self, task):
         limits = self.limits or {}
-        return caps(len(self.by_id[task]["photos"]), turns_per_photo=limits.get("agent_turns_per_photo", 3),
-                    tools_per_photo=limits.get("agent_tools_per_photo", 6))
+        return caps(len(self.by_id[task]["photos"]), turns_per_photo=limits.get("agent_turns_per_photo"),
+                    tools_per_photo=limits.get("agent_tools_per_photo"))
 
     def _photos(self, task):
         return [media_path(self.input_root, p, ".jpg").read_bytes() for p in self.by_id[task]["photos"]]

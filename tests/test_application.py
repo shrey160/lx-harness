@@ -263,7 +263,7 @@ class ApplicationFlowTests(unittest.TestCase):
 
     def test_limits_are_in_the_spec_and_a_change_is_a_new_version_needing_approval(self):
         p = self.approve(self.project())
-        self.assertEqual(p["draft"]["limits"]["improver_turns"],30)
+        self.assertIsNone(p["draft"]["limits"]["improver_turns"])
         self.assertEqual(p["draft"]["limits_set"],{})
         saved = self.workspace(p).spec(p["draft"]["version"])
         self.assertEqual(saved["limits"]["run_seconds"],900)
@@ -288,7 +288,7 @@ class ApplicationFlowTests(unittest.TestCase):
         p = self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"limits":{"chat_calls":150}})
         roles = {r:self.entry("new-"+r)["id"] for r in ("orchestrator","improver","worker")}
         p = self.app.edit_spec(p["id"],{"goal":"g","budget_usd":1,"roles":roles})
-        self.assertEqual(p["draft"]["limits"]["improver_turns"],30)
+        self.assertIsNone(p["draft"]["limits"]["improver_turns"])
         self.assertEqual(p["draft"]["limits"]["chat_calls"],150)
         self.assertEqual(p["limit_defaults"]["chat_calls"],200)
 

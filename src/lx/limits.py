@@ -14,10 +14,10 @@ from __future__ import annotations
 HOUR = 3600
 # name: (label, lowest, highest, role whose provider sets the default, or None for the whole run)
 FIELDS = {
-    "agent_turns_per_photo": ("Agent turns per photo or text sample (plus 4)", 1, 20, "worker"),
-    "agent_tools_per_photo": ("Agent tool calls per photo or text sample (plus 6)", 1, 40, "worker"),
+    "agent_turns_per_photo": ("Agent turns per photo or text sample (plus 4)", 1, None, "worker"),
+    "agent_tools_per_photo": ("Agent tool calls per photo or text sample (plus 6)", 1, None, "worker"),
     "stop_after_empty_runs": ("Stop after this many agent runs in a row with no answer", 1, 1000, "worker"),
-    "improver_turns": ("Improver turns per session", 1, 100, "improver"),
+    "improver_turns": ("Improver turns per session", 1, None, "improver"),
     "improver_seconds": ("Improver session, seconds", 30, HOUR, "improver"),
     "call_seconds": ("One model call with its retries, seconds", 10, 1800, None),
     "run_seconds": ("Whole run, seconds", 60, 6*HOUR, None),
@@ -27,6 +27,8 @@ FIELDS = {
     "transcribe_calls": ("Transcribe calls per run", 1, 1000, None),
     "mcp_calls": ("MCP tool calls per run", 1, 5000, None),
 }
+# Turns and tool calls have no limit until the user sets one: no number is built in, and None means none.
+UNSET_BY_DEFAULT = ("agent_turns_per_photo", "agent_tools_per_photo", "improver_turns")
 # A text task calls neither tool, so these limits do nothing there.
 PHOTO_ONLY = ("segment_calls", "transcribe_calls")
 
@@ -35,8 +37,8 @@ def preset(spark, task=False):
     """Spark keeps its original numbers, but for the improver: at 12 turns 2 of its 26 sessions ran out
     on 31 Oct, and that limits what the loop can learn. Hosted reasoning and local models can take over
     a minute a call, and Glimmer made one tool call per turn (live runs, 30 Oct 2026)."""
-    return {"agent_turns_per_photo": 12, "agent_tools_per_photo": 12, "stop_after_empty_runs": 8,
-            "improver_turns": 30, "improver_seconds": 900,
+    return {"agent_turns_per_photo": None, "agent_tools_per_photo": None, "stop_after_empty_runs": 8,
+            "improver_turns": None, "improver_seconds": 900,
             "call_seconds": 90 if spark else 600 if task else 300,
             "run_seconds": 4*HOUR if task else 900 if spark else HOUR,
             "reply_tokens": 4096 if spark else 8192,
@@ -52,8 +54,10 @@ def check(values):
         if name not in FIELDS:
             raise ValueError(f"Unknown limit: {name}")
         label, low, high, _ = FIELDS[name]
-        if type(value) is not int or not low <= value <= high:
-            raise ValueError(f"{label} must be a whole number from {low} to {high}")
+        if value is None and name in UNSET_BY_DEFAULT:
+            continue
+        if type(value) is not int or not low <= value or (high is not None and value > high):
+            raise ValueError(f"{label} must be a whole number from {low}" + (f" to {high}" if high is not None else ""))
     return values
 
 

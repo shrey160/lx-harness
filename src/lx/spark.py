@@ -7,6 +7,7 @@ from token usage, not an invoice. Other chat providers use their own profile.
 from __future__ import annotations
 
 import copy
+import itertools
 import json
 import math
 import random
@@ -186,11 +187,11 @@ class ChatClient:
             return message, usage
         raise ModelError("model call did not complete")
 
-    def session(self, messages, handler, tools, *, role="improver", phase="session", candidate="", timeout=120, max_turns=12):
+    def session(self, messages, handler, tools, *, role="improver", phase="session", candidate="", timeout=120, max_turns=None):
         history = copy.deepcopy(messages)
         deadline = time.monotonic()+timeout
         total = Decimal(0)
-        for _ in range(max_turns):
+        for _ in (range(max_turns) if max_turns is not None else itertools.count()):
             message, usage = self.chat(history, tools=tools, role=role, phase=phase,
                                        candidate=candidate, timeout=max(0, deadline-time.monotonic()))
             total += usage["cost_usd"]

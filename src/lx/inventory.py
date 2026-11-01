@@ -158,10 +158,12 @@ def write_synthetic(root, count, *, seed=20261029):
 
 
 def caps(n_photos, *, turns_per_photo=3, tools_per_photo=6):
-    """Turn and tool-call caps for one item: room to view, segment and count every photo."""
+    """Turn and tool-call caps for one item: room to view, segment and count every photo.
+    A per-photo count of None is no cap; only a user sets that."""
     if type(n_photos) is not int or not MIN_PHOTOS <= n_photos <= MAX_PHOTOS:
         raise ValueError(f"photo count must be {MIN_PHOTOS}-{MAX_PHOTOS}")
-    return {"max_turns": 4 + turns_per_photo * n_photos, "max_tool_calls": 6 + tools_per_photo * n_photos}
+    return {"max_turns": None if turns_per_photo is None else 4 + turns_per_photo * n_photos,
+            "max_tool_calls": None if tools_per_photo is None else 6 + tools_per_photo * n_photos}
 
 
 class FakeShapeSegmentation:

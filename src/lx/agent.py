@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import itertools
 import json
 
 from .perception import concept_text
@@ -261,7 +262,7 @@ def render_view(data, box=None, *, max_side=768, margin=0.15, quality=85):
 
 # --- loop -------------------------------------------------------------------
 
-def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, max_tool_calls=12, timeout=300,
+def run_agent(client, messages, tools, handler, *, candidate="", max_turns=None, max_tool_calls=None, timeout=300,
               keep_images=2, whole_context=False):
     """Run the agent until it answers or a cap stops it; never raises for tool errors.
 
@@ -281,7 +282,8 @@ def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, ma
     history = [dict(m) for m in messages]
     trace = [{"type": "tools", "names": [t["function"]["name"] for t in use_tools or []]}]
     calls, window = 0, []
-    for _ in range(max_turns):
+    # A count is the user's to set (None means none); the run's call count, time and budget still end it.
+    for _ in (range(max_turns) if max_turns is not None else itertools.count()):
         try:
             message, usage = client.chat(history, tools=use_tools, role="worker", phase="execute",
                                          candidate=candidate, timeout=timeout)
@@ -303,7 +305,7 @@ def run_agent(client, messages, tools, handler, *, candidate="", max_turns=8, ma
         images = []
         for call in message["tool_calls"]:
             calls += 1
-            if calls > max_tool_calls:
+            if max_tool_calls is not None and calls > max_tool_calls:
                 trace.append({"type": "stopped", "reason": f"more than {max_tool_calls} tool calls"})
                 return "", trace
             step = {"type": "tool", "name": call["name"], "arguments": call["arguments"]}

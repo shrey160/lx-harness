@@ -113,6 +113,8 @@ class WhatItDoes(Trials):
     def test_a_trial_that_stops_says_so(self):
         self.transport = lambda body, timeout: (wire_reply("PREFLIGHT_OK") if body["messages"][0]["content"].startswith("LX_PREFLIGHT") else
                                                 wire_reply(calls=[{"id": "x", "type": "function", "function": {"name": "transcribe", "arguments": "{}"}}]))
+        # No count is built in: the user's own limit is what stops an agent that never answers.
+        self.app.edit_spec(self.id, {"goal": self.app.project(self.id)["draft"]["goal"], "budget_usd": 1, "limits": {"agent_tools_per_photo": 2}})
         _, result = self.trial()
         self.assertRegex(result["stopped"], "tool calls|turns")
         self.assertEqual(result["score"] < 1, True)

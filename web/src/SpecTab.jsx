@@ -122,7 +122,7 @@ function Ready({result}){
 function Limits({fields,values,defaults,onChange}){
   const changed=fields.filter(field=>values[field.name]!==defaults[field.name]).length;
   return <details className="limits"><summary>Advanced: run limits{changed?` (${changed} changed)`:''}</summary>
-    <div className="limit-grid">{fields.map(field=><label className="field" key={field.name}>{field.label}<input aria-label={field.label} type="number" min={field.min} max={field.max} step="1" value={values[field.name]??''} onChange={e=>onChange(field.name,Number(e.target.value))}/><small className="muted">Default {defaults[field.name]} · {field.min} to {field.max}</small></label>)}</div>
+    <div className="limit-grid">{fields.map(field=><label className="field" key={field.name}>{field.label}<input aria-label={field.label} type="number" min={field.min} max={field.max} step="1" value={values[field.name]??''} placeholder={field.max==null?'No limit':undefined} onChange={e=>onChange(field.name,e.target.value===''&&field.max==null?null:Number(e.target.value))}/><small className="muted">Default {defaults[field.name]??'no limit'} · {field.max==null?`${field.min} or more; leave empty for no limit`:`${field.min} to ${field.max}`}</small></label>)}</div>
     <p className="muted">A run keeps the limits it was approved with, so a raised limit needs a new version and a new run.</p>
   </details>;
 }

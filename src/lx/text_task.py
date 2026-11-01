@@ -182,7 +182,8 @@ class TextAdapter(InventoryAdapter):
 
     def _caps(self, task):
         limits = self.limits or {}
-        return {"max_turns": 4 + limits.get("agent_turns_per_photo", 3), "max_tool_calls": 6 + limits.get("agent_tools_per_photo", 6)}
+        turns, tools = limits.get("agent_turns_per_photo"), limits.get("agent_tools_per_photo")
+        return {"max_turns": None if turns is None else 4 + turns, "max_tool_calls": None if tools is None else 6 + tools}
 
     def _window(self, task):
         return 2

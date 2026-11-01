@@ -11,14 +11,14 @@ class PresetTests(unittest.TestCase):
     def test_spark_keeps_its_numbers_and_others_get_longer_ones(self):
         spark, other = limits.preset(True), limits.preset(False)
         self.assertEqual((spark["call_seconds"], spark["improver_seconds"], spark["run_seconds"], spark["improver_turns"], spark["reply_tokens"]),
-                         (90, 900, 900, 30, 4096))
+                         (90, 900, 900, None, 4096))
         self.assertEqual((other["call_seconds"], other["improver_seconds"], other["run_seconds"], other["improver_turns"], other["reply_tokens"]),
-                         (300, 900, 3600, 30, 8192))
+                         (300, 900, 3600, None, 8192))
 
-    def test_agent_defaults_leave_room_to_look_at_every_photo(self):
+    def test_no_count_of_turns_or_tool_calls_is_built_in(self):
         for spark in (True, False):
-            self.assertEqual(limits.preset(spark)["agent_turns_per_photo"], 12)
-            self.assertEqual(limits.preset(spark)["agent_tools_per_photo"], 12)
+            for name in limits.UNSET_BY_DEFAULT:
+                self.assertIsNone(limits.preset(spark)[name])
 
     def test_a_task_gets_its_longer_run_and_call_limits(self):
         task = limits.preset(False, task=True)
@@ -34,7 +34,7 @@ class PresetTests(unittest.TestCase):
 
 class CheckTests(unittest.TestCase):
     def test_refuses_unknown_names_and_values_outside_the_bounds(self):
-        for bad in ({"nope": 1}, {"improver_turns": 0}, {"improver_turns": 101}, {"run_seconds": 59},
+        for bad in ({"nope": 1}, {"improver_turns": 0}, {"run_seconds": 59},
                     {"reply_tokens": 40000}, {"chat_calls": 5001}, {"improver_turns": 1.5},
                     {"improver_turns": True}, {"improver_turns": "12"}):
             with self.subTest(bad), self.assertRaises(ValueError):
@@ -43,8 +43,15 @@ class CheckTests(unittest.TestCase):
             limits.check([])
 
     def test_says_which_limit_and_its_range(self):
-        with self.assertRaisesRegex(ValueError, "Improver turns per session must be a whole number from 1 to 100"):
-            limits.check({"improver_turns": 500})
+        with self.assertRaisesRegex(ValueError, "Improver turns per session must be a whole number from 1"):
+            limits.check({"improver_turns": 0})
+        with self.assertRaisesRegex(ValueError, "Reply length, tokens must be a whole number from 256 to 32768"):
+            limits.check({"reply_tokens": 500000})
+
+    def test_a_turn_or_tool_limit_has_no_upper_bound_and_may_be_empty(self):
+        limits.check({"improver_turns": 100000, "agent_tools_per_photo": None, "agent_turns_per_photo": 500})
+        with self.assertRaises(ValueError):
+            limits.check({"run_seconds": None})
 
 
 class DefaultsTests(unittest.TestCase):
@@ -52,7 +59,7 @@ class DefaultsTests(unittest.TestCase):
         mixed = limits.defaults({"orchestrator": (True, {}), "improver": (True, {"improver_turns": 12}), "worker": (False, {})})
         self.assertEqual(mixed["improver_turns"], 12)
         other = limits.defaults({"orchestrator": (True, {"improver_turns": 12}), "improver": (False, {}), "worker": (True, {})})
-        self.assertEqual(other["improver_turns"], 30)
+        self.assertIsNone(other["improver_turns"])
 
     def test_a_run_field_takes_the_longest_default(self):
         mixed = limits.defaults({"orchestrator": (True, {}), "improver": (True, {}), "worker": (False, {})})
@@ -80,6 +87,24 @@ class ReachTests(unittest.TestCase):
     def test_caps_follow_the_per_photo_limits(self):
         self.assertEqual(caps(3), {"max_turns": 13, "max_tool_calls": 24})
         self.assertEqual(caps(3, turns_per_photo=6, tools_per_photo=10), {"max_turns": 22, "max_tool_calls": 36})
+        self.assertEqual(caps(3, turns_per_photo=None, tools_per_photo=None), {"max_turns": None, "max_tool_calls": None})
+        self.assertEqual(caps(3, turns_per_photo=6, tools_per_photo=None), {"max_turns": 22, "max_tool_calls": None})
+
+    def test_an_agent_run_with_no_count_runs_past_any_built_in_one(self):
+        from lx.agent import run_agent
+        class Client:
+            profile = type("P", (), {"supports_tools": True})()
+            def __init__(self): self.n = 0
+            def chat(self, history, **_):
+                self.n += 1
+                call = [{"id": str(self.n), "name": "ping", "arguments": {}}]
+                return ({"content": "done" if self.n > 150 else None, "tool_calls": [] if self.n > 150 else call, "reasoning": ""},
+                        {"output_tokens": 1})
+        answer, trace = run_agent(Client(), [{"role": "user", "content": "go"}], [], lambda name, args: {"ok": 1})
+        self.assertEqual(answer, "done")
+        self.assertFalse([s for s in trace if s["type"] == "stopped"])
+        answer, trace = run_agent(Client(), [{"role": "user", "content": "go"}], [], lambda name, args: {"ok": 1}, max_tool_calls=5)
+        self.assertEqual(answer, "")
 
     def test_the_client_applies_the_call_limit_to_each_attempt(self):
         seen = []
