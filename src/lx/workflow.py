@@ -232,8 +232,9 @@ def optimize_images(snapshot, output, client, truth, spec, *, live=False, worker
     return optimize_adapter(adapter, output, client, spec, live=live, limits=limits, health=health)
 
 
-def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_count=None, limits=None, health=None):
-    """Blind core adaptation, then controller-side mean-dev retention and evaluation."""
+def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_count=None, limits=None, health=None, keep_by_score=False):
+    """Blind core adaptation, then controller-side evaluation. The package is the last adopted harness (D-028);
+    keep_by_score is only for the paused experiments, whose approved protocol and evidence depend on it."""
     from harness2.core.schedule import Namespace, run_domain
     from harness2.core import tree
     proposer = ChatProposer(client, Path(output)/"proposer_audit", limits=limits, health=health)
@@ -259,7 +260,7 @@ def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_co
     frozen = Path(output)/"frozen-candidate"
     tree.write_tree(adapter.substrate.surface(), tree.read_tree(adapter.substrate.surface(),final_dir), frozen, stubs=False)
     checks = {"base": {}, "selected_dev": {}, "heldout": {}}
-    scores = {name: {} for name in ("base_dev", "candidate_dev", "base_heldout", "candidate_heldout", "retained_heldout")}
+    scores = {name: {} for name in ("base_dev", "candidate_dev", "base_heldout", "candidate_heldout", *(("retained_heldout",) if keep_by_score else ()))}
     def evaluate(task, harness, run_id):
         run = adapter.execute(task, harness, run_id)
         checked = adapter.verify(task, json.loads(adapter.deliverable_text(run)))
@@ -269,7 +270,7 @@ def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_co
         candidate, scores["candidate_dev"][task] = evaluate(task, frozen, "independent/final/"+task)
         checks["base"][task], checks["selected_dev"][task] = base.accepted, candidate.accepted
     mean = lambda values: sum(values.values())/len(values)
-    improved = mean(scores["candidate_dev"]) > mean(scores["base_dev"])
+    improved = not keep_by_score or mean(scores["candidate_dev"]) > mean(scores["base_dev"])
     # Freeze the candidate before opening held-out evaluation. Held-out grades
     # never affect retention and never enter proposer/selector contexts.
     if not improved:
@@ -278,10 +279,12 @@ def optimize_adapter(adapter, output, client, spec, *, live=False, adaptation_co
         base, scores["base_heldout"][task] = evaluate(task, None, "heldout/base/"+task)
         candidate, scores["candidate_heldout"][task] = evaluate(task, frozen, "heldout/candidate/"+task)
         checks["heldout"][task] = candidate.accepted if improved else base.accepted
-        scores["retained_heldout"][task] = scores["candidate_heldout" if improved else "base_heldout"][task]
-    report = {"mode": "live" if live else "controlled_preview", "live": live, "simulated_usage": not live, "improved": improved,
+        if keep_by_score:
+            scores["retained_heldout"][task] = scores["candidate_heldout" if improved else "base_heldout"][task]
+    verdict = {"improved": improved, "retention_basis": "mean development score only; strict gain required", "retained": "candidate" if improved else "base"} if keep_by_score else {}
+    report = {"mode": "live" if live else "controlled_preview", "live": live, "simulated_usage": not live, **verdict,
         "checks": checks, "scores": scores, "means": {name: mean(values) for name, values in scores.items()},
-        "adaptation_tasks": practice, "retention_basis": "mean development score only; strict gain required", "retained": "candidate" if improved else "base", "limitations": ([
+        "adaptation_tasks": practice, "limitations": ([
             "Synthetic task only; results do not establish general capability.",
             "Computed list-price cost from reported usage; not provider billing."] if live else [
             "Deterministic provider double; these gains do not establish model capability.",

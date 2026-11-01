@@ -112,7 +112,7 @@ function TrialResult({project,job}){
 function Result({project,job,ui,post,live}){
   const {result}=job;
   const legacy=result.improved?(live?'The harness improved.':'Improvement path exercised with scripted replies.'):'Base harness kept: the candidate did not beat it.';
-  const headline=!result.stream_order?legacy:result.package_is_base?'The last sample kept the base harness.':"The package is the last sample's harness.";
+  const headline=result.improved!==undefined?legacy:result.package_is_base?'The last sample kept the base harness.':"The package is the last adopted harness.";
   return <div className="result">
     <h3>{headline}</h3>
     {result.regraded&&<p className="muted">Graded afterwards from the run's saved answers.</p>}

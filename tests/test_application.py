@@ -103,7 +103,7 @@ class ApplicationFlowTests(unittest.TestCase):
             results = list(pool.map(reserve,(a,b)))
         self.assertEqual(sum(r is not None for r in results),1)
 
-    def test_no_improvement_retains_base_and_reports_failed_heldout_checks(self):
+    def test_no_score_keeps_a_harness_and_failed_heldout_checks_are_reported(self):
         import copy
         from lx.workflow import PreviewTransport,optimize_images
         from lx.spark import ChatClient
@@ -118,10 +118,9 @@ class ApplicationFlowTests(unittest.TestCase):
         snapshot = workspace.samples_path
         client = ChatClient(NoGain(self.app.demo.controller_truth),BudgetScope(workspace.preview_ledger,"negative",1))
         report = optimize_images(snapshot,self.app.root/"negative",client,self.app.demo.controller_truth,p["draft"])
-        self.assertFalse(report["improved"])
-        self.assertEqual(report["retained"],"base")
+        self.assertFalse({"improved","retained","retention_basis"}&set(report))
         self.assertFalse(any(report["checks"]["heldout"].values()))
-        self.assertIn("LX_BASE",(self.app.root/"negative"/"package"/"harness"/"systemprompt.md").read_text(encoding="utf-8"))
+        self.assertEqual((self.app.root/"negative"/"package"/"harness"/"systemprompt.md").read_bytes(),(self.app.root/"negative"/"frozen-candidate"/"systemprompt.md").read_bytes())
 
     def test_unapproved_or_nonpublic_data_cannot_start(self):
         p = self.project()

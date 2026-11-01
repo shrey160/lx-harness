@@ -284,7 +284,7 @@ class RecordsCoreIntegrationTests(unittest.TestCase):
         with patch("lx.workflow.ChatProposer", side_effect=lambda *args, **kwargs: object()), \
              patch("harness2.core.schedule.run_domain", side_effect=fake_run_domain):
             from lx.workflow import optimize_adapter
-            report = optimize_adapter(adapter, output, client, spec, adaptation_count=1)
+            report = optimize_adapter(adapter, output, client, spec, adaptation_count=1, keep_by_score=True)
 
         self.assertTrue(report["improved"])
         self.assertEqual("candidate", report["retained"])

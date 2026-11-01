@@ -171,7 +171,7 @@ def run_trials(dataset, output, client_factory, *, trials=5, adaptation_count=1,
         adapter = adapter_cls(dataset.root/"worker_inputs", root, client,
                               dataset.controller_truth, mode=spec["mode"],
                               **(adapter_kwargs(client) if adapter_kwargs else {}))
-        report = optimize_adapter(adapter, root, client, spec, live=live, adaptation_count=adaptation_count)
+        report = optimize_adapter(adapter, root, client, spec, live=live, adaptation_count=adaptation_count, keep_by_score=True)
         ledger = client.ledger.ledger if isinstance(client.ledger, BudgetScope) else client.ledger
         report["usage"] = summarize(usage_rows(ledger, client.ledger.prefix if isinstance(client.ledger, BudgetScope) else ""))
         report["trial_id"] = identifier
