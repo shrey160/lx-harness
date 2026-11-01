@@ -112,7 +112,8 @@ function AddProvider({ui,close,provider}){
       {problem&&<p className="callout warn" role="status">{problem}</p>}
       {models&&models.length>0&&<>
         <label className="field">Find a model<input value={search} placeholder={`${models.length} models`} onChange={e=>setSearch(e.target.value)}/></label>
-        <label className="field">Model<select size="8" aria-label="Model" value={chosen} onChange={e=>setChosen(e.target.value)}>{found.slice(0,MAX_SHOWN).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+        {/* The blank option stops React showing the first model as chosen when none is, which would make it unclickable. */}
+        <label className="field">Model<select size="8" aria-label="Model" value={found.some(m=>m.id===chosen)?chosen:''} onChange={e=>setChosen(e.target.value)}><option value="" hidden/>{found.slice(0,MAX_SHOWN).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
       </>}
       {models&&models.length===0&&<label className="field">Model name<input value={typed} onChange={e=>setTyped(e.target.value)}/><small className="muted">The model list gave no models, so this is the one thing to enter.</small></label>}
       {model&&<p className="muted" role="status">{facts(model)}</p>}
