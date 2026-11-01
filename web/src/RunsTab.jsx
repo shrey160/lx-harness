@@ -30,7 +30,7 @@ export function RunsTab({project,jobs,ui,setTab}){
   </section>;
 }
 
-function RunPage({project,job,ui,back,canTry,tryHarness}){
+export function RunPage({project,job,ui,back,canTry,tryHarness}){
   const path=`jobs/${project.id}/${job.id}`;
   const {result,progress}=job,live=job.mode==='live';
   const post=(action,body={})=>ui.act(()=>api(`${path}/${action}`,body));

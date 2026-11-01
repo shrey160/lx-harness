@@ -16,6 +16,7 @@ The React interface, served by `lx.server` from `web/dist/`.
 | `src/style.css` | The dark theme: colours are tokens at the top |
 | `src/index.html` | Page shell |
 | `build.mjs` | esbuild bundling into `dist/` |
+| `smoke.mjs` | Renders every page once from a saved state; `tests/test_ui_pages.py` drives it where Node is installed |
 
 Build it from `main_LX`:
 

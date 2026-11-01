@@ -10,6 +10,16 @@ import {Workspace} from './Workspace.jsx';
 // Each wait starts when the last reply arrives, so slow replies never pile up. A hidden page asks for nothing.
 const POLL={working:1200,idle:5000};
 
+// A page that throws loses only itself: the sidebar stays, and moving to another page clears it.
+class PageError extends React.Component{
+  state={error:null};
+  static getDerivedStateFromError(error){return {error};}
+  render(){
+    const {error}=this.state;
+    return error?<div className="callout bad" role="alert"><strong>This page hit an error.</strong><p>{String(error.message||error)}</p><button className="button" onClick={()=>this.setState({error:null})}>Try again</button></div>:this.props.children;
+  }
+}
+
 function App(){
   const [state,setState]=useState(null),[view,setView]=useState({page:'new'});
   const [error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
@@ -38,9 +48,11 @@ function App(){
     <Sidebar state={state} view={view} go={setView}/>
     <main className="main">
       {!state&&!error&&<p className="empty">Opening…</p>}
-      {state&&view.page==='new'&&<NewWorkspace ui={ui}/>}
-      {state&&view.page==='settings'&&<Settings state={state} ui={ui} section={view.section||'providers'}/>}
-      {project&&<Workspace key={project.id} state={state} project={project} ui={ui} tab={view.tab||'spec'}/>}
+      <PageError key={[view.page,view.id,view.tab,view.section].join('/')}>
+        {state&&view.page==='new'&&<NewWorkspace ui={ui}/>}
+        {state&&view.page==='settings'&&<Settings state={state} ui={ui} section={view.section||'providers'}/>}
+        {project&&<Workspace key={project.id} state={state} project={project} ui={ui} tab={view.tab||'spec'}/>}
+      </PageError>
     </main>
     {(error||notice)&&<div className="toasts">
       {error&&<div className="toast bad" role="alert"><span>{error}</span><button className="link" onClick={()=>setError('')}>Dismiss</button></div>}
