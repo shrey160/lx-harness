@@ -6,7 +6,7 @@ from pathlib import Path
 
 from lx.budget import BudgetExceeded, BudgetLedger
 from lx.proposer import FileTools
-from lx.spark import ModelError, RateLimited, ChatClient, normalize
+from lx.spark import IncompleteResponse, ModelError, RateLimited, ChatClient, normalize
 from lx.spike import wire_reply
 
 
@@ -87,6 +87,43 @@ class ProtocolTests(unittest.TestCase):
         state = BudgetLedger(self.root/"budget.sqlite3").summary()
         self.assertEqual(state["unknown_count"], 1)
         self.assertGreater(state["reserved_usd"], 0)
+
+    def small_model_reply(self, finish="stop", **message):
+        """One reply through the client as a thinking local model might send it."""
+        from lx.providers import ProviderProfile
+        local = ProviderProfile(kind="chat", endpoint="http://127.0.0.1:8888/v1/chat/completions", model="m", token_param="max_tokens")
+        reply = wire_reply("placeholder")
+        reply["choices"][0]["finish_reason"] = finish
+        reply["choices"][0]["message"] = {"role": "assistant", **message}
+        return ChatClient(lambda *a: reply, self.ledger, profile=local, retries=0).chat([{"role": "user", "content": "hi"}], role="worker")[0]
+
+    def test_a_small_model_that_only_thinks_gives_no_answer(self):
+        for content in ("", None, "  \n"):
+            with self.subTest(content), self.assertRaisesRegex(ModelError, "no usable content"):
+                self.small_model_reply(content=content, reasoning_content="I should call view.")
+
+    def test_a_reply_cut_off_while_thinking_is_incomplete(self):
+        with self.assertRaises(IncompleteResponse):
+            self.small_model_reply("length", content="", reasoning_content="Still thinking")
+
+    def test_a_tool_call_left_as_text_stays_text(self):
+        written = '<tool_call>{"name":"view"}</tool_call>'
+        message = self.small_model_reply(content=written)
+        self.assertEqual((message["content"], message["tool_calls"]), (written, []))
+
+    def test_reasoning_beside_a_tool_call_is_kept_as_text(self):
+        calls = [{"id": "a", "type": "function", "function": {"name": "view", "arguments": "{\"path\":\"1.jpg\"}"}}]
+        message = self.small_model_reply("tool_calls", content="", reasoning_content="Open the photo.", tool_calls=calls)
+        self.assertEqual(message["reasoning"], "Open the photo.")
+        self.assertEqual(message["tool_calls"], [{"id": "a", "name": "view", "arguments": {"path": "1.jpg"}}])
+
+    def test_a_timed_out_local_call_stops_and_is_held_not_settled(self):
+        def transport(body, timeout):
+            raise TimeoutError("timed out")
+        with self.assertRaises(TimeoutError):
+            ChatClient(transport, self.ledger, retries=0).chat([{"role": "user", "content": "hi"}])
+        state = self.ledger.summary()
+        self.assertEqual((state["settled_calls"], state["unknown_count"]), (0, 1))
 
     def test_malformed_tool_not_dispatched(self):
         reply = wire_reply(calls=[{"id": "a", "type": "function", "function": {
