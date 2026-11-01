@@ -67,6 +67,17 @@ def resume(engine, lx, args):
     return {"status": engine.resume(identifier, args.run)["status"]}
 
 
+def mcp_connect(engine, lx, args):
+    command = args.server_command[1:] if args.server_command[:1] == ["--"] else args.server_command
+    confirm(f"Connect the MCP server {args.name}. This starts on your machine, outside the sandbox, now and in runs:\n  {' '.join(command)}")
+    return engine.mcp_connect(args.name, command)
+
+
+def mcp_mark(engine, lx, args):
+    confirm(f"Mark as read-only on {args.name}: {', '.join(args.tools) or 'nothing'}. A run repeats calls, so a tool that changes anything must stay unmarked.")
+    return engine.mcp_mark(args.name, args.tools)
+
+
 def samples(engine, lx, args):
     return lx.read_sample(args.workspace, args.read) if args.read else lx.samples(args.workspace)
 
@@ -75,6 +86,7 @@ def spec_draft(engine, lx, args):
     read = lambda path: Path(path).read_text(encoding="utf-8")
     return lx.spec_draft(args.workspace, goal=args.goal, mode=args.mode, worker=args.worker, improver=args.improver,
                          tools=args.tools.split(",") if args.tools is not None else None,
+                         mcp_tools=[item for item in args.mcp_tools.split(",") if item] if args.mcp_tools is not None else None,
                          task=json.loads(read(args.task)) if args.task else None, check=read(args.check) if args.check else None,
                          limits=json.loads(read(args.limits)) if args.limits else None)
 
@@ -114,6 +126,7 @@ def parser():
     item.add_argument("--worker")
     item.add_argument("--improver")
     item.add_argument("--tools", help="comma-separated tool ids")
+    item.add_argument("--mcp-tools", help="comma-separated server/tool ids; empty takes them out")
     item.add_argument("--task", metavar="FILE", help="JSON of the task fields to change")
     item.add_argument("--check", metavar="FILE", help="a new check.py")
     item.add_argument("--limits", metavar="FILE", help="JSON of run limits")
@@ -142,6 +155,19 @@ def parser():
     item.add_argument("run")
     item = command(run, "resume", resume, help="resume a stopped run, as a person")
     item.add_argument("run")
+
+    mcp = commands.add_parser("mcp", help="MCP servers whose tools a run's agent can use").add_subparsers(dest="mcp_command", required=True)
+    command(mcp, "list", lambda engine, lx, args: {"tools": engine.mcp_choices()}, folder=False, help="connected tools")
+    item = command(mcp, "connect", mcp_connect, folder=False, help="connect a local server, as a person")
+    item.add_argument("name")
+    item.add_argument("server_command", nargs=argparse.REMAINDER, help="the program and its arguments, after --")
+    item = command(mcp, "read-only", mcp_mark, folder=False, help="say which tools change nothing, as a person")
+    item.add_argument("name")
+    item.add_argument("tools", nargs="*")
+    item = command(mcp, "refresh", lambda engine, lx, args: engine.mcp_refresh(args.name), folder=False, help="read a server's tools again")
+    item.add_argument("name")
+    item = command(mcp, "remove", lambda engine, lx, args: engine.mcp_remove(args.name), folder=False, help="disconnect a server")
+    item.add_argument("name")
 
     item = command(commands, "results", lambda engine, lx, args: lx.results(args.workspace, args.run), help="scores and what was learned")
     item.add_argument("run")

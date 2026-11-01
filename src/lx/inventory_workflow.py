@@ -19,6 +19,7 @@ import re
 from pathlib import Path, PurePosixPath
 
 from .agent import MAX_WINDOW_IMAGES, PhotoSetTools, render_trace, run_agent, tool_identity
+from .mcp_client import Conversation
 from .components import ComponentTools, compose_prompt, experiment_tools, scripts, task_tools, validate_components
 from .inventory import (COLOURS, CONTRACT, SHAPES, WORDING, caps, canonical_colour, singular, verify_inventory)
 from .perception import FakeTranscription, media_hash
@@ -128,16 +129,16 @@ class InventoryAdapter(ImagesAdapter):
     protocol = "lx-inventory-agent-v1"
 
     def __init__(self, snapshot, output, client, truth, *, perception, catalog, mode="offline_preview",
-                 script_runner=None, domain=None, limits=None, health=None):
+                 script_runner=None, domain=None, limits=None, health=None, mcp=None):
         from . import sandbox
-        self.health = health
+        self.health, self.mcp = health, mcp
         self.scripts_enabled = script_runner is not None or sandbox.available()
         super().__init__(snapshot, output, client, mode=mode, domain=domain or InventoryDomain(self.scripts_enabled),
                          truth=truth, limits=limits)
         if domain is not None:
             self.verifier_identity = hashlib.sha256(domain.check.encode()).hexdigest()
         self.perception = perception
-        self.tools = self._agent_tools(catalog)
+        self.tools = self._agent_tools(catalog)+(mcp.tools if mcp else [])
         self.segmentation = any(tool["function"]["name"] == "segment" for tool in self.tools)
         self.script_runner = script_runner
 
@@ -175,8 +176,11 @@ class InventoryAdapter(ImagesAdapter):
         handler = ComponentTools(PhotoSetTools(self.perception, photos=photos, audio=self._audio(task), candidate=run_id,
                                                segmentation=self.segmentation,
                                                counting=any(tool["function"]["name"] == "count_boxes" for tool in self.tools)),
-                                 harness, runner=self.script_runner)
+                                 harness, runner=self.script_runner, mcp=self._mcp_view())
         return messages, handler
+
+    def _mcp_view(self):
+        return Conversation(self.mcp) if self.mcp else None
 
     def _identity(self, task, harness):
         profile = self.client.profile

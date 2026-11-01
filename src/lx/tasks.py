@@ -73,6 +73,11 @@ def spec_tools(spec):
     return tuple(spec.get("tools", MODEL_TOOLS)) if uses_tools(spec.get("task")) else ()
 
 
+def spec_mcp(spec):
+    """The MCP tools a spec approved, as their definitions. An older spec has none."""
+    return spec.get("mcp_tools", [])
+
+
 def check_tools(task, chosen):
     """A valid tool list for this task, in catalog order, so the agent's tools keep their order."""
     if type(chosen) is not list or set(chosen) - set(MODEL_TOOLS):

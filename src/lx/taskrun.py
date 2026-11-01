@@ -13,9 +13,11 @@ from pathlib import Path
 import random
 from types import SimpleNamespace
 
+from dataclasses import replace
+
 from .checks import named_checks
 from .inventory_workflow import InventoryAdapter, grade_stream, preview_transcription, run_stream
-from .tasks import EXTERNAL, SEGMENTATION, TaskDomain, build_dataset, is_text, preview_scenes, spec_tools, tool_catalog
+from .tasks import EXTERNAL, SEGMENTATION, TaskDomain, build_dataset, is_text, preview_scenes, spec_mcp, spec_tools, tool_catalog
 from .text_task import TextAdapter, TextDomain
 
 
@@ -23,6 +25,7 @@ MAX_DIFF_LINES, MAX_EDIT_LINES = 80, 400
 STAGE_NAMES = {"inv": "How the agent works", "dom": "The subject", "c": "Combined"}
 STAGE_ORDER = ("inv", "dom", "c")
 LEARNED_FOLDERS = ("skills", "scripts", "plugin", "sub_agents")
+MCP_NOTE = " A script's input also holds mcp_results: this agent run's MCP tool results, each with tool, arguments, text and truncated."
 
 
 def run_order(stream, identifier):
@@ -39,14 +42,22 @@ def _folders(run_dir):
     return {key: value.get("folder") for key, value in json.loads(sources.read_text(encoding="utf-8")).items()} if sources.is_file() else {}
 
 
-def _adapter(task, run_dir, output, client, truth, check, *, live, limits, tools, perception=None, health=None):
+def _noted(domain, mcp):
+    """Tells the improver what a script's input holds; what to do with it stays with the loop (D-021)."""
+    if mcp:
+        stock = domain.prompts
+        domain.prompts = lambda: replace(stock(), work=stock().work+MCP_NOTE)
+    return domain
+
+
+def _adapter(task, run_dir, output, client, truth, check, *, live, limits, tools, perception=None, health=None, mcp=None):
     mode = "live" if live else "offline_preview"
     if is_text(task):
-        return TextAdapter(run_dir/"dataset"/"worker_inputs", output, client, truth, domain=TextDomain(task, check),
-                           mode=mode, limits=limits, health=health)
+        return TextAdapter(run_dir/"dataset"/"worker_inputs", output, client, truth, domain=_noted(TextDomain(task, check), mcp),
+                           mode=mode, limits=limits, health=health, mcp=mcp)
     return InventoryAdapter(run_dir/"dataset"/"worker_inputs", output, client, truth, perception=perception,
-                            catalog=tool_catalog(tools), mode=mode, limits=limits, health=health,
-                            domain=TaskDomain(task, check, segmentation=SEGMENTATION in tools))
+                            catalog=tool_catalog(tools), mode=mode, limits=limits, health=health, mcp=mcp,
+                            domain=_noted(TaskDomain(task, check, segmentation=SEGMENTATION in tools), mcp))
 
 
 def limitations(spec, report, chosen, live, approved_by="person"):
@@ -67,6 +78,9 @@ def limitations(spec, report, chosen, live, approved_by="person"):
         lines.append("- Started by a connected agent under a person's grant. No person reviewed this spec or check.")
     if approved_by == "agent":
         lines.append("- Approved by a connected agent, which accepted the data notice for its owner. No person reviewed this spec or check.")
+    servers = sorted({entry["server"] for entry in spec_mcp(spec)})
+    if servers:
+        lines.append(f"- Needs the MCP server(s) {', '.join(servers)}, and may depend on what they returned. A harness learned from a server's text can carry that text.")
     if skipped:
         lines.append(f"- Not graded, because they produced no reference run: {', '.join(sorted(skipped))}.")
     if not live:
@@ -238,11 +252,18 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
                                       BudgetScope(workspace.preview_ledger, identifier, spec["budget_usd"]),
                                       PerceptionCache(run_dir/"perception-cache"))
     output = run_dir/"outputs"
+    mcp = engine.mcp_run(spec, limits)
     adapter = _adapter(task, run_dir, output, clients["worker"], truth, check, live=live, limits=limits, tools=tools,
-                       perception=perception, health=health)
+                       perception=perception, health=health, mcp=mcp)
     base = clean_base(adapter)
-    report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health,
-                        on_grading=lambda: workspace.update_run(identifier, phase="grading"))
+    try:
+        if mcp:
+            mcp.check()
+        report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health,
+                            on_grading=lambda: workspace.update_run(identifier, phase="grading"))
+    finally:
+        if mcp:
+            mcp.close()
     last, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
     return {**summarize_report(task, report, last, chosen, live, _folders(run_dir)), "base_sha256": base}
 
@@ -259,9 +280,16 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
     stream, truth, _ = build_dataset(snapshot, run_dir/"dataset", task, preview=False)
     limits, tools = engine.limits_of(spec), spec_tools(spec)
     perception = None if is_text(task) else engine.build_perception(workspace, identifier, job["cap_usd"], run_dir/"perception-cache", limits, tools)
-    adapter = _adapter(task, run_dir, output, client, truth, check, live=True, limits=limits, tools=tools, perception=perception, health=health)
+    mcp = engine.mcp_run(spec, limits)
+    adapter = _adapter(task, run_dir, output, client, truth, check, live=True, limits=limits, tools=tools, perception=perception, health=health, mcp=mcp)
     sample, base = stream[0], clean_base(adapter)
-    run = adapter.execute(sample, adapter.base_harness(), "trial")
+    try:
+        if mcp:
+            mcp.check()
+        run = adapter.execute(sample, adapter.base_harness(), "trial")
+    finally:
+        if mcp:
+            mcp.close()
     workspace.update_run(identifier, phase="grading")
     named = named_checks(check, truth[sample], json.loads(adapter.deliverable_text(run)))
     steps = json.loads((run/"trace.json").read_text(encoding="utf-8"))["trace"]

@@ -159,7 +159,7 @@ class SpecList(Base):
         p = self.app.edit_spec(p["id"], {"goal": "g", "budget_usd": 1, "mode": "live",
                                          "roles": {r: entry for r in ("orchestrator", "improver", "worker")}})
         self.assertEqual([n["who"] for n in p["notice"]][3:], ["Muse Voice Transcribe"])
-        self.assertEqual(p["hidden_limits"], ["segment_calls"])
+        self.assertEqual(p["hidden_limits"], ["mcp_calls", "segment_calls"])
         self.assertEqual([c["id"] for c in p["tool_choices"] if c["required"]], [TRANSCRIBE])
         with patch.object(self.app.registry, "meta_key_source", return_value=None):
             self.assertRegex(self.app.project(p["id"])["blocked"], "Meta key for Transcribe\\.")

@@ -3,8 +3,10 @@ import argparse
 import base64
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import secrets
+import shlex
 from urllib.parse import urlparse
 
 from .engine import Engine, DEFAULT_ROOT, ROOT
@@ -103,6 +105,13 @@ def server_for(app, port=8765):
                     result = app.open_workspace(data.get("path"))
                 elif route == ["api","pick-folder"]:
                     result = app.pick_folder()
+                elif route == ["api","mcp"]:
+                    result = app.mcp_connect(data.get("name"),shlex.split(data.get("command") or "",posix=os.name!="nt"))
+                elif len(route)==4 and route[:2]==["api","mcp"]:
+                    if route[3]=="read_only": result = app.mcp_mark(route[2],data.get("tools"))
+                    elif route[3]=="refresh": result = app.mcp_refresh(route[2])
+                    elif route[3]=="remove": result = app.mcp_remove(route[2])
+                    else: return self.respond({"error":"Not found"},404)
                 elif route == ["api","models","lookup"]:
                     result = app.provider_models(data.get("base_url"),data.get("api_key"))
                 elif route == ["api","models"]:

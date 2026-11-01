@@ -48,6 +48,7 @@ from .spark import IncompleteResponse, ModelError, ChatClient
 from .store import Store
 from .usage import BudgetScope, usage_rows, summarize
 from .inventory import write_synthetic
+from . import mcp_client
 from .components import COMPONENT_TOOLS, LOAD_SKILL, task_tools
 from .inventory_workflow import InventoryPreviewTransport
 from .workflow import ImagesAdapter, PreviewTransport, samples_from, sample_path
@@ -134,9 +135,10 @@ class Engine:
     def _agent_tools(spec):
         """Exactly what the run's adapter sends; the live transport refuses any other list."""
         scripts = sandbox.available()
+        chosen = [mcp_client.function_tool(entry) for entry in tasks.spec_mcp(spec)]
         if tasks.uses_tools(spec.get("task")):
-            return task_tools(tasks.tool_catalog(tasks.spec_tools(spec)), scripts)
-        return COMPONENT_TOOLS if scripts else [LOAD_SKILL]
+            return task_tools(tasks.tool_catalog(tasks.spec_tools(spec)), scripts)+chosen
+        return (COMPONENT_TOOLS if scripts else [LOAD_SKILL])+chosen
 
     def build_clients(self, workspace, spec, scope_id, cap_usd, *, call_limit=None, truth=None, contract=None):
         """One client per role. Live spends from the workspace ledger; preview never does.
@@ -229,6 +231,8 @@ class Engine:
         tools = tasks.spec_tools(draft)
         notice += [{"who":"SAM 3.1","host":host(META_API),"gets":"the sample photos"}] if tasks.SEGMENTATION in tools else []
         notice += [{"who":"Muse Voice Transcribe","host":host(META_API),"gets":"the sample audio"}] if tasks.TRANSCRIPTION in tools else []
+        notice += [{"who":f"MCP server {server}","host":"mcp:"+server,"gets":"whatever the agent passes to its tools; it runs on this machine, outside the sandbox"}
+                   for server in sorted({entry["server"] for entry in tasks.spec_mcp(draft)})]
         return notice
 
     def _assign(self, roles, mode, task=None):
@@ -263,6 +267,9 @@ class Engine:
             needed = [models[tool]["name"] for tool in tasks.required_tools(spec.get("task")) if not models[tool]["enabled"]]
             return (f"This task needs {needed[0]}, which is off in Settings, under Tools." if needed else
                     f"{off[0]} is off in Settings, under Tools. Turn it on, or take it out of this spec.")
+        stale = self._stale_mcp(spec)
+        if stale:
+            return stale
         if spec.get("mode") != "live" or self._live_transport_factory is not None:
             return None  # previews need no key
         users = (["Spark"] if DEFAULT_ROLE_ENTRY in spec["roles"].values() else []) + [SHORT_NAMES[tool] for tool in tools]
@@ -270,6 +277,93 @@ class Engine:
             return None
         who = ", ".join(users[:-1])+" and "+users[-1] if len(users) > 1 else users[0]
         return f"A live run needs a Meta key for {who}. Add it in Settings, under Tools."
+
+    def _stale_mcp(self, spec):
+        """Why a spec's MCP tools no longer match what a person connected and marked read-only."""
+        servers = {server["id"]:server for server in self.mcp_servers()}
+        for entry in tasks.spec_mcp(spec):
+            server = servers.get(entry["server"])
+            if server is None:
+                return f"The MCP server {entry['server']} is no longer connected. Connect it, or take its tools out of this spec."
+            found = next((tool for tool in server["tools"] if tool["tool"] == entry["tool"]), None)
+            if found is None or mcp_client.definition(entry["server"], {key:found[key] for key in mcp_client.TOOL_FIELDS}) != entry:
+                return f"The MCP tool {entry['name']} changed since this spec was written. Write a new spec version."
+            if not found["read_only"]:
+                return f"The MCP tool {entry['name']} is not marked read-only. Mark it in Settings, or take it out of this spec."
+        return None
+
+    # MCP servers (D-030). Connecting starts a program on this machine, so no orchestrator action reaches these changes.
+
+    def mcp_servers(self):
+        return sorted(self.store.list("mcp_server"), key=lambda server: server["id"])
+
+    def _mcp_server(self, name):
+        return self.store.get("mcp_server", mcp_client.check_server_name(name))
+
+    def _save_mcp(self, name, command, read_only):
+        tools = mcp_client.read_tools(command)
+        names = [mcp_client.agent_name(name, tool["tool"]) for tool in tools]
+        if len(set(names)) != len(names) or any(len(item) > 64 for item in names):
+            raise ValueError("This server's tool names clash or run too long once prefixed")
+        self.store.save("mcp_server", {"id":name,"command":command,"tools":[{**tool,"read_only":tool["tool"] in read_only} for tool in tools]})
+        return self._mcp_server(name)
+
+    def mcp_connect(self, name, command):
+        """A person's step. Starts the command and pins what it offers; nothing is marked read-only yet."""
+        name = mcp_client.check_server_name(name)
+        if any(server["id"] == name for server in self.mcp_servers()):
+            raise ValueError("A server has that name")
+        return self._save_mcp(name, mcp_client.check_command(command), ())
+
+    def mcp_refresh(self, name):
+        """A person's step. Reads the tools again; a tool whose text changed needs marking again."""
+        server = self._mcp_server(name)
+        kept = {tool["tool"]:tool for tool in server["tools"] if tool["read_only"]}
+        same = lambda tool: tool["tool"] in kept and all(tool[key] == kept[tool["tool"]][key] for key in mcp_client.TOOL_FIELDS)
+        fresh = self._save_mcp(name, server["command"], ())
+        return self.mcp_mark(name, [tool["tool"] for tool in fresh["tools"] if same(tool)])
+
+    def mcp_mark(self, name, read_only):
+        """A person's step: only they can say a tool changes nothing."""
+        server = self._mcp_server(name)
+        known = {tool["tool"] for tool in server["tools"]}
+        if type(read_only) is not list or any(tool not in known for tool in read_only):
+            raise ValueError("Choose tools this server offers")
+        self.store.save("mcp_server", {**server,"tools":[{**tool,"read_only":tool["tool"] in read_only} for tool in server["tools"]]})
+        return self._mcp_server(name)
+
+    def mcp_remove(self, name):
+        self._mcp_server(name)
+        self.store.delete("mcp_server", name)
+        return {"removed":name}
+
+    def mcp_choices(self):
+        """What a spec may choose, as `server/tool`. Commands stay out: an agent reads this."""
+        return [{"id":f"{server['id']}/{tool['tool']}","server":server["id"],"tool":tool["tool"],"name":mcp_client.agent_name(server["id"],tool["tool"]),
+                 "description":tool["description"],"read_only":tool["read_only"]} for server in self.mcp_servers() for tool in server["tools"]]
+
+    def _spec_mcp(self, chosen):
+        """Definitions for a spec, from `server/tool` ids."""
+        if type(chosen) is not list or any(type(item) is not str for item in chosen):
+            raise ValueError("Choose MCP tools by their server/tool id")
+        known = {item["id"]:item for item in self.mcp_choices()}
+        found = []
+        for item in sorted(set(chosen)):
+            if item not in known:
+                raise ValueError(f"No connected MCP tool is called {item}")
+            if not known[item]["read_only"]:
+                raise ValueError(f"{item} is not marked read-only; a person marks that in Settings")
+            server = self._mcp_server(known[item]["server"])
+            tool = next(tool for tool in server["tools"] if tool["tool"] == known[item]["tool"])
+            found.append(mcp_client.definition(server["id"], {key:tool[key] for key in mcp_client.TOOL_FIELDS}))
+        return found
+
+    def mcp_run(self, spec, limits):
+        """A run's connections, or None. Previews answer from doubles, so they start nothing."""
+        chosen = tasks.spec_mcp(spec)
+        if spec.get("mode") != "live" or not chosen:
+            return None
+        return mcp_client.McpRun(chosen, {entry["server"]:self._mcp_server(entry["server"])["command"] for entry in chosen}, limits["mcp_calls"])
 
     def _tool_choices(self, draft):
         """What the Spec tab lists: this task's model tools, and which of them it may leave out."""
@@ -280,9 +374,10 @@ class Engine:
 
     def _hidden_limits(self, draft):
         """Limits that do nothing for this spec."""
+        unused = [] if tasks.spec_mcp(draft) else ["mcp_calls"]
         if not tasks.uses_tools(draft.get("task")):
-            return list(run_limits.PHOTO_ONLY) if tasks.is_text(draft.get("task")) else []
-        return [] if tasks.SEGMENTATION in tasks.spec_tools(draft) else ["segment_calls"]
+            return unused+(list(run_limits.PHOTO_ONLY) if tasks.is_text(draft.get("task")) else [])
+        return unused+([] if tasks.SEGMENTATION in tasks.spec_tools(draft) else ["segment_calls"])
 
     # Workspaces
 
@@ -305,6 +400,7 @@ class Engine:
                 "limit_defaults": self._limit_defaults(draft["providers"], draft.get("task")),
                 "hidden_limits": self._hidden_limits(draft),
                 "tool_choices": self._tool_choices(draft),
+                "mcp_choices": [item for item in self.mcp_choices() if item["read_only"]] if draft.get("task") else [],
                 "free_providers": sorted({p["name"] for p in draft["providers"].values()
                                           if not p["priced"] or (p["pricing"] and not any(float(price) for price in p["pricing"].values()))}),
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
@@ -401,7 +497,7 @@ class Engine:
         except ValueError:
             return None
 
-    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None, limits=None, tools=None):
+    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None):
         """Write the next spec version; any new version clears approval.
 
         `limits` is the user's own values, replacing any earlier ones. Everything
@@ -438,6 +534,11 @@ class Engine:
                 on = [m["id"] for m in self.registry.list_models() if m["enabled"] and m["id"] in tasks.MODEL_TOOLS]
                 tools = previous.get("tools", list(tasks.MODEL_TOOLS) if previous else on+list(tasks.required_tools(task)))
             spec["tools"] = tasks.check_tools(task, tools)
+        chosen = tasks.spec_mcp(previous) if mcp_tools is None else self._spec_mcp(mcp_tools)
+        if chosen and task is None:
+            raise ValueError("Only a task can use MCP tools")
+        if chosen:
+            spec["mcp_tools"] = chosen
         spec.update({"task":task,"check":reference} if task is not None else {
                 "domain": "images-and-supplied-transcripts", "output": {"objects": [{"label":"color_shape", "box":["x1","y1","x2","y2"]}], "text":"exact supplied transcript"},
                 "box_edge_tolerance_px": 1})
@@ -462,7 +563,7 @@ class Engine:
             self._draft(workspace, record, budget=draft["budget_usd"], task=task, check=check)
         return self._view(workspace)
 
-    def draft_spec(self, identifier, *, goal=None, mode=None, roles=None, task=None, check=None, limits=None, tools=None):
+    def draft_spec(self, identifier, *, goal=None, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None):
         """An orchestrator's changes, as a new spec version. The run budget stays what a person set."""
         workspace = self.workspace(identifier)
         self._jobs(workspace)
@@ -476,7 +577,7 @@ class Engine:
             if draft.get("task"):
                 task = tasks.validate_task({**draft["task"], **(task or {})})
                 check = workspace.check_source(draft["check"]) if check is None else tasks.validate_check_source(check)
-            self._draft(workspace, record, goal, draft["budget_usd"], mode, roles, task=task, check=check, limits=limits, tools=tools)
+            self._draft(workspace, record, goal, draft["budget_usd"], mode, roles, task=task, check=check, limits=limits, tools=tools, mcp_tools=mcp_tools)
         return self._view(workspace)
 
     def test_check(self, identifier):
@@ -545,7 +646,7 @@ class Engine:
             if any(j["status"] in {"queued","running"} for j in workspace.runs()):
                 raise ValueError("Stop the active run before editing its spec")
             self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"), data.get("roles"),
-                        limits=data.get("limits"), tools=data.get("tools"))
+                        limits=data.get("limits"), tools=data.get("tools"), mcp_tools=data.get("mcp_tools"))
         return self._view(workspace)
 
     def approve(self, identifier, data, by="person", grant=None):
@@ -628,9 +729,13 @@ class Engine:
         self._accept_notice(identifier, connected, data.get("notice_accepted"))
         now = time.time()
         self.store.save("grant", {"id":identifier,"grant":uuid.uuid4().hex,"created_at":now,"expires_at":now+days*86400,"cap_usd":cap,"runs":runs,"revoked":False,
-            "providers":{role:draft["providers"][role] for role in ("improver","worker")},"tools":sorted(tasks.spec_tools(draft)),
+            "providers":{role:draft["providers"][role] for role in ("improver","worker")},"tools":self._granted_tools(draft),
             "hosts":sorted({entry["host"] for entry in self.data_notice(connected)}),"data_hash":self._sample_hash(workspace, draft)})
         return self._view(workspace)
+
+    @staticmethod
+    def _granted_tools(draft):
+        return sorted(tasks.spec_tools(draft))+sorted(entry["name"] for entry in tasks.spec_mcp(draft))
 
     def revoke_grant(self, identifier):
         """Takes effect at the next start; a run already going keeps its own budget and can be stopped."""
@@ -666,7 +771,7 @@ class Engine:
             return "This run's budget would pass the grant's spending cap; a person needs to decide"
         if {role:draft["providers"][role] for role in ("improver","worker")} != grant["providers"]:
             return "The improver or worker changed since the grant; a person needs to approve this live run"
-        if sorted(tasks.spec_tools(draft)) != grant["tools"]:
+        if self._granted_tools(draft) != grant["tools"]:
             return "The tools changed since the grant; a person needs to approve this live run"
         if not {entry["host"] for entry in self.data_notice(draft)} <= set(grant["hosts"]):
             return "This run would send data to a host the grant does not cover; a person needs to approve it"
@@ -971,7 +1076,8 @@ class Engine:
         calls = [tool.get("function", tool) for tool in task_tools(tasks.tool_catalog(enabled))]
         return {"version":version("lx-harness"),"state_root":str(self.root),"sandbox":sandbox.backend(),
                 "meta_key":self.registry.meta_key_source(),"agent_setup":self.agent_setup(),
-                "agent_tools":[{"name":call["name"],"description":call["description"]} for call in calls]}
+                "agent_tools":[{"name":call["name"],"description":call["description"]} for call in calls],
+                "mcp_servers":self.mcp_servers()}
 
     def agent_setup(self):
         """Ready setup for an agent client, with this install's own paths (D-024). No keys: the agent never needs one."""

@@ -7,8 +7,8 @@ export function SpecTab({state,project,ui,setTab}){
   const {draft}=project;
   const [goal,setGoal]=useState(draft.goal),[mode,setMode]=useState(draft.mode||'controlled_preview'),[roles,setRoles]=useState(draft.roles);
   const [budget,setBudget]=useState(String(draft.budget_usd)),[workspaceBudget,setWorkspaceBudget]=useState(String(project.budget.cap_usd));
-  const [limits,setLimits]=useState(draft.limits),[tools,setTools]=useState(draft.tools),[reviewing,setReviewing]=useState(false),[checkResult,setCheckResult]=useState(null),[readyResult,setReadyResult]=useState(null);
-  const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||JSON.stringify(tools)!==JSON.stringify(draft.tools)||Number(budget)!==Number(draft.budget_usd);
+  const [limits,setLimits]=useState(draft.limits),[tools,setTools]=useState(draft.tools),[mcpTools,setMcpTools]=useState((draft.mcp_tools||[]).map(entry=>`${entry.server}/${entry.tool}`)),[reviewing,setReviewing]=useState(false),[checkResult,setCheckResult]=useState(null),[readyResult,setReadyResult]=useState(null);
+  const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||JSON.stringify(mcpTools)!==JSON.stringify((draft.mcp_tools||[]).map(entry=>`${entry.server}/${entry.tool}`))||JSON.stringify(tools)!==JSON.stringify(draft.tools)||Number(budget)!==Number(draft.budget_usd);
   const [trialCap,setTrialCap]=useState(String(project.trial_cap_usd));
   const trialDirty=Number(trialCap)!==project.trial_cap_usd;
   const budgetDirty=Number(workspaceBudget)!==project.budget.cap_usd||trialDirty;
@@ -16,7 +16,7 @@ export function SpecTab({state,project,ui,setTab}){
   const save=()=>ui.act(async()=>{
     if(Number(workspaceBudget)!==project.budget.cap_usd)await api(`projects/${project.id}/budget`,{cap_usd:Number(workspaceBudget)});
     if(trialDirty)await api(`projects/${project.id}/trial-cap`,{cap_usd:Number(trialCap)});
-    if(specDirty)await api(`projects/${project.id}/spec`,{goal,budget_usd:Number(budget),mode,roles,limits:ownLimits(),...(tools?{tools}:{})});
+    if(specDirty)await api(`projects/${project.id}/spec`,{goal,budget_usd:Number(budget),mode,roles,limits:ownLimits(),...(tools?{tools}:{}),...(draft.task?{mcp_tools:mcpTools}:{})});
     ui.notify(specDirty?'Saved as a new version.':'Budget saved.');
   });
   const testCheck=()=>ui.act(async()=>{setCheckResult(null);setCheckResult(await api(`projects/${project.id}/check-test`,{}));});
@@ -47,6 +47,12 @@ export function SpecTab({state,project,ui,setTab}){
     {project.tool_choices.length>0&&<>
       <h2>Model tools</h2>
       <div className="checks">{project.tool_choices.map(tool=><label className="check" key={tool.id}><input type="checkbox" checked={(tools||[]).includes(tool.id)} disabled={tool.required||!tool.enabled} onChange={e=>setTools(project.tool_choices.map(c=>c.id).filter(id=>id===tool.id?e.target.checked:(tools||[]).includes(id)))}/>{tool.name}{tool.required?' (this task needs it)':tool.enabled?'':' (off in Settings)'}</label>)}</div>
+    </>}
+
+    {project.mcp_choices.length>0&&<>
+      <h2>MCP tools</h2>
+      <p className="muted">Live runs only: a preview answers from scripted replies and starts no server.</p>
+      <div className="checks">{project.mcp_choices.map(tool=><label className="check" key={tool.id}><input type="checkbox" checked={mcpTools.includes(tool.id)} onChange={e=>setMcpTools(chosen=>e.target.checked?[...chosen,tool.id].sort():chosen.filter(item=>item!==tool.id))}/><span><code>{tool.id}</code><span className="muted"> {tool.description}</span></span></label>)}</div>
     </>}
 
     <h2>Budget</h2>

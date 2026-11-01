@@ -173,9 +173,9 @@ class TextAdapter(InventoryAdapter):
     """Agent executions over text requests; caps count one sample as one unit."""
     protocol = "lx-text-agent-v1"
 
-    def __init__(self, snapshot, output, client, truth, *, domain, mode="offline_preview", limits=None, health=None):
+    def __init__(self, snapshot, output, client, truth, *, domain, mode="offline_preview", limits=None, health=None, mcp=None):
         super().__init__(snapshot, output, client, truth, perception=None, catalog=None, mode=mode, domain=domain,
-                         limits=limits, health=health)
+                         limits=limits, health=health, mcp=mcp)
 
     def _agent_tools(self, catalog):
         return COMPONENT_TOOLS if self.scripts_enabled else [LOAD_SKILL]
@@ -195,7 +195,7 @@ class TextAdapter(InventoryAdapter):
 
     def _conversation(self, task, surface, harness, run_id):
         messages = self.domain.messages(self.by_id[task], compose_prompt(surface, harness), self._request(task))
-        return messages, ComponentTools(_NoTools(), harness, runner=self.script_runner)
+        return messages, ComponentTools(_NoTools(), harness, runner=self.script_runner, mcp=self._mcp_view())
 
 
 # --- offline preview double (plumbing only; not capability evidence) ----------

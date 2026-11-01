@@ -17,6 +17,7 @@ than photos, audio and text.
 |---|---|---|---|
 | **The LX machine** | uv, Node.js, Python, Docker, the app | You, once | Install it |
 | **Hosted tools** | SAM, Transcribe | You add a key; the work runs at the provider | Settings, under Tools |
+| **MCP tools** | A price lookup on a local MCP server | A person connects it and marks it read-only; it runs outside the sandbox | Settings, under Tools, or `lx mcp` |
 | **The sandbox** | What learned scripts and scoring checks can use | You, for each need | Change the image |
 
 Decide with these questions, in order:
@@ -31,6 +32,9 @@ Decide with these questions, in order:
 5. **Is it a program, such as `ffmpeg` or `tesseract`?** Section 6.
 6. **Is it none of these?** You probably need nothing. Scripts already have Python's
    standard library and Pillow.
+
+An orchestrator can choose MCP tools a person has marked read-only, with `spec_draft`.
+It cannot connect a server, because that would run a program on this machine.
 
 An orchestrator can choose which hosted tools a run uses, with `spec_draft`. It has no
 action for changing the sandbox or the machine, so a person decides those.

@@ -25,6 +25,7 @@ FIELDS = {
     "chat_calls": ("Model calls per run", 1, 5000, None),
     "segment_calls": ("SAM calls per run", 1, 5000, None),
     "transcribe_calls": ("Transcribe calls per run", 1, 1000, None),
+    "mcp_calls": ("MCP tool calls per run", 1, 5000, None),
 }
 # A text task calls neither tool, so these limits do nothing there.
 PHOTO_ONLY = ("segment_calls", "transcribe_calls")
@@ -40,7 +41,7 @@ def preset(spark, task=False):
             "run_seconds": 4*HOUR if task else 900 if spark else HOUR,
             "reply_tokens": 4096 if spark else 8192,
             # A task run: about 4 agent runs and 3-4 improver sessions per sample, as measured on the inventory stream.
-            "chat_calls": 1400 if task else 200, "segment_calls": 600, "transcribe_calls": 60}
+            "chat_calls": 1400 if task else 200, "segment_calls": 600, "transcribe_calls": 60, "mcp_calls": 500}
 
 
 def check(values):

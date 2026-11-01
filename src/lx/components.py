@@ -125,8 +125,8 @@ def compose_prompt(surface, tree):
 class ComponentTools:
     """Adds load_skill and run_script to an item's tool handler."""
 
-    def __init__(self, base, tree, *, runner=None):
-        self.base, self.skills, self.scripts = base, skills(tree), scripts(tree)
+    def __init__(self, base, tree, *, runner=None, mcp=None):
+        self.base, self.skills, self.scripts, self.mcp = base, skills(tree), scripts(tree), mcp
         if runner is None:
             from .sandbox import run_json as runner
         self.runner = runner
@@ -135,6 +135,8 @@ class ComponentTools:
         return getattr(self.base, name)
 
     def __call__(self, name, arguments):
+        if self.mcp is not None and name in self.mcp:
+            return self.mcp(name, arguments)
         if name == "load_skill":
             if set(arguments) != {"name"} or arguments["name"] not in self.skills:
                 raise ValueError("unknown skill; use a name from AVAILABLE SKILLS")
@@ -152,6 +154,8 @@ class ComponentTools:
                 segments.setdefault(str(photo), {})[concept] = [
                     [b["x1"], b["y1"], b["x2"], b["y2"], round(b.get("c", 1.0), 3)] for b in boxes]
             payload = {"input": arguments["input"], "photos": list(files), "segments": segments}
+            if self.mcp is not None:
+                payload["mcp_results"] = self.mcp.results
             try:
                 json.dumps(payload, allow_nan=False)
             except ValueError:

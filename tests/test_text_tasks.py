@@ -69,7 +69,7 @@ class SpecTests(Base):
 
     def test_photo_tools_are_left_out_of_the_notice_and_the_limits(self):
         project = self.records()
-        self.assertEqual(project["hidden_limits"], list(limits.PHOTO_ONLY))
+        self.assertEqual(project["hidden_limits"], ["mcp_calls", *limits.PHOTO_ONLY])
         notice = self.app.data_notice(project["draft"])
         self.assertEqual({row["who"] for row in notice}, {"orchestrator", "improver", "worker"})
 

@@ -47,6 +47,7 @@ class Orchestration:
         """What this install offers a run, as facts. Finding the sandbox can start Docker's client."""
         system = self.engine.system()
         return {"sandbox": sandbox.describe(), "model_tools": tasks.tool_list(self.engine.registry.list_models()), "agent_tools": system["agent_tools"],
+                "mcp_tools": self.engine.mcp_choices(),
                 "limits": field_list(), "templates": list(TEMPLATES), "guides": guide_list()}
 
     def init(self, workspace, template, *, goal=None, name=None):
@@ -91,19 +92,19 @@ class Orchestration:
         check = None
         if draft.get("check"):
             check = self.engine.workspace(project["id"]).check_source(draft["check"])
-        return {"goal": project["goal"], "version": draft["version"], "mode": draft["mode"], "roles": draft["roles"], "tools": draft.get("tools", []),
+        return {"goal": project["goal"], "version": draft["version"], "mode": draft["mode"], "roles": draft["roles"], "tools": draft.get("tools", []), "mcp_tools": [entry["server"]+"/"+entry["tool"] for entry in tasks.spec_mcp(draft)],
                 "budget_usd": draft["budget_usd"], "limits": draft["limits"], "task": draft.get("task"), "check": check, "blocked": project["blocked"],
                 "approved": {"by": approved.get("by", "person")} if approved and approved["version"] == draft["version"] else None,
                 "workspace_budget": project["budget"], "trial_cap_usd": project["trial_cap_usd"], "grant": project["grant"], "notice": project["notice"], "external_orchestrator": project["external_orchestrator"]}
 
-    def spec_draft(self, workspace, *, goal=None, task=None, check=None, tools=None, limits=None, mode=None, worker=None, improver=None):
+    def spec_draft(self, workspace, *, goal=None, task=None, check=None, tools=None, limits=None, mode=None, worker=None, improver=None, mcp_tools=None):
         """A new spec version, which clears any approval. `task` holds only the fields that change."""
         identifier = self._id(workspace)
         current = self.engine.project(identifier)["draft"]["roles"]
         if task and tasks.quotes_answers(" ".join(str(value) for value in task.values()), self._truths(identifier, task)):
             raise ValueError("The task text repeats answers from the samples; describe the work without them")
         project = self.engine.draft_spec(identifier, goal=goal, mode=mode, roles=self._roles(current, worker, improver), task=task,
-                                         check=check, limits=limits, tools=tools)
+                                         check=check, limits=limits, tools=tools, mcp_tools=mcp_tools)
         live = {"note": "A live run or trial needs a person's approval, or a grant that covers it"} if project["draft"]["mode"] == "live" else {}
         return {"version": project["draft"]["version"], "blocked": project["blocked"], **live}
 
