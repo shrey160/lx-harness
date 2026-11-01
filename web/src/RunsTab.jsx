@@ -103,12 +103,14 @@ function Edits({project,job}){
 }
 
 function TrialResult({project,job}){
-  const {result}=job,failed=result.checks.filter(check=>!check.passed);
+  const {result}=job,failed=result.checks.filter(check=>!check.passed),[execution,setExecution]=useState(null);
+  useEffect(()=>{api(`trajectories/${project.id}/${job.id}`).then(list=>setExecution(list.executions[0]),()=>{});},[job.id]);
   return <div className="result">
     <h3>Trial on one sample</h3>
     <div className="stats"><Stat value={result.score.toFixed(2)} label={`score on ${result.sample}`}/><Stat value={`${result.checks.length-failed.length}/${result.checks.length}`} label="checks passed"/></div>
     <p className="muted">{result.note} {result.harness?<>Harness <code>{result.harness.sha256.slice(0,12)}</code>.</>:<>Started from the stock harness (<code>{result.base_sha256.slice(0,12)}</code>).</>}</p>
     {result.stopped&&<p className="callout warn">It stopped early: {result.stopped}.</p>}
+    {failed.length>0&&execution?.answered&&execution.reply==='text'&&<p className="callout warn">The final reply was not JSON on its own, so the check could not read the answer. These failures are about the reply's form and say nothing about the work. Trajectories shows the reply.</p>}
     {failed.length>0&&<p>Failed: {failed.map(check=>check.name).join(', ')}</p>}
     <p className="muted">Tool calls: {Object.entries(result.tool_calls).map(([name,count])=>`${name} ${count}`).join(', ')||'none'}</p>
     <div className="actions"><a className="button" href={`/api/trajectories/${project.id}/${job.id}/download`} download="trajectories.zip">Download trajectory</a></div>

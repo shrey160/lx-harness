@@ -34,7 +34,7 @@ function Execution({project,job,item}){
   };
   const calls=Object.entries(item.tool_calls).map(([tool,count])=>`${tool} ${count}`).join(', ')||'no tool calls';
   return <details className="execution" onToggle={e=>load(e.currentTarget.open)}>
-    <summary>{name(item.path)} <span className="muted">· {plural(item.turns,'turn')} · {calls}{item.stopped?` · stopped: ${item.stopped}`:item.answered?'':' · no answer'}</span></summary>
+    <summary>{name(item.path)} <span className="muted">· {plural(item.turns,'turn')} · {calls}{item.stopped?` · stopped: ${item.stopped}`:!item.answered?' · no answer':item.reply==='text'?' · reply not JSON':''}</span></summary>
     {problem&&<p className="callout bad">{problem}</p>}
     {!record&&!problem&&<p className="muted">Loading…</p>}
     {record&&<ol className="steps">

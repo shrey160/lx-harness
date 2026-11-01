@@ -1273,10 +1273,18 @@ class Engine:
                         calls[step["name"]] = calls.get(step["name"], 0)+1
                 stopped = next((step["reason"] for step in steps if step["type"] == "stopped"), None)
                 found.append({"path":path.parent.relative_to(folder).as_posix(),"turns":sum(step["type"] == "assistant" for step in steps),
-                              "tool_calls":calls,"stopped":stopped,"answered":bool((record.get("final_text") or "").strip())})
+                              "tool_calls":calls,"stopped":stopped,"answered":bool((record.get("final_text") or "").strip()),
+                              "reply":self._reply_form(path.with_name("answer.json"))})
             except (OSError, ValueError, KeyError, TypeError):
                 continue
         return {"status":job["status"],"executions":found}
+
+    @staticmethod
+    def _reply_form(answer_file):
+        """"json" if the final reply was read as JSON, "text" if it stayed text, None if no answer was saved. For a person reading the run."""
+        if not answer_file.is_file():
+            return None
+        return "text" if isinstance(json.loads(answer_file.read_text(encoding="utf-8")),str) else "json"
 
     def run_trajectory(self, identifier, job_id, path):
         """One agent run's trace, as recorded. Only a path under this job's executions folder is read."""

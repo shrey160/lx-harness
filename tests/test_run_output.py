@@ -121,7 +121,10 @@ class Trajectories(Base):
         (folder/"trace.json").write_text(json.dumps({"final_text": "done", "trace": trace}), encoding="utf-8")
         (workspace.run_dir(run)/"secret.txt").write_text("not a trace", encoding="utf-8")
         listed = self.app.run_trajectories(project["id"], run)["executions"]
-        self.assertEqual(listed, [{"path": "task-x/sample-01/base1", "turns": 2, "tool_calls": {"view": 1}, "stopped": None, "answered": True}])
+        self.assertEqual(listed, [{"path": "task-x/sample-01/base1", "turns": 2, "tool_calls": {"view": 1}, "stopped": None, "answered": True, "reply": None}])
+        for answer, form in (("All done.\n```json\n{}\n```", "text"), ({"lines": []}, "json")):
+            (folder/"answer.json").write_text(json.dumps(answer), encoding="utf-8")
+            self.assertEqual(self.app.run_trajectories(project["id"], run)["executions"][0]["reply"], form)
         one = self.app.run_trajectory(project["id"], run, "task-x/sample-01/base1")
         self.assertEqual((one["final_text"], len(one["trace"])), ("done", 4))
         self.assertIsNone(one["opening"])  # a run from before the opening was kept
