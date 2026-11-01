@@ -32,6 +32,8 @@ def server_for(engine):
         def register(action):
             @wraps(action)
             def guarded(*args, **kwargs):
+                if not engine.agent_access():
+                    raise ToolError("Agent access is stopped in LX: Settings, Connectivity")
                 try:
                     return action(*args, **kwargs)
                 except ValueError as exc:  # a refusal the agent should read; the SDK withholds anything else

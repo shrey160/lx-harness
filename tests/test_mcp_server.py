@@ -61,6 +61,19 @@ class Tools(Base):
         self.assertTrue(result.is_error)
         self.assertIn("Answer files cannot be read", result.content[0].text)
 
+    def test_stopping_access_refuses_a_session_already_open_and_starting_restores_it(self):
+        async def flow(client):
+            first = await client.call_tool("status", {})
+            self.app.set_agent_access(False)
+            stopped = await client.call_tool("status", {})
+            self.app.set_agent_access(True)
+            return first, stopped, await client.call_tool("status", {})
+        first, stopped, restored = self.using(flow)
+        self.assertFalse(first.is_error)
+        self.assertTrue(stopped.is_error)
+        self.assertIn("Settings, Connectivity", stopped.content[0].text)
+        self.assertFalse(restored.is_error)
+
     def test_an_unexpected_failure_keeps_its_details_private(self):
         async def flow(client):
             return await client.call_tool("spec_show", {"workspace": self.path})

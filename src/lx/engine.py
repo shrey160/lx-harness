@@ -1138,9 +1138,23 @@ class Engine:
         enabled = [m["id"] for m in self.registry.list_models() if m["enabled"] and m["id"] in tasks.MODEL_TOOLS]
         calls = [tool.get("function", tool) for tool in task_tools(tasks.tool_catalog(enabled))]
         return {"version":version("lx-harness"),"state_root":str(self.root),"sandbox":sandbox.backend(),
-                "meta_key":self.registry.meta_key_source(),"agent_setup":self.agent_setup(),
+                "meta_key":self.registry.meta_key_source(),"agent_setup":self.agent_setup(),"agent_access":self.agent_access(),
                 "agent_tools":[{"name":call["name"],"description":call["description"]} for call in calls],
                 "mcp_servers":self.mcp_view()}
+
+    def agent_access(self):
+        """Whether connected agents may act. Each agent's server asks on every call, so Stop reaches sessions already open."""
+        try:
+            return self.store.get("setting", "agent_access")["on"]
+        except ValueError:
+            return True
+
+    def set_agent_access(self, on):
+        """A person's switch; no action offers it to an agent."""
+        if type(on) is not bool:
+            raise ValueError("Say whether agents may connect")
+        self.store.save("setting", {"id":"agent_access","on":on})
+        return {"agent_access":on}
 
     def agent_setup(self):
         """Ready setup for an agent client, with this install's own paths (D-024). No keys: the agent never needs one."""

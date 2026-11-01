@@ -7,6 +7,20 @@ from unittest.mock import patch
 from test_tasks import Base
 
 
+class Access(Base):
+    def test_agents_are_allowed_until_a_person_stops_them(self):
+        self.assertIs(self.app.system()["agent_access"], True)
+        self.app.set_agent_access(False)
+        self.assertIs(self.app.system()["agent_access"], False)
+        self.app.set_agent_access(True)
+        self.assertIs(self.app.agent_access(), True)
+
+    def test_only_true_or_false_is_taken(self):
+        for value in (None, "off", 0):
+            with self.subTest(value), self.assertRaisesRegex(ValueError, "agents may connect"):
+                self.app.set_agent_access(value)
+
+
 class Setup(Base):
     def test_muse_code_gets_an_optional_stdio_entry(self):
         entry = json.loads(self.app.system()["agent_setup"]["muse"])

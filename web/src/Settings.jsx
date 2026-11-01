@@ -4,7 +4,7 @@ import {McpServers} from './McpServers.jsx';
 import {Providers} from './Providers.jsx';
 import {Usage} from './RunsTab.jsx';
 
-const SECTIONS=[['providers','Providers'],['tools','Tools'],['mcp','MCP servers'],['usage','Usage'],['general','General']];
+const SECTIONS=[['providers','Providers'],['tools','Tools'],['mcp','MCP servers'],['connectivity','Connectivity'],['usage','Usage'],['general','General']];
 
 export function Settings({state,ui,section}){
   const [system,setSystem]=useState(null);
@@ -16,6 +16,7 @@ export function Settings({state,ui,section}){
       {section==='providers'&&<Providers state={state} ui={ui}/>}
       {section==='tools'&&<Tools state={state} system={system} ui={ui} refresh={refresh}/>}
       {section==='mcp'&&<McpServers system={system} ui={ui} refresh={refresh}/>}
+      {section==='connectivity'&&<Connectivity system={system} ui={ui} refresh={refresh}/>}
       {section==='usage'&&<UsagePage state={state}/>}
       {section==='general'&&<General state={state} system={system}/>}
     </div>
@@ -49,7 +50,20 @@ function Tools({state,system,ui,refresh}){
     <p className="muted">Off stops every workspace from using a tool and blocks approved runs that include it. Photo tasks need a transcription tool, because their requests are audio.</p>
     <h3>Agent tools</h3>
     <ul className="list">{system?.agent_tools.map(tool=><li key={tool.name}><code>{tool.name}</code><span className="muted">{tool.description}</span></li>)}</ul>
-    {system&&<ConnectAgent setup={system.agent_setup}/>}
+  </section>;
+}
+
+function Connectivity({system,ui,refresh}){
+  if(!system)return <section><h2>Connectivity</h2><p className="muted">Checking…</p></section>;
+  const on=system.agent_access;
+  const set=value=>ui.act(async()=>{await api('agent-access',{on:value});await refresh();});
+  return <section>
+    <h2>Connectivity</h2>
+    <p className="muted">How outside agents reach LX. Tools your runs use from other servers are under MCP servers.</p>
+    <h3>Agent access</h3>
+    <div className="provider-row"><div><strong><span className={'dot '+(on?'ok':'')}/>{on?'Started':'Stopped'}</strong><span className="muted">{on?'Connected agents can act here.':'Agents are refused on their next call, including sessions already open.'}</span></div><button className="button" disabled={ui.busy} onClick={()=>set(!on)}>{on?'Stop':'Start'}</button></div>
+    <p className="muted">Your agent client launches its own LX server when it needs one, so nothing runs here until then. Stop does not end runs already started, and it does not cover the <code>lx</code> command.</p>
+    <ConnectAgent setup={system.agent_setup}/>
   </section>;
 }
 
