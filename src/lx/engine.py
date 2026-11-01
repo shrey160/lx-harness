@@ -36,6 +36,7 @@ import zipfile
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
 from .health import read_health
+from .home import home
 from . import checks, hints as hint_notes, launcher, limits as run_limits, sandbox, tasks, text_task
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
@@ -56,7 +57,7 @@ from .text_task import TextPreviewTransport
 from .workspace import Workspace, native_path, write_json
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ROOT = Path.home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
+DEFAULT_ROOT = home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
 SAMPLES = "samples"
 ROLES = ("orchestrator","improver","worker")
 DEFAULT_ROLE_ENTRY = "spark-contributor"
@@ -81,7 +82,7 @@ class Engine:
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.store = Store(self.root/"app.sqlite3")
-        secret_root = (Path.home()/".local"/"share"/"lx-harness"/fingerprint(str(ROOT))[:16]/"secrets"
+        secret_root = (home()/".local"/"share"/"lx-harness"/fingerprint(str(ROOT))[:16]/"secrets"
                        if self.root == DEFAULT_ROOT.resolve() and os.name == "posix" else self.root/"secrets")
         self.registry = Registry(self.root/"app.sqlite3", secret_root, keychain or SystemKeychain())
         self.demo = build_demo_dataset(self.root/"demo")
@@ -1205,7 +1206,9 @@ class Engine:
     def agent_setup(self):
         """Ready setup for an agent client, with this install's own paths (D-024). No keys: the agent never needs one."""
         args = ["-m","lx.mcp_server"]+([] if self.root == DEFAULT_ROOT.resolve() else ["--root",str(self.root)])
-        muse = {"schema_version":1,"mcp_servers":{"lx":{"transport":"stdio","command":sys.executable,"args":args,"mode":"optional"}}}
+        # Muse Code starts a server with only the variables listed here, and Python on Windows needs these to find the profile folder.
+        env = {name:os.environ[name] for name in ("USERPROFILE","HOMEDRIVE","HOMEPATH","APPDATA","LOCALAPPDATA","SYSTEMROOT","TEMP","TMP") if os.environ.get(name)} if os.name == "nt" else {}
+        muse = {"schema_version":1,"mcp_servers":{"lx":{"transport":"stdio","command":sys.executable,"args":args,**({"env":env} if env else {}),"mode":"optional"}}}
         return {"installed":find_spec("mcp") is not None,
                 "claude":subprocess.list2cmdline(["claude","mcp","add","--transport","stdio","--scope","local","lx","--",sys.executable,*args]),
                 "muse":json.dumps(muse,indent=2)}

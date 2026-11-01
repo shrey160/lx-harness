@@ -28,6 +28,23 @@ class Setup(Base):
         server = entry["mcp_servers"]["lx"]
         self.assertEqual((server["transport"], server["mode"], server["command"]), ("stdio", "optional", sys.executable))
 
+    def test_muse_code_is_given_the_variables_a_server_needs_on_windows(self):
+        """Muse Code starts a server with only the variables listed; without USERPROFILE the server never answered."""
+        with patch("os.name", "nt"), patch.dict("os.environ", {"USERPROFILE": "C:/Users/someone", "SYSTEMROOT": "C:/Windows", "SECRET_TOKEN": "x"}):
+            server = json.loads(self.app.agent_setup()["muse"])["mcp_servers"]["lx"]
+        self.assertEqual(server["env"]["USERPROFILE"], "C:/Users/someone")
+        self.assertIn("SYSTEMROOT", server["env"])
+        self.assertNotIn("SECRET_TOKEN", server["env"])
+
+    def test_the_home_folder_is_found_without_the_variables(self):
+        from lx import home as home_module
+        with patch.object(home_module.Path, "home", side_effect=RuntimeError("no home")):
+            if __import__("os").name == "nt":
+                self.assertTrue(home_module.home().is_dir())
+            else:
+                with self.assertRaises(RuntimeError):
+                    home_module.home()
+
     def test_claude_code_gets_a_command_for_this_python(self):
         command = self.app.agent_setup()["claude"]
         self.assertTrue(command.startswith("claude mcp add --transport stdio --scope local lx -- "))
