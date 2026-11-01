@@ -15,6 +15,7 @@ from types import SimpleNamespace
 
 from dataclasses import replace
 
+from . import hints as hint_notes
 from .checks import named_checks
 from .inventory_workflow import InventoryAdapter, grade_stream, preview_transcription, run_stream
 from .tasks import EXTERNAL, SEGMENTATION, TaskDomain, build_dataset, is_text, preview_scenes, spec_mcp, spec_tools, tool_catalog
@@ -74,6 +75,10 @@ def limitations(spec, report, chosen, live, approved_by="person"):
              ("- A connected agent set this run up. It could read every file in the workspace, including the answers, "
               "so the task text and check may reflect them." if spec["roles"]["orchestrator"] == EXTERNAL else
               "- The built-in orchestrator can read the file list, sample input text and the shape of the answers, never their values.")]
+    given = hint_notes.summary(spec.get("hints"))
+    if given:
+        lines.append(f"- The improver also read the person's hints ({given}) about how this kind of task is done. They can shape what it learned; the worker never saw them, and the check never read them."
+                     + (" A connected agent may have written them, with no person reviewing them." if spec["roles"]["orchestrator"] == EXTERNAL else ""))
     if approved_by == "grant":
         lines.append("- Started by a connected agent under a person's grant. No person reviewed this spec or check.")
     if approved_by == "agent":
@@ -260,6 +265,7 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     adapter = _adapter(task, run_dir, output, clients["worker"], truth, check, live=live, limits=limits, tools=tools,
                        perception=perception, health=health, mcp=mcp)
     base = clean_base(adapter)
+    hint_notes.stage(adapter, spec.get("hints"), _folders(run_dir), stream)
     try:
         if mcp:
             mcp.check()

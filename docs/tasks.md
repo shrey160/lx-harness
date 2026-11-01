@@ -79,7 +79,28 @@ or the spec leaves it out.
 
 **Limits.** `environment` lists them with their bounds. The default reply length for
 Spark, 4096 tokens, cut off 2 of 18 audit trials and scored them 0. 8192 cut off none
-of 60 agent runs. Budgets are a person's to set.
+of 60 agent runs. Budgets are a person's to set. Agent turns, agent tool calls and
+improver turns have no limit until a person sets one: no count is built in, and an empty
+value means none. A model that works in many small steps needs room; the call count, the
+run time and the budget still end a run.
+
+**Improver hints (optional).** `hints` is text for the improver only, and `sample_hints`
+maps a sample folder to its own text (empty text removes it). Files named
+`improver_hints.md`, in the samples folder or in a sample folder, seed hints that are
+blank; the spec wins after that, and a file that later differs blocks approval until
+`use_hint_files` takes the files or the file is changed back. The worker and the check
+never read hints. The improver reads them as `source/hints.md` for each sample it learns
+from, never for a held-out one, under a line telling it they describe the kind of task,
+so its edits should hold for any case of that kind.
+
+Write a hint as a person who knows the job would explain the workflow: what to hear or
+read first, which source wins over which, what to check before answering, what the reader
+of the answer expects. Never write an answer, a count, a total, a price or a box, and
+leave out facts about one sample: a hint that holds box coordinates, the expected total
+or several of the answers is refused. A package learned with hints says so in its
+limitations. Hints are not in the Harness² paper, which keeps scores and answers from
+the improver; they are an extension, so treat what the loop learns from them as a
+hypothesis to check on samples it has not seen.
 
 ## The scoring check
 

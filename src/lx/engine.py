@@ -36,7 +36,7 @@ import zipfile
 from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
 from .health import read_health
-from . import checks, launcher, limits as run_limits, sandbox, tasks, text_task
+from . import checks, hints as hint_notes, launcher, limits as run_limits, sandbox, tasks, text_task
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveChatTransport
@@ -224,7 +224,7 @@ class Engine:
         host = lambda url: urlsplit(url).netloc
         task = draft.get("task")
         gets = {"orchestrator":"your goal, messages, file names, sizes and hashes, and the sample input text it reads",
-                "improver":"run traces and answers, including text from the samples",
+                "improver":"run traces and answers, including text from the samples"+(", and the hints you wrote" if draft.get("hints") else ""),
                 "worker":"the sample requests" if tasks.is_text(task) else "the sample photos and transcribed requests" if task else "the sample images and transcripts"}
         notice = [{"who":role,"host":host(draft["providers"][role]["base_url"]),"gets":gets[role]} for role in ROLES if draft["roles"][role] != EXTERNAL]
         notice += [{"who":"orchestrator","host":"your connected agent","gets":"whatever it reads in this folder, on its own provider and account"}
@@ -454,6 +454,7 @@ class Engine:
                                           if not p["priced"] or (p["pricing"] and not any(float(price) for price in p["pricing"].values()))}),
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
                 "notice": self.data_notice(draft),
+                "hint_drift": self.hint_drift(workspace, draft),
                 "external_orchestrator": draft["roles"]["orchestrator"] == EXTERNAL,
                 "notice_accepted": self._notice_hosts(record["id"]),
                 "blocked": self._blocked(draft),
@@ -546,7 +547,8 @@ class Engine:
         except ValueError:
             return None
 
-    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None):
+    def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None,
+               hints=None, take_hint_files=False):
         """Write the next spec version; any new version clears approval.
 
         `limits` is the user's own values, replacing any earlier ones. Everything
@@ -588,6 +590,9 @@ class Engine:
             raise ValueError("Only a task can use MCP tools")
         if chosen:
             spec["mcp_tools"] = chosen
+        kept = self._hints(workspace, task, previous, hints, take_hint_files)
+        if kept:
+            spec["hints"] = kept
         spec.update({"task":task,"check":reference} if task is not None else {
                 "domain": "images-and-supplied-transcripts", "output": {"objects": [{"label":"color_shape", "box":["x1","y1","x2","y2"]}], "text":"exact supplied transcript"},
                 "box_edge_tolerance_px": 1})
@@ -597,6 +602,33 @@ class Engine:
         record.update(goal=goal.strip(), spec_version=spec["version"])
         workspace.write_project(record)
         self._drop_approval(workspace, record["id"])
+
+    def _hints(self, workspace, task, previous, given, take_files):
+        """The spec's improver hints: what was given (or kept), seeded from the sample files where blank. Files win
+        only when asked. A hint that carries box coordinates or an expected total is refused."""
+        hints = previous.get("hints") if given is None else hint_notes.clean(given)
+        if task is None:
+            if hints:
+                raise ValueError("Only a task can have improver hints")
+            return None
+        files = hint_notes.from_files(workspace.samples_path)
+        if take_files and files:
+            hints = hint_notes.clean({"all": files["all"] or (hints or {}).get("all"), "samples": {**(hints or {}).get("samples", {}), **files["samples"]}})
+        else:
+            hints = hint_notes.fill_blanks(hints, files)
+        if hints:
+            try:
+                truths = tasks.sample_truths(workspace.samples_path, task)
+            except ValueError:
+                truths = {}
+            hint_notes.refuse_answers(hints, truths)
+            if any(tasks.quotes_answers(text, truths) for text in ([hints["all"]] if hints["all"] else []) + list(hints["samples"].values())):
+                raise ValueError("A hint repeats answers from the samples. Hints describe how the task is done, never the answers")
+        return hints
+
+    def hint_drift(self, workspace, draft):
+        """Where a hint file differs from the spec's hints; approval waits until this is settled."""
+        return hint_notes.drift(draft.get("hints"), hint_notes.from_files(workspace.samples_path)) if draft.get("task") else []
 
     def set_task(self, identifier, task, check):
         """An orchestrator's task and check, as a new spec version; a human still approves it."""
@@ -612,7 +644,8 @@ class Engine:
             self._draft(workspace, record, budget=draft["budget_usd"], task=task, check=check)
         return self._view(workspace)
 
-    def draft_spec(self, identifier, *, goal=None, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None):
+    def draft_spec(self, identifier, *, goal=None, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None,
+                   hints=None, take_hint_files=False):
         """An orchestrator's changes, as a new spec version. The run budget stays what a person set."""
         workspace = self.workspace(identifier)
         self._jobs(workspace)
@@ -626,7 +659,8 @@ class Engine:
             if draft.get("task"):
                 task = tasks.validate_task({**draft["task"], **(task or {})})
                 check = workspace.check_source(draft["check"]) if check is None else tasks.validate_check_source(check)
-            self._draft(workspace, record, goal, draft["budget_usd"], mode, roles, task=task, check=check, limits=limits, tools=tools, mcp_tools=mcp_tools)
+            self._draft(workspace, record, goal, draft["budget_usd"], mode, roles, task=task, check=check, limits=limits, tools=tools, mcp_tools=mcp_tools,
+                        hints=hints, take_hint_files=take_hint_files)
         return self._view(workspace)
 
     def test_check(self, identifier):
@@ -645,6 +679,7 @@ class Engine:
         if not draft.get("task"):
             raise ValueError("This workflow has a built-in task and check")
         problems, check, blocked = tasks.sample_problems(workspace.samples_path, draft["task"]), None, None
+        problems += [{"sample":None,"problem":text+"; save the spec with the hint files to take them, or change the file"} for text in self.hint_drift(workspace, draft)]
         if not problems:
             try:
                 with tempfile.TemporaryDirectory() as folder:
@@ -695,7 +730,8 @@ class Engine:
             if any(j["status"] in {"queued","running"} for j in workspace.runs()):
                 raise ValueError("Stop the active run before editing its spec")
             self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"), data.get("roles"),
-                        limits=data.get("limits"), tools=data.get("tools"), mcp_tools=data.get("mcp_tools"))
+                        limits=data.get("limits"), tools=data.get("tools"), mcp_tools=data.get("mcp_tools"),
+                        hints=data.get("hints"), take_hint_files=data.get("take_hint_files") is True)
         return self._view(workspace)
 
     def approve(self, identifier, data, by="person", grant=None):
@@ -709,6 +745,9 @@ class Engine:
             if DEFAULT_ROLE_ENTRY in draft["roles"].values() and data.get("contributor_accepted") is not True:
                 raise ValueError("Accept the Contributor disclosure for Spark")
             self._check_providers(draft)
+            drifted = self.hint_drift(workspace, draft)
+            if drifted:
+                raise ValueError("Settle the hints before approving: "+"; ".join(drifted))
             if draft["mode"] == "live":
                 if draft["budget_usd"] > self._workspace_budget(identifier):
                     raise ValueError("This run's budget is more than the workspace budget")

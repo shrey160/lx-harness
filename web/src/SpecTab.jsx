@@ -8,7 +8,10 @@ export function SpecTab({state,project,ui,setTab}){
   const [goal,setGoal]=useState(draft.goal),[mode,setMode]=useState(draft.mode||'controlled_preview'),[roles,setRoles]=useState(draft.roles);
   const [budget,setBudget]=useState(String(draft.budget_usd)),[workspaceBudget,setWorkspaceBudget]=useState(String(project.budget.cap_usd));
   const [limits,setLimits]=useState(draft.limits),[tools,setTools]=useState(draft.tools),[mcpTools,setMcpTools]=useState((draft.mcp_tools||[]).map(entry=>`${entry.server}/${entry.tool}`)),[reviewing,setReviewing]=useState(false),[checkResult,setCheckResult]=useState(null),[readyResult,setReadyResult]=useState(null);
-  const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||JSON.stringify(mcpTools)!==JSON.stringify((draft.mcp_tools||[]).map(entry=>`${entry.server}/${entry.tool}`))||JSON.stringify(tools)!==JSON.stringify(draft.tools)||Number(budget)!==Number(draft.budget_usd);
+  const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||JSON.stringify(mcpTools)!==JSON.stringify((draft.mcp_tools||[]).map(entry=>`${entry.server}/${entry.tool}`))||JSON.stringify(tools)!==JSON.stringify(draft.tools)||Number(budget)!==Number(draft.budget_usd)||hintsDirty;
+  const [hintAll,setHintAll]=useState((draft.hints&&draft.hints.all)||''),[hintSamples,setHintSamples]=useState((draft.hints&&draft.hints.samples)||{});
+  const folders=[...new Set((project.inventory||[]).map(item=>item.path.split('/')[0]).filter(name=>/^sample-/.test(name)))].sort();
+  const hintsDirty=hintAll!==((draft.hints&&draft.hints.all)||'')||JSON.stringify(hintSamples)!==JSON.stringify((draft.hints&&draft.hints.samples)||{});
   const [trialCap,setTrialCap]=useState(String(project.trial_cap_usd));
   const trialDirty=Number(trialCap)!==project.trial_cap_usd;
   const budgetDirty=Number(workspaceBudget)!==project.budget.cap_usd||trialDirty;
@@ -16,7 +19,7 @@ export function SpecTab({state,project,ui,setTab}){
   const save=()=>ui.act(async()=>{
     if(Number(workspaceBudget)!==project.budget.cap_usd)await api(`projects/${project.id}/budget`,{cap_usd:Number(workspaceBudget)});
     if(trialDirty)await api(`projects/${project.id}/trial-cap`,{cap_usd:Number(trialCap)});
-    if(specDirty)await api(`projects/${project.id}/spec`,{goal,budget_usd:Number(budget),mode,roles,limits:ownLimits(),...(tools?{tools}:{}),...(draft.task?{mcp_tools:mcpTools}:{})});
+    if(specDirty)await api(`projects/${project.id}/spec`,{goal,budget_usd:Number(budget),mode,roles,limits:ownLimits(),...(tools?{tools}:{}),...(draft.task?{mcp_tools:mcpTools,hints:{all:hintAll,samples:hintSamples}}:{})});
     ui.notify(specDirty?'Saved as a new version.':'Budget saved.');
   });
   const testCheck=()=>ui.act(async()=>{setCheckResult(null);setCheckResult(await api(`projects/${project.id}/check-test`,{}));});
@@ -53,6 +56,14 @@ export function SpecTab({state,project,ui,setTab}){
       <h2>MCP tools</h2>
       <p className="muted">Live runs only: a preview answers from scripted replies and starts no server.</p>
       <div className="checks">{project.mcp_choices.map(tool=><label className="check" key={tool.id}><input type="checkbox" checked={mcpTools.includes(tool.id)} onChange={e=>setMcpTools(chosen=>e.target.checked?[...chosen,tool.id].sort():chosen.filter(item=>item!==tool.id))}/><span><code>{tool.id}</code><span className="muted"> {tool.description}</span></span></label>)}</div>
+    </>}
+
+    {draft.task&&<>
+      <h2>Hints for the improver <span className="muted">(optional)</span></h2>
+      <p className="muted">Notes on how this kind of task is done: the order of work, which source wins over which, what to watch for. Only the improver reads them; the worker and the check never do. Do not write answers, counts, totals or boxes.</p>
+      {project.hint_drift&&project.hint_drift.length>0&&<div className="callout warn" role="status"><p>{project.hint_drift.join('. ')}. Approval waits until they match.</p><button className="button" disabled={ui.busy} onClick={()=>ui.act(async()=>{await api(`projects/${project.id}/spec`,{goal:draft.goal,budget_usd:Number(draft.budget_usd),take_hint_files:true,limits:draft.limits_set||{}});ui.notify('Took the hint files.');})}>Use the hint files</button></div>}
+      <label className="field">For every sample<textarea rows="5" aria-label="Hints for every sample" maxLength="8000" value={hintAll} onChange={e=>setHintAll(e.target.value)}/></label>
+      {folders.length>0&&<details><summary className="muted">Hints for one sample</summary>{folders.map(folder=><label className="field" key={folder}>{folder}<textarea rows="3" aria-label={'Hints for '+folder} maxLength="8000" value={hintSamples[folder]||''} onChange={e=>setHintSamples({...hintSamples,[folder]:e.target.value})}/></label>)}</details>}
     </>}
 
     <h2>Budget</h2>

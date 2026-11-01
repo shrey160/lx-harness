@@ -95,18 +95,31 @@ class Orchestration:
         return {"goal": project["goal"], "version": draft["version"], "mode": draft["mode"], "roles": draft["roles"], "tools": draft.get("tools", []), "mcp_tools": [entry["server"]+"/"+entry["tool"] for entry in tasks.spec_mcp(draft)],
                 "budget_usd": draft["budget_usd"], "limits": draft["limits"], "task": draft.get("task"), "check": check, "blocked": project["blocked"],
                 "approved": {"by": approved.get("by", "person")} if approved and approved["version"] == draft["version"] else None,
-                "workspace_budget": project["budget"], "trial_cap_usd": project["trial_cap_usd"], "grant": project["grant"], "notice": project["notice"], "external_orchestrator": project["external_orchestrator"]}
+                "workspace_budget": project["budget"], "trial_cap_usd": project["trial_cap_usd"], "grant": project["grant"], "notice": project["notice"], "external_orchestrator": project["external_orchestrator"],
+                "hints": draft.get("hints"), "hint_drift": project["hint_drift"]}
 
-    def spec_draft(self, workspace, *, goal=None, task=None, check=None, tools=None, limits=None, mode=None, worker=None, improver=None, mcp_tools=None):
+    def spec_draft(self, workspace, *, goal=None, task=None, check=None, tools=None, limits=None, mode=None, worker=None, improver=None, mcp_tools=None,
+                   hints=None, sample_hints=None, use_hint_files=False):
         """A new spec version, which clears any approval. `task` holds only the fields that change."""
         identifier = self._id(workspace)
         current = self.engine.project(identifier)["draft"]["roles"]
         if task and tasks.quotes_answers(" ".join(str(value) for value in task.values()), self._truths(identifier, task)):
             raise ValueError("The task text repeats answers from the samples; describe the work without them")
         project = self.engine.draft_spec(identifier, goal=goal, mode=mode, roles=self._roles(current, worker, improver), task=task,
-                                         check=check, limits=limits, tools=tools, mcp_tools=mcp_tools)
+                                         check=check, limits=limits, tools=tools, mcp_tools=mcp_tools,
+                                         hints=self._hints(identifier, hints, sample_hints), take_hint_files=use_hint_files)
         live = {"note": "A live run or trial needs a person's approval, or a grant that covers it"} if project["draft"]["mode"] == "live" else {}
         return {"version": project["draft"]["version"], "blocked": project["blocked"], **live}
+
+    def _hints(self, identifier, everyone, per_sample):
+        """The spec's hints with these changes: text for all samples replaces, a text per sample is added, empty text removes."""
+        if everyone is None and per_sample is None:
+            return None
+        if per_sample is not None and not isinstance(per_sample, dict):
+            raise ValueError("sample_hints maps a sample folder to its text")
+        held = self.engine.project(identifier)["draft"].get("hints") or {"all": None, "samples": {}}
+        samples = {**held["samples"], **(per_sample or {})}
+        return {"all": held["all"] if everyone is None else everyone, "samples": samples}
 
     def check_test(self, workspace):
         return self.engine.test_check(self._id(workspace))

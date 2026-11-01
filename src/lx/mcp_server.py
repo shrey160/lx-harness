@@ -83,10 +83,15 @@ def server_for(engine):
 
     @tool(CHANGES)
     def spec_draft(workspace: str, goal: str | None = None, task: dict[str, Any] | None = None, check: str | None = None, tools: list[str] | None = None, mcp_tools: list[str] | None = None,
-                   limits: dict[str, Any] | None = None, mode: str | None = None, worker: str | None = None, improver: str | None = None) -> dict[str, Any]:
+                   limits: dict[str, Any] | None = None, mode: str | None = None, worker: str | None = None, improver: str | None = None,
+                   hints: str | None = None, sample_hints: dict[str, str] | None = None, use_hint_files: bool = False) -> dict[str, Any]:
         """Write a new spec version, which clears any approval. Give only what changes. `task` holds the fields that change, with the names spec_show lists under task,
-        `check` the whole scoring check source, `tools` the model tools to keep on, `mcp_tools` the `server/tool` ids to give the agent, from `environment`; a person connects servers and marks tools read-only. Mode: controlled_preview or live."""
-        return lx.spec_draft(workspace, goal=goal, task=task, check=check, tools=tools, limits=limits, mode=mode, worker=worker, improver=improver, mcp_tools=mcp_tools)
+        `check` the whole scoring check source, `tools` the model tools to keep on, `mcp_tools` the `server/tool` ids to give the agent, from `environment`; a person connects servers and marks tools read-only. Mode: controlled_preview or live.
+        `hints` is optional text for the improver only (never the worker or the check) on how this kind of task is done: the order of work, which source wins over which, what to
+        watch for. It is never an answer, a count, a total or a box. `sample_hints` maps a sample folder to its own text; empty text removes one. Hint files named improver_hints.md
+        in the samples folder or a sample folder seed blank hints; `use_hint_files` takes the files over the spec."""
+        return lx.spec_draft(workspace, goal=goal, task=task, check=check, tools=tools, limits=limits, mode=mode, worker=worker, improver=improver, mcp_tools=mcp_tools,
+                             hints=hints, sample_hints=sample_hints, use_hint_files=use_hint_files)
 
     @tool(READ)
     def check_test(workspace: str) -> dict[str, Any]:
