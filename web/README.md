@@ -4,7 +4,7 @@ The React interface, served by `lx.server` from `web/dist/`.
 
 | Path | Purpose |
 |---|---|
-| `src/app.jsx` | Entry point: loads state every 1.2 seconds and chooses the page |
+| `src/app.jsx` | Entry point: loads state, every 1.2 seconds while a run is going and every 5 otherwise, and chooses the page |
 | `src/api.js` | API calls and shared display helpers |
 | `src/Sidebar.jsx` | New workspace, the workspace list, Settings |
 | `src/NewWorkspace.jsx` | Create or open a workspace |

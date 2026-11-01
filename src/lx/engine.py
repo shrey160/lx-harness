@@ -1128,9 +1128,10 @@ class Engine:
         """Run records with usage and health attached, reconciled against the core's job state."""
         from h2portable.jobs import read_job
         jobs = workspace.runs()
+        spent, simulated = usage_rows(self._ledger(workspace)), usage_rows(workspace.preview_ledger)
         for job in jobs:
-            live = job.get("spec",{}).get("mode") == "live"
-            job["usage"] = summarize(usage_rows(self._ledger(workspace) if live else workspace.preview_ledger,job["id"]+"/"))
+            rows = spent if job.get("spec",{}).get("mode") == "live" else simulated
+            job["usage"] = summarize([row for row in rows if row["candidate"].startswith(job["id"]+"/")])
             job["health"] = read_health(workspace.run_dir(job["id"])/"health.json")
             task = job.get("spec",{}).get("task")
             if task and job.get("kind") != "trial":  # the loop writes one summary per sample as it finishes it
@@ -1150,6 +1151,13 @@ class Engine:
                 job["result"] = json.loads(result_file.read_text(encoding="utf-8"))
         return jobs
 
+    @staticmethod
+    def _brief(job):
+        """A run as the page polls it. A whole spec with every run was a third of each reply, and the page reads only these."""
+        spec, providers = job.get("spec",{}), job.get("spec",{}).get("providers") or {}
+        return {**job,"spec":{"version":spec.get("version"),"task":bool(spec.get("task")),
+                              "models":{role:providers[role]["name"] for role in ("improver","worker") if role in providers}}}
+
     def state(self):
         projects, jobs, rows, spent, missing = [], [], [], [], []
         for entry in self.store.list("workspace"):
@@ -1159,7 +1167,7 @@ class Engine:
                 missing.append(entry["path"])
                 continue
             projects.append(self._view(workspace))
-            jobs.extend(self._jobs(workspace))
+            jobs.extend(self._brief(job) for job in self._jobs(workspace))
             rows.extend(usage_rows(workspace.preview_ledger))
             spent.extend(usage_rows(self._ledger(workspace)))
         return {"models": self.registry.list_models(), "limit_fields": run_limits.field_list(),
