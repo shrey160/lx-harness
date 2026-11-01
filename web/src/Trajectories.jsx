@@ -21,7 +21,7 @@ export function Trajectories({project,job}){
   },[job.id,running]);
   if(!list)return null;
   return <div className="trajectories">
-    <p className="muted">One entry for each agent run. A run's steps are saved when that agent run ends, so a running job shows the finished ones. The opening prompt, the harness files and the images themselves are not part of the saved trace.</p>
+    <p className="muted">One entry for each agent run. A run's steps are saved when that agent run ends, so a running job shows the finished ones. Opening messages are shown where the run kept them. The images themselves are not saved.</p>
     {list.executions.length===0&&<p className="muted">{running?'Nothing finished yet.':'This run left no trajectories.'}</p>}
     {list.executions.map(item=><Execution key={item.path} project={project} job={job} item={item}/>)}
   </div>;
@@ -37,14 +37,17 @@ function Execution({project,job,item}){
     <summary>{name(item.path)} <span className="muted">· {plural(item.turns,'turn')} · {calls}{item.stopped?` · stopped: ${item.stopped}`:item.answered?'':' · no answer'}</span></summary>
     {problem&&<p className="callout bad">{problem}</p>}
     {!record&&!problem&&<p className="muted">Loading…</p>}
-    {record&&<ol className="steps">{record.trace.map((step,i)=><Step key={i} step={step}/>)}
+    {record&&<ol className="steps">
+      {record.opening?record.opening.map((message,i)=><li className="step meta" key={'open'+i}><strong>{message.role==='developer'?'Instructions given to the agent':message.role==='user'?'Request given to the agent':message.role}</strong><Block text={message.content} closed/></li>)
+        :<li className="step meta"><span className="muted">The opening messages were not kept for this run.</span></li>}
+      {record.trace.map((step,i)=><Step key={i} step={step}/>)}
       <li className="step final"><strong>Final reply</strong>{record.final_text?<pre className="setup"><code>{record.final_text}</code></pre>:<p className="muted">None: the agent run ended without an answer.</p>}</li>
     </ol>}
   </details>;
 }
 
-function Block({text}){
-  return <details open={text.length<=SHORT}><summary className="muted">{text.length<=SHORT?'Shown':`${text.length.toLocaleString()} characters`}</summary><pre className="setup"><code>{text}</code></pre></details>;
+function Block({text,closed}){
+  return <details open={!closed&&text.length<=SHORT}><summary className="muted">{!closed&&text.length<=SHORT?'Shown':`${text.length.toLocaleString()} characters`}</summary><pre className="setup"><code>{text}</code></pre></details>;
 }
 
 function Step({step}){

@@ -202,6 +202,9 @@ class InventoryAdapter(ImagesAdapter):
         surface = self.substrate.surface()
         harness = tree.read_tree(surface, harness_dir or self.base_harness())
         messages, handler = self._conversation(task, surface, harness, run_id)
+        # For a person reading the run. A file of its own, so the trace the improver reads stays as it was.
+        (run/"opening.json").write_text(json.dumps([{"role": m["role"], "content": m["content"] if isinstance(m["content"], str) else "(not text)"}
+                                                    for m in messages], allow_nan=False), encoding="utf-8")
         text, trace = run_agent(self.client, messages, self.tools, handler, candidate=run_id, keep_images=self._window(task),
                                 whole_context=self.domain.whole_context,
                                 timeout=timeout or (self.limits or {}).get("call_seconds", 600), **self._caps(task))

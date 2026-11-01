@@ -1241,7 +1241,12 @@ class Engine:
         if target is None or target.stat().st_size > 20_000_000:
             raise ValueError("Unknown trajectory")
         record = json.loads(target.read_text(encoding="utf-8"))
-        return {"path":wanted.as_posix(),"final_text":record.get("final_text") or "","trace":record["trace"]}
+        opening = target.parent/"opening.json"
+        try:
+            messages = json.loads(opening.read_text(encoding="utf-8")) if opening.is_file() and not opening.is_symlink() else None
+        except (OSError, ValueError):
+            messages = None  # a run from before this was kept has none
+        return {"path":wanted.as_posix(),"final_text":record.get("final_text") or "","trace":record["trace"],"opening":messages}
 
     def fresh(self, identifier, job_id):
         workspace = self.workspace(identifier)

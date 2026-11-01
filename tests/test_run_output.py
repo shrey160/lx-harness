@@ -124,6 +124,11 @@ class Trajectories(Base):
         self.assertEqual(listed, [{"path": "task-x/sample-01/base1", "turns": 2, "tool_calls": {"view": 1}, "stopped": None, "answered": True}])
         one = self.app.run_trajectory(project["id"], run, "task-x/sample-01/base1")
         self.assertEqual((one["final_text"], len(one["trace"])), ("done", 4))
+        self.assertIsNone(one["opening"])  # a run from before the opening was kept
+        (folder/"opening.json").write_text(json.dumps([{"role": "developer", "content": "rules"}, {"role": "user", "content": "request"}]), encoding="utf-8")
+        self.assertEqual([m["role"] for m in self.app.run_trajectory(project["id"], run, "task-x/sample-01/base1")["opening"]], ["developer", "user"])
+        (folder/"opening.json").write_text("not json", encoding="utf-8")
+        self.assertIsNone(self.app.run_trajectory(project["id"], run, "task-x/sample-01/base1")["opening"])
         for bad in ("", None, "../secret.txt", "/etc/passwd", "task-x/..", "task-x\sample-01", "task-x/sample-01", "task-x/sample-01/base1/trace.json"):
             with self.subTest(path=bad), self.assertRaisesRegex(ValueError, "Unknown trajectory"):
                 self.app.run_trajectory(project["id"], run, bad)
@@ -160,6 +165,18 @@ class APreviewPackage(Base):
         self.assertEqual(len(order), 6)
         self.assertTrue(all(folder.startswith("sample-") for folder in order))
         self.assertEqual(len(set(order)), 6)
+
+    def test_an_agent_run_keeps_its_opening_apart_from_the_trace_the_improver_reads(self):
+        workspace = self.app.workspace(self.project["id"])
+        paths = [item["path"] for item in self.app.run_trajectories(self.project["id"], self.run_id)["executions"]]
+        self.assertTrue(paths)
+        for path in paths:
+            with self.subTest(path=path):
+                one = self.app.run_trajectory(self.project["id"], self.run_id, path)
+                self.assertEqual([m["role"] for m in one["opening"]][-1], "user")
+                self.assertTrue(all(isinstance(m["content"], str) and m["content"] for m in one["opening"]))
+                raw = json.loads((workspace.run_dir(self.run_id)/"outputs"/"runs"/"executions"/path/"trace.json").read_text(encoding="utf-8"))
+                self.assertEqual(set(raw), {"final_text", "trace"})
 
     def test_trajectories_hold_traces_and_no_answer_files(self):
         with zipfile.ZipFile(io.BytesIO(self.app.trajectory_bytes(self.project["id"], self.run_id))) as archive:
