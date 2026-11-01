@@ -18,6 +18,7 @@ from test_tasks import Base
 from test_trial import Trials
 
 SERVER = [sys.executable, str(Path(__file__).parent/"mcp_fixture.py")]
+LOCAL = {"kind": "command", "command": SERVER}
 LOOKUP = "shop/price.lookup"
 NAME = "mcp_shop_price_lookup"
 
@@ -25,7 +26,7 @@ NAME = "mcp_shop_price_lookup"
 class Connected(Base):
     def setUp(self):
         super().setUp()
-        self.server = self.app.mcp_connect("shop", SERVER)
+        self.server = self.app.mcp_connect("shop", LOCAL)
         self.lx = Orchestration(self.app, launch=False)
         self.path = self.folder()
         from lx.inventory import write_synthetic
@@ -44,7 +45,7 @@ class Connected(Base):
 class ConnectingIsAPersonsStep(Connected):
     def test_no_orchestrator_action_can_connect_mark_or_remove(self):
         self.assertFalse([name for name in ACTIONS if "mcp" in name])
-        self.assertFalse({"mcp_connect", "mcp_mark", "mcp_remove", "mcp_refresh"} & set(vars(Orchestration)))
+        self.assertFalse({"mcp_connect", "mcp_mark", "mcp_remove", "mcp_refresh", "mcp_secret"} & set(vars(Orchestration)))
 
     def test_an_agent_sees_tools_but_never_a_command(self):
         shown = json.dumps(self.lx.environment()["mcp_tools"])
@@ -67,7 +68,59 @@ class ConnectingIsAPersonsStep(Connected):
         with self.assertRaisesRegex(ValueError, "offers"):
             self.app.mcp_mark("shop", ["nothing"])
         with self.assertRaisesRegex(ValueError, "has that name"):
-            self.app.mcp_connect("shop", SERVER)
+            self.app.mcp_connect("shop", LOCAL)
+
+    def test_a_secret_is_kept_out_of_records_and_views(self):
+        self.app.mcp_connect("keyed", LOCAL, {"LX_TEST_OWN": "the-value"})
+        self.assertNotIn("the-value", json.dumps(self.app.store.get("mcp_server", "keyed")))
+        self.assertEqual(next(server for server in self.app.mcp_view() if server["id"] == "keyed")["secrets"], ["LX_TEST_OWN"])
+        self.assertNotIn("the-value", json.dumps(self.app.system()["mcp_servers"]))
+
+    def test_a_kept_secret_reaches_its_server_from_the_keychain(self):
+        self.app.mcp_connect("keyed", {"kind": "command", "command": SERVER+["--env"]}, {"LX_TEST_OWN": "the-value"})
+        self.assertIn("LX_TEST_OWN=the-value", self.app.store.get("mcp_server", "keyed")["tools"][1]["description"])
+
+    def test_a_server_that_fails_keeps_none_of_its_secrets(self):
+        with patch.object(self.app.registry, "drop_secret", wraps=self.app.registry.drop_secret) as dropped, self.assertRaisesRegex(ValueError, "closed its connection"):
+            self.app.mcp_connect("bad", {"kind": "command", "command": [sys.executable, "-c", "pass"]}, {"API_KEY": "x"})
+        self.assertEqual(dropped.call_count, 1)
+        self.assertNotIn("bad", [server["id"] for server in self.app.mcp_servers()])
+
+    def test_a_secret_can_be_replaced_and_marks_stay(self):
+        self.app.mcp_mark("shop", ["orders_delete"])
+        self.app.mcp_secret("shop", "API_KEY", "x")
+        server = self.app.store.get("mcp_server", "shop")
+        self.assertEqual(sorted(server["secrets"]), ["API_KEY"])
+        self.assertEqual([tool["tool"] for tool in server["tools"] if tool["read_only"]], ["orders_delete"])
+
+    def test_removing_a_server_removes_its_secrets(self):
+        self.app.mcp_connect("keyed", LOCAL, {"API_KEY": "x"})
+        with patch.object(self.app.registry, "drop_secret") as dropped:
+            self.app.mcp_remove("keyed")
+        self.assertEqual(dropped.call_count, 1)
+
+    def test_a_new_image_behind_a_tag_needs_marking_again(self):
+        self.app.store.save("mcp_server", {"id": "boxed", "kind": "docker", "image": "a", "image_id": "sha256:old", "args": [], "network": False, "mounts": [], "secrets": {},
+                                           "tools": [{"tool": "t", "description": "", "inputSchema": {"type": "object"}, "read_only": True}]})
+        same = [{"tool": "t", "description": "", "inputSchema": {"type": "object"}}]
+        with patch("lx.mcp_client.read_tools", return_value=same), patch("lx.mcp_client.resolve_image", return_value="sha256:old"):
+            self.assertTrue(self.app.mcp_refresh("boxed")["tools"][0]["read_only"])
+        with patch("lx.mcp_client.read_tools", return_value=same), patch("lx.mcp_client.resolve_image", return_value="sha256:new"):
+            self.assertFalse(self.app.mcp_refresh("boxed")["tools"][0]["read_only"])
+
+    def test_a_spec_is_tied_to_what_the_server_runs_from(self):
+        self.app.store.save("mcp_server", {"id": "boxed", "kind": "docker", "image": "a", "image_id": "sha256:old", "args": [], "network": False, "mounts": [], "secrets": {},
+                                           "tools": [{"tool": "t", "description": "", "inputSchema": {"type": "object"}, "read_only": True}]})
+        self.lx.spec_draft(self.path, mcp_tools=["boxed/t"])
+        self.assertIsNone(self.app.project(self.id)["blocked"])
+        self.assertIn("a Docker container", self.app.project(self.id)["notice"][-1]["gets"])
+        self.app.store.save("mcp_server", {**self.app.store.get("mcp_server", "boxed"), "image_id": "sha256:new"})
+        self.assertRegex(self.app.project(self.id)["blocked"], "changed since this spec")
+
+    def test_an_agent_never_sees_where_a_server_runs_from(self):
+        self.app.store.save("mcp_server", {"id": "boxed", "kind": "url", "url": "https://private.example.com/mcp", "secrets": {},
+                                           "tools": [{"tool": "t", "description": "", "inputSchema": {"type": "object"}, "read_only": False}]})
+        self.assertNotIn("private.example.com", json.dumps(self.lx.environment()["mcp_tools"]))
 
 
 class Choosing(Connected):
@@ -116,7 +169,7 @@ class Choosing(Connected):
 
     def test_a_changed_tool_loses_its_mark_and_blocks_the_spec(self):
         self.choose()
-        self.app.store.save("mcp_server", {**self.app.mcp_servers()[0], "command": SERVER+["--changed"]})
+        self.app.store.save("mcp_server", {**self.app.store.get("mcp_server", "shop"), "command": SERVER+["--changed"]})
         refreshed = self.app.mcp_refresh("shop")
         self.assertFalse(any(tool["read_only"] for tool in refreshed["tools"]))
         self.assertRegex(self.app.project(self.id)["blocked"], "changed since this spec")
@@ -143,7 +196,7 @@ class Choosing(Connected):
 
 class Scripts(unittest.TestCase):
     def test_a_script_receives_this_conversations_results(self):
-        run = mcp_client.McpRun([mcp_client.definition("shop", tool) for tool in mcp_client.read_tools(SERVER) if tool["tool"] == "price.lookup"], {"shop": SERVER}, 5)
+        run = mcp_client.McpRun([mcp_client.definition("shop", LOCAL, tool) for tool in mcp_client.read_tools(LOCAL) if tool["tool"] == "price.lookup"], {"shop": LOCAL}, 5)
         self.addCleanup(run.close)
         seen = {}
         def runner(source, payload, files, timeout):
@@ -185,7 +238,7 @@ class Asks(InventoryPreviewTransport):
 class ARun(Trials):
     def setUp(self):
         super().setUp()
-        self.app.mcp_connect("shop", SERVER)
+        self.app.mcp_connect("shop", LOCAL)
         self.app.mcp_mark("shop", ["price.lookup"])
         self.lx.spec_draft(self.path, mcp_tools=[LOOKUP])
         self.transport = Asks()
@@ -201,8 +254,8 @@ class ARun(Trials):
     def test_a_server_that_changed_since_approval_stops_the_run(self):
         self.approve_it()
         run_id = self.lx.trial_start(self.path)["run_id"]
-        self.app.store.save("mcp_server", {**self.app.mcp_servers()[0], "command": SERVER+["--changed"]})
-        with self.assertRaisesRegex(ValueError, "changed its tool"):
+        self.app.store.save("mcp_server", {**self.app.store.get("mcp_server", "shop"), "command": SERVER+["--changed"]})
+        with self.assertRaisesRegex(ValueError, "changed since this spec"):
             self.finish(run_id)
         self.assertEqual(self.transport.calls["worker"], 0)
 

@@ -17,7 +17,7 @@ than photos, audio and text.
 |---|---|---|---|
 | **The LX machine** | uv, Node.js, Python, Docker, the app | You, once | Install it |
 | **Hosted tools** | SAM, Transcribe | You add a key; the work runs at the provider | Settings, under Tools |
-| **MCP tools** | A price lookup on a local MCP server | A person connects it and marks it read-only; it runs outside the sandbox | Settings, under Tools, or `lx mcp` |
+| **MCP tools** | A price lookup on an MCP server | A person connects a command, Docker image or URL and marks tools read-only ([guide](mcp.md)) | Settings, MCP servers, or `lx mcp` |
 | **The sandbox** | What learned scripts and scoring checks can use | You, for each need | Change the image |
 
 Decide with these questions, in order:

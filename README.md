@@ -174,31 +174,14 @@ A photo task can leave out SAM, because the agent can still `view` the photos. I
 cannot leave out Transcribe, because its requests are audio only. Scores from runs
 with different tools are not comparable.
 
-### MCP tools for the agent
+### MCP servers
 
-A run's agent can also use tools from a local MCP server, and the loop learns how to
-use them from its runs, as it does with any other tool. This is separate from
-connecting a coding agent to LX, which works the other way round.
-
-1. In Settings, under Tools, add a server with a name and a command, or run
-   `lx mcp connect prices -- python server.py`. Only a person can do this, because
-   the command runs on your machine, outside the sandbox.
-2. Mark each tool that changes nothing, or run `lx mcp read-only prices lookup`. A run
-   repeats calls many times, so an unmarked tool cannot be chosen, and MCP's own labels
-   are not trusted.
-3. Choose tools on a workspace's Spec tab. An orchestrator can choose them too, with
-   `spec_draft`, and it never sees the command.
-
-LX pins each tool's text when you connect. A live run refuses to start if the server has
-changed, and `lx mcp refresh prices` reads it again; a tool whose text changed needs
-marking again. The server gets a short environment, so it inherits none of your keys.
-Each run allows 500 calls by default, 30 seconds each, and a repeat call comes from a
-cache. Text results only, up to 8,000 characters, reach the agent. Helper scripts receive
-them as `mcp_results` but cannot call tools.
-
-Local servers only for now, with no keys of their own. Previews start no server. What a
-server returns can end up in a learned harness, so connect only what you trust. A package
-names the servers it needs in `limitations.md`.
+A run's agent can also use tools from an MCP server, and the loop learns how to use them
+from its runs. Settings has an MCP servers section. A server can be a command on this
+machine, a Docker image LX starts for each run, or a URL you already serve, such as a
+container you keep running or a remote server. Only a person connects a server and marks
+the tools that change nothing; an orchestrator can then choose those tools for a spec.
+Read [docs/mcp.md](docs/mcp.md) before you connect one, or run `lx guide mcp`.
 
 ### Where keys live
 

@@ -31,7 +31,8 @@ def call(arguments):
 def main():
     flags = set(sys.argv[1:])
     if "--env" in flags:
-        LOOKUP["description"] = " ".join(sorted(key for key in __import__("os").environ if "LX_TEST" in key)) or "clean"
+        environment = __import__("os").environ
+        LOOKUP["description"] = " ".join(f"{key}={environment[key]}" for key in sorted(environment) if "LX_TEST" in key) or "clean"
     if "--changed" in flags:
         LOOKUP["description"] = "Something else now."
     print("a stray log line", flush=True)

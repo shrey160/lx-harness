@@ -231,8 +231,8 @@ class Engine:
         tools = tasks.spec_tools(draft)
         notice += [{"who":"SAM 3.1","host":host(META_API),"gets":"the sample photos"}] if tasks.SEGMENTATION in tools else []
         notice += [{"who":"Muse Voice Transcribe","host":host(META_API),"gets":"the sample audio"}] if tasks.TRANSCRIPTION in tools else []
-        notice += [{"who":f"MCP server {server}","host":"mcp:"+server,"gets":"whatever the agent passes to its tools; it runs on this machine, outside the sandbox"}
-                   for server in sorted({entry["server"] for entry in tasks.spec_mcp(draft)})]
+        notice += [{"who":f"MCP server {server}","host":"mcp:"+server,"gets":f"whatever the agent passes to its tools, at {place}"}
+                   for server,place in sorted({(entry["server"],entry["where"]) for entry in tasks.spec_mcp(draft)})]
         return notice
 
     def _assign(self, roles, mode, task=None):
@@ -286,42 +286,86 @@ class Engine:
             if server is None:
                 return f"The MCP server {entry['server']} is no longer connected. Connect it, or take its tools out of this spec."
             found = next((tool for tool in server["tools"] if tool["tool"] == entry["tool"]), None)
-            if found is None or mcp_client.definition(entry["server"], {key:found[key] for key in mcp_client.TOOL_FIELDS}) != entry:
+            if found is None or mcp_client.definition(entry["server"], server, found) != entry:
                 return f"The MCP tool {entry['name']} changed since this spec was written. Write a new spec version."
             if not found["read_only"]:
                 return f"The MCP tool {entry['name']} is not marked read-only. Mark it in Settings, or take it out of this spec."
         return None
 
-    # MCP servers (D-030). Connecting starts a program on this machine, so no orchestrator action reaches these changes.
+    # MCP servers (D-030). Connecting runs a program here or sends data to an address, so no orchestrator action reaches these changes.
 
     def mcp_servers(self):
         return sorted(self.store.list("mcp_server"), key=lambda server: server["id"])
 
+    def mcp_view(self):
+        """Settings' list. Secrets by name only; a value never leaves the keychain here."""
+        return [{**{key:value for key,value in server.items() if key != "secrets"},"secrets":sorted(server["secrets"])} for server in self.mcp_servers()]
+
     def _mcp_server(self, name):
         return self.store.get("mcp_server", mcp_client.check_server_name(name))
 
-    def _save_mcp(self, name, command, read_only):
-        tools = mcp_client.read_tools(command)
+    def _mcp_secrets(self, server):
+        return {name:self.registry.kept_secret(reference) for name,reference in server["secrets"].items()}
+
+    def _read_mcp(self, name, server, read_only):
+        """Reads what a server offers and saves it, with this set of tools marked."""
+        tools = mcp_client.read_tools(server, self._mcp_secrets(server))
         names = [mcp_client.agent_name(name, tool["tool"]) for tool in tools]
         if len(set(names)) != len(names) or any(len(item) > 64 for item in names):
             raise ValueError("This server's tool names clash or run too long once prefixed")
-        self.store.save("mcp_server", {"id":name,"command":command,"tools":[{**tool,"read_only":tool["tool"] in read_only} for tool in tools]})
+        self.store.save("mcp_server", {**server,"id":name,"tools":[{**tool,"read_only":tool["tool"] in read_only} for tool in tools]})
         return self._mcp_server(name)
 
-    def mcp_connect(self, name, command):
-        """A person's step. Starts the command and pins what it offers; nothing is marked read-only yet."""
+    def mcp_connect(self, name, config, secrets=None):
+        """A person's step. Starts or reaches the server and pins what it offers; nothing is marked read-only yet."""
         name = mcp_client.check_server_name(name)
         if any(server["id"] == name for server in self.mcp_servers()):
             raise ValueError("A server has that name")
-        return self._save_mcp(name, mcp_client.check_command(command), ())
+        record = mcp_client.check_record(config)
+        if record["kind"] == "docker":
+            record["image_id"] = mcp_client.resolve_image(record["image"])
+        secrets = secrets or {}
+        if type(secrets) is not dict or any(type(value) is not str or not value for value in secrets.values()):
+            raise ValueError("Give each secret a value")
+        for variable in secrets:
+            mcp_client.check_secret_name(variable)
+        record["secrets"] = {variable:self.registry.keep_secret(value) for variable,value in secrets.items()}
+        try:
+            return self._read_mcp(name, record, ())
+        except ValueError:
+            for reference in record["secrets"].values():
+                self.registry.drop_secret(reference)
+            raise
+
+    def mcp_secret(self, name, variable, value):
+        """A person's step: adds or replaces one secret. The server is read again, so a wrong one shows now."""
+        server, variable = self._mcp_server(name), mcp_client.check_secret_name(variable)
+        old = server["secrets"].get(variable)
+        reference = self.registry.keep_secret(value)
+        try:
+            kept = [tool["tool"] for tool in server["tools"] if tool["read_only"]]
+            result = self._read_mcp(name, {**server,"secrets":{**server["secrets"],variable:reference}}, ())
+        except ValueError:
+            self.registry.drop_secret(reference)
+            raise
+        if old:
+            self.registry.drop_secret(old)
+        return self._marked_if_same(name, server, result, kept)
 
     def mcp_refresh(self, name):
-        """A person's step. Reads the tools again; a tool whose text changed needs marking again."""
+        """A person's step. Reads the tools again. A tool whose text changed, or any tool of an image that changed, needs marking again."""
         server = self._mcp_server(name)
-        kept = {tool["tool"]:tool for tool in server["tools"] if tool["read_only"]}
-        same = lambda tool: tool["tool"] in kept and all(tool[key] == kept[tool["tool"]][key] for key in mcp_client.TOOL_FIELDS)
-        fresh = self._save_mcp(name, server["command"], ())
-        return self.mcp_mark(name, [tool["tool"] for tool in fresh["tools"] if same(tool)])
+        kept = [tool["tool"] for tool in server["tools"] if tool["read_only"]]
+        fresh = dict(server)
+        if server["kind"] == "docker":
+            fresh["image_id"] = mcp_client.resolve_image(server["image"])
+        return self._marked_if_same(name, server, self._read_mcp(name, fresh, ()), kept)
+
+    def _marked_if_same(self, name, before, after, kept):
+        if mcp_client.pin(before) != mcp_client.pin(after):
+            return after
+        old = {tool["tool"]:tool for tool in before["tools"]}
+        return self.mcp_mark(name, [tool["tool"] for tool in after["tools"] if tool["tool"] in kept and all(tool[key] == old[tool["tool"]][key] for key in mcp_client.TOOL_FIELDS)])
 
     def mcp_mark(self, name, read_only):
         """A person's step: only they can say a tool changes nothing."""
@@ -333,12 +377,14 @@ class Engine:
         return self._mcp_server(name)
 
     def mcp_remove(self, name):
-        self._mcp_server(name)
+        server = self._mcp_server(name)
+        for reference in server["secrets"].values():
+            self.registry.drop_secret(reference)
         self.store.delete("mcp_server", name)
         return {"removed":name}
 
     def mcp_choices(self):
-        """What a spec may choose, as `server/tool`. Commands stay out: an agent reads this."""
+        """What a spec may choose, as `server/tool`. Commands, images and addresses stay out: an agent reads this."""
         return [{"id":f"{server['id']}/{tool['tool']}","server":server["id"],"tool":tool["tool"],"name":mcp_client.agent_name(server["id"],tool["tool"]),
                  "description":tool["description"],"read_only":tool["read_only"]} for server in self.mcp_servers() for tool in server["tools"]]
 
@@ -354,8 +400,7 @@ class Engine:
             if not known[item]["read_only"]:
                 raise ValueError(f"{item} is not marked read-only; a person marks that in Settings")
             server = self._mcp_server(known[item]["server"])
-            tool = next(tool for tool in server["tools"] if tool["tool"] == known[item]["tool"])
-            found.append(mcp_client.definition(server["id"], {key:tool[key] for key in mcp_client.TOOL_FIELDS}))
+            found.append(mcp_client.definition(server["id"], server, next(tool for tool in server["tools"] if tool["tool"] == known[item]["tool"])))
         return found
 
     def mcp_run(self, spec, limits):
@@ -363,7 +408,8 @@ class Engine:
         chosen = tasks.spec_mcp(spec)
         if spec.get("mode") != "live" or not chosen:
             return None
-        return mcp_client.McpRun(chosen, {entry["server"]:self._mcp_server(entry["server"])["command"] for entry in chosen}, limits["mcp_calls"])
+        servers = {entry["server"]:self._mcp_server(entry["server"]) for entry in chosen}
+        return mcp_client.McpRun(chosen, servers, limits["mcp_calls"], {name:self._mcp_secrets(server) for name,server in servers.items()})
 
     def _tool_choices(self, draft):
         """What the Spec tab lists: this task's model tools, and which of them it may leave out."""
@@ -1077,7 +1123,7 @@ class Engine:
         return {"version":version("lx-harness"),"state_root":str(self.root),"sandbox":sandbox.backend(),
                 "meta_key":self.registry.meta_key_source(),"agent_setup":self.agent_setup(),
                 "agent_tools":[{"name":call["name"],"description":call["description"]} for call in calls],
-                "mcp_servers":self.mcp_servers()}
+                "mcp_servers":self.mcp_view()}
 
     def agent_setup(self):
         """Ready setup for an agent client, with this install's own paths (D-024). No keys: the agent never needs one."""

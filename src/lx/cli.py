@@ -5,10 +5,12 @@ a real terminal. An agent approves with `approve --as-agent` or over MCP (D-026)
 and has no route to the other two.
 """
 import argparse
+import getpass
 import json
 from pathlib import Path
 import sys
 
+from . import mcp_client
 from .engine import DEFAULT_ROOT, DEFAULT_ROLE_ENTRY, GRANT_DAYS, GRANT_RUNS, Engine
 from .orchestration import TEMPLATES, Orchestration
 
@@ -67,15 +69,33 @@ def resume(engine, lx, args):
     return {"status": engine.resume(identifier, args.run)["status"]}
 
 
+def _hidden(variable):
+    if not sys.stdin.isatty():
+        raise ValueError("A secret needs a real terminal")
+    return getpass.getpass(f"Value of {variable}: ")
+
+
 def mcp_connect(engine, lx, args):
-    command = args.server_command[1:] if args.server_command[:1] == ["--"] else args.server_command
-    confirm(f"Connect the MCP server {args.name}. This starts on your machine, outside the sandbox, now and in runs:\n  {' '.join(command)}")
-    return engine.mcp_connect(args.name, command)
+    words = args.words[1:] if args.words[:1] == ["--"] else args.words
+    mounts = [dict(zip(("source", "target"), item.rsplit(":", 1))) for item in args.mount]
+    config = ({"kind": "docker", "image": args.image, "args": words, "network": args.network, "mounts": mounts} if args.image else
+              {"kind": "url", "url": args.url} if args.url else {"kind": "command", "command": words})
+    place = {"docker": f"in Docker, from the image {args.image}", "url": f"at {args.url}", "command": "on your machine, outside the sandbox: "+" ".join(words)}[config["kind"]]
+    confirm(f"Connect the MCP server {args.name}, which runs {place}. It stays connected for later runs.")
+    return _shown(engine, engine.mcp_connect(args.name, config, {variable: _hidden(variable) for variable in args.secret}))
+
+
+def mcp_secret(engine, lx, args):
+    return _shown(engine, engine.mcp_secret(args.name, args.variable, _hidden(args.variable)))
+
+
+def _shown(engine, server):
+    return next(item for item in engine.mcp_view() if item["id"] == server["id"])
 
 
 def mcp_mark(engine, lx, args):
     confirm(f"Mark as read-only on {args.name}: {', '.join(args.tools) or 'nothing'}. A run repeats calls, so a tool that changes anything must stay unmarked.")
-    return engine.mcp_mark(args.name, args.tools)
+    return _shown(engine, engine.mcp_mark(args.name, args.tools))
 
 
 def samples(engine, lx, args):
@@ -158,13 +178,21 @@ def parser():
 
     mcp = commands.add_parser("mcp", help="MCP servers whose tools a run's agent can use").add_subparsers(dest="mcp_command", required=True)
     command(mcp, "list", lambda engine, lx, args: {"tools": engine.mcp_choices()}, folder=False, help="connected tools")
-    item = command(mcp, "connect", mcp_connect, folder=False, help="connect a local server, as a person")
+    item = command(mcp, "connect", mcp_connect, folder=False, help="connect a server, as a person")
     item.add_argument("name")
-    item.add_argument("server_command", nargs=argparse.REMAINDER, help="the program and its arguments, after --")
+    item.add_argument("--image", help="run this Docker image")
+    item.add_argument("--url", help="use a server already running at this address")
+    item.add_argument("--network", action="store_true", help="let the container use the network")
+    item.add_argument("--mount", action="append", default=[], metavar="FOLDER:PATH", help="share a folder with the container, read-only")
+    item.add_argument("--secret", action="append", default=[], metavar="NAME", help=f"ask for a secret for the server; for a URL, {mcp_client.URL_TOKEN} is sent as a bearer token")
+    item.add_argument("words", nargs=argparse.REMAINDER, help="the program and its arguments, or the image's arguments, after --")
+    item = command(mcp, "secret", mcp_secret, folder=False, help="add or replace a server's secret, as a person")
+    item.add_argument("name")
+    item.add_argument("variable")
     item = command(mcp, "read-only", mcp_mark, folder=False, help="say which tools change nothing, as a person")
     item.add_argument("name")
     item.add_argument("tools", nargs="*")
-    item = command(mcp, "refresh", lambda engine, lx, args: engine.mcp_refresh(args.name), folder=False, help="read a server's tools again")
+    item = command(mcp, "refresh", lambda engine, lx, args: _shown(engine, engine.mcp_refresh(args.name)), folder=False, help="read a server's tools again")
     item.add_argument("name")
     item = command(mcp, "remove", lambda engine, lx, args: engine.mcp_remove(args.name), folder=False, help="disconnect a server")
     item.add_argument("name")

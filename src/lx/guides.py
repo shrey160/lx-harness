@@ -4,7 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 
 DOCS = Path(__file__).resolve().parents[2]/"docs"
-GUIDES = {"tasks": ("tasks.md", "Writing a task: samples, the spec, the scoring check, and how to try and read a run"),
+GUIDES = {"mcp": ("mcp.md", "MCP tools: giving a run's agent tools from a server, what a person connects, and what the loop learns"),
+          "tasks": ("tasks.md", "Writing a task: samples, the spec, the scoring check, and how to try and read a run"),
           "environment": ("environment.md", "Preparing an environment: keys, hosted tools, Python libraries and system tools")}
 
 

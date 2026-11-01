@@ -1,9 +1,10 @@
 import React, {useEffect, useState} from 'react';
 import {api, modeName, money, statusName, when} from './api.js';
+import {McpServers} from './McpServers.jsx';
 import {Providers} from './Providers.jsx';
 import {Usage} from './RunsTab.jsx';
 
-const SECTIONS=[['providers','Providers'],['tools','Tools'],['usage','Usage'],['general','General']];
+const SECTIONS=[['providers','Providers'],['tools','Tools'],['mcp','MCP servers'],['usage','Usage'],['general','General']];
 
 export function Settings({state,ui,section}){
   const [system,setSystem]=useState(null);
@@ -14,6 +15,7 @@ export function Settings({state,ui,section}){
     <div className="settings-body">
       {section==='providers'&&<Providers state={state} ui={ui}/>}
       {section==='tools'&&<Tools state={state} system={system} ui={ui} refresh={refresh}/>}
+      {section==='mcp'&&<McpServers system={system} ui={ui} refresh={refresh}/>}
       {section==='usage'&&<UsagePage state={state}/>}
       {section==='general'&&<General state={state} system={system}/>}
     </div>
@@ -45,28 +47,10 @@ function Tools({state,system,ui,refresh}){
     <h3>Model tools</h3>
     <ul className="list">{model.map(m=><li key={m.id}><div className="provider-row"><div><strong>{m.name}</strong><span className="muted">{m.capabilities.join(' · ')}</span></div>{status(m)&&<span className={'chip '+status(m)[0]}>{status(m)[1]}</span>}<label className="check"><input type="checkbox" aria-label={m.name+' on'} checked={m.enabled} disabled={ui.busy} onChange={e=>toggle(m,e.target.checked)}/>On</label></div></li>)}</ul>
     <p className="muted">Off stops every workspace from using a tool and blocks approved runs that include it. Photo tasks need a transcription tool, because their requests are audio.</p>
-    <McpServers system={system} ui={ui} refresh={refresh}/>
     <h3>Agent tools</h3>
     <ul className="list">{system?.agent_tools.map(tool=><li key={tool.name}><code>{tool.name}</code><span className="muted">{tool.description}</span></li>)}</ul>
     {system&&<ConnectAgent setup={system.agent_setup}/>}
   </section>;
-}
-
-function McpServers({system,ui,refresh}){
-  const [name,setName]=useState(''),[command,setCommand]=useState('');
-  const connect=()=>ui.act(async()=>{await api('mcp',{name,command});setName('');setCommand('');await refresh();ui.notify('Server connected. Mark the tools that change nothing.');});
-  const mark=(server,tool,on)=>{const tools=server.tools.filter(item=>item.tool===tool?on:item.read_only).map(item=>item.tool);ui.act(async()=>{await api(`mcp/${server.id}/read_only`,{tools});await refresh();});};
-  const change=(server,action)=>ui.act(async()=>{await api(`mcp/${server.id}/${action}`,{});await refresh();});
-  return <>
-    <h3>MCP servers</h3>
-    <p className="muted">Tools from a local MCP server that a run's agent can use and the loop can learn. The command runs on this machine, outside the sandbox, so connect only what you trust. A run repeats calls many times, so only tools marked read-only can be chosen, and what a server returns can end up in a learned harness.</p>
-    <ul className="list">{system?.mcp_servers.map(server=><li key={server.id}>
-      <div className="provider-row"><div><strong>{server.id}</strong><span className="muted"><code>{server.command.join(' ')}</code></span></div>
-        <span><button className="button" disabled={ui.busy} onClick={()=>change(server,'refresh')}>Read again</button> <button className="button" disabled={ui.busy} onClick={()=>change(server,'remove')}>Remove</button></span></div>
-      <div className="checks">{server.tools.map(tool=><label className="check" key={tool.tool}><input type="checkbox" checked={tool.read_only} disabled={ui.busy} onChange={e=>mark(server,tool.tool,e.target.checked)}/><span><code>{tool.tool}</code> changes nothing<span className="muted"> {tool.description}</span></span></label>)}</div>
-    </li>)}</ul>
-    <div className="key-row"><label className="field">Name<input value={name} onChange={e=>setName(e.target.value)} placeholder="prices"/></label><label className="field">Command<input value={command} onChange={e=>setCommand(e.target.value)} placeholder="python server.py"/></label><button className="button" disabled={ui.busy||!name||!command} onClick={connect}>Connect</button></div>
-  </>;
 }
 
 function ConnectAgent({setup}){

@@ -454,6 +454,16 @@ class Registry:
         except ValueError as exc:
             raise RegistryError(str(exc)) from None
 
+    def keep_secret(self, value: Any) -> str:
+        """Stores a value for an MCP server and returns its opaque reference."""
+        return self._write_secret(self._api_key(value))
+
+    def kept_secret(self, reference: str) -> str:
+        return self._read_secret(reference)
+
+    def drop_secret(self, reference: str) -> None:
+        self._remove_secret(reference)
+
     def _read_secret(self, reference: str) -> str:
         try:
             if reference.startswith(_KEYCHAIN):

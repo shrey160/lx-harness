@@ -49,7 +49,7 @@ class Tools(Base):
         async def flow(client):
             return [reply(await client.call_tool(name, arguments)) for name, arguments in (("guide", {}), ("guide", {"topic": "environment"}), ("environment", {}))]
         listing, text, shown = self.using(flow)
-        self.assertEqual({entry["topic"] for entry in listing["guides"]}, {"tasks", "environment"})
+        self.assertEqual({entry["topic"] for entry in listing["guides"]}, {"mcp", "tasks", "environment"})
         self.assertIn("Which place does your requirement belong in", text["text"])
         self.assertIs(shown["sandbox"]["network"], False)
 

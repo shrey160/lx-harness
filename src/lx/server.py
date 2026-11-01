@@ -106,9 +106,11 @@ def server_for(app, port=8765):
                 elif route == ["api","pick-folder"]:
                     result = app.pick_folder()
                 elif route == ["api","mcp"]:
-                    result = app.mcp_connect(data.get("name"),shlex.split(data.get("command") or "",posix=os.name!="nt"))
+                    words = lambda field: shlex.split(data.get(field) or "",posix=os.name!="nt")
+                    result = app.mcp_connect(data.get("name"),{**{key:data.get(key) for key in ("kind","image","url","network","mounts")},"command":words("command"),"args":words("args")},data.get("secrets"))
                 elif len(route)==4 and route[:2]==["api","mcp"]:
                     if route[3]=="read_only": result = app.mcp_mark(route[2],data.get("tools"))
+                    elif route[3]=="secret": result = app.mcp_secret(route[2],data.get("name"),data.get("value"))
                     elif route[3]=="refresh": result = app.mcp_refresh(route[2])
                     elif route[3]=="remove": result = app.mcp_remove(route[2])
                     else: return self.respond({"error":"Not found"},404)
