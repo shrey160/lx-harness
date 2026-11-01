@@ -1,0 +1,3 @@
+{
+  "contract": "Return one JSON object with exactly these fields: order_id (string), customer (string, Title Case with single spaces), date (YYYY-MM-DD), currency (ISO code), amount_minor (integer, the amount in minor units), phone (E.164 string, or null when not provided), tags (unique, sorted, lower-case strings). A record may be messy. order_id is the current order, not one it replaced. customer is first name then surname. A numeric date is day first, and a two-digit year is in the 2000s. An amount may use a comma or a point as its decimal mark. Where a record changes a value, the latest value holds, and a label taken off is left out. A phone with no country code is +1, and phone is null when no number is in service now."
+}
