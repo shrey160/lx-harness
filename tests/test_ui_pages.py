@@ -13,7 +13,8 @@ from test_tasks import Base
 WEB = Path(__file__).resolve().parents[1]/"web"
 TRIAL = {"kind": "trial", "task": "lx_x", "live": True, "sample": "sample-01", "score": 0.5, "base_sha256": "0"*64, "note": "A smoke test.", "stopped": None,
          "checks": [{"name": "a", "passed": True}, {"name": "b", "passed": False}], "tool_calls": {"view": 1}}
-FULL = {"task": "lx_x", "means": {"base": 0.0, "harness2": 0.7}, "checks": {"base": {"s": False}, "harness2": {"s": False}}, "stream_order": ["s"], "base_sha256": "0"*64}
+FULL = {"task": "lx_x", "means": {"base": 0.0, "harness2": 0.7}, "checks": {"base": {"s": False}, "harness2": {"s": False}}, "stream_order": ["s"], "base_sha256": "0"*64,
+        "scores": {"base": {"s": 0.0}, "harness2": {"s": 0.7}}}
 
 
 @unittest.skipUnless(shutil.which("node") and (WEB/"node_modules"/"esbuild").is_dir(), "needs Node and the web packages")
@@ -30,9 +31,11 @@ class Pages(Base):
         lx = Orchestration(self.app, launch=False)
         lx.init(path, "photo-request")
         lx.preview(path)
+        self.inventory()  # a workspace with its own orchestrator, so Discuss shows its form
         state = self.app.state()
         run = state["jobs"][0]
-        state["jobs"] += [{**run, "id": "trial", "kind": "trial", "status": "completed", "result": TRIAL}, {**run, "id": "full", "status": "completed", "result": FULL}]
+        state["jobs"] += [{**run, "id": "trial", "kind": "trial", "status": "completed", "result": TRIAL}, {**run, "id": "full", "status": "completed", "result": FULL},
+                           {**run, "id": "older", "status": "completed", "result": {key: value for key, value in FULL.items() if key != "scores"}}]
         done = self.render(state)
         self.assertEqual(done.returncode, 0, done.stdout+done.stderr)
         self.assertIn("pages rendered", done.stdout)

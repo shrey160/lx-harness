@@ -84,7 +84,6 @@ function Edits({project,job}){
   },[job.id,running]);
   if(!edits)return null;
   return <div className="edits">
-    <Tokens tokens={edits.tokens}/>
     <h3>What the improver changed</h3>
     {edits.samples.length===0&&<p className="muted">{running?'Nothing written yet. Edits appear here as the loop writes them.':'This run left no edits.'}</p>}
     {edits.samples.map(sample=><details key={sample.sample} open={running||sample.sample===edits.package_sample}>
@@ -99,6 +98,7 @@ function Edits({project,job}){
         </details>)}
       </div>)}
     </details>)}
+    <Tokens tokens={edits.tokens}/>
   </div>;
 }
 
@@ -127,7 +127,7 @@ function Result({project,job,ui,post,live,canTry,tryHarness}){
     {!live&&<p className="muted">Scripted replies say nothing about a model's ability.</p>}
     {result.stream_order&&<p className="muted">Scores are a report: they chose nothing, and one run cannot separate a gain from noise. Order this run: {result.stream_order.join(', ')}.</p>}
     {scores(result)&&<div className="stats"><Stat value={scores(result).base.toFixed(2)} label="base score"/><Stat value={scores(result).harness2.toFixed(2)} label="after the loop"/></div>}
-    <div className="stats">{Object.entries(result.checks).map(([label,checks])=><Stat key={label} value={`${Object.values(checks).filter(Boolean).length}/${Object.keys(checks).length}`} label={{base:'passed before',harness2:'passed after',selected_dev:'passed after',heldout:'held-out passed'}[label]||label.replaceAll('_',' ')}/>)}</div>
+    {result.scores?<SampleScores result={result}/>:<div className="stats">{Object.entries(result.checks).map(([label,checks])=><Stat key={label} value={`${Object.values(checks).filter(Boolean).length}/${Object.keys(checks).length}`} label={{base:'passed before',harness2:'passed after',selected_dev:'passed after',heldout:'held-out passed'}[label]||label.replaceAll('_',' ')}/>)}</div>}
     <div className="actions">
       <a className="button primary" href={`/api/packages/${project.id}/${job.id}/download`} download="harness-package.zip">Download package</a>
       {result.task&&<a className="button" href={`/api/trajectories/${project.id}/${job.id}/download`} download="trajectories.zip" title="Every agent run's trace, for fine-tuning. These can hold your data, and no answers.">Download trajectories</a>}
@@ -138,6 +138,18 @@ function Result({project,job,ui,post,live,canTry,tryHarness}){
     <p className="muted">The package holds the approved spec, the harness and the check results; a task package adds its check file and limitations.</p>
     {job.fresh_result&&<div className={'callout '+(job.fresh_result.accepted?'':'warn')}><strong>{job.fresh_result.accepted?'New scene passed':'New scene failed'}</strong><p>{job.fresh_result.note}</p>{job.fresh_result.errors?.map(e=><p key={e}>{e}</p>)}</div>}
   </div>;
+}
+
+function SampleScores({result}){
+  const {base,harness2}=result.scores,samples=Object.keys(base);
+  const whole=row=>samples.filter(sample=>row[sample]===1).length,score=value=>typeof value==='number'?value.toFixed(2):'–';
+  return <>
+    <div className="table-wrap"><table className="table">
+      <thead><tr><th>Sample</th><th>Before</th><th>After</th></tr></thead>
+      <tbody>{samples.map(sample=><tr key={sample}><td>{sample}</td><td>{score(base[sample])}</td><td>{score(harness2[sample])}</td></tr>)}</tbody>
+    </table></div>
+    <p className="muted">A score is the share of checks passed on that sample. Full marks on every check: {whole(base)} of {samples.length} before, {whole(harness2)} of {samples.length} after.</p>
+  </>;
 }
 
 const Stat=({value,label})=><div className="stat"><strong>{value}</strong><span>{label}</span></div>;
