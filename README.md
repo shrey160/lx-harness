@@ -444,10 +444,36 @@ Set up keys, models and tools in the app first. An agent such as Claude Code or 
 Code can then act as the orchestrator with its own model: it needs no keys, because
 workers, the improver and tools run through LX.
 
-Add `--extra mcp` to your `uv sync` command, then open Settings, Connectivity, Connect an agent.
-It gives the setup for Claude Code and Muse Code with this install's paths. The server
-speaks MCP over stdio. Every tool takes a workspace folder, and a preview or run returns
-at once for the agent to poll. A run keeps going after the agent closes.
+### Connect an agent
+
+1. Add `--extra mcp` to your `uv sync` command. In Settings, Connectivity, make sure Agent
+   access says Started.
+2. Settings, Connectivity, Connect an agent gives the setup with this install's own paths and
+   no keys. The server speaks MCP over stdio, and your agent client launches it when it needs it.
+3. **Claude Code.** In the folder you will work in, run the `claude mcp add` command from
+   Connectivity, start `claude` there, and ask it to call the `lx` status tool.
+   `claude mcp list` should show `lx` as connected.
+4. **Muse Code.** Merge the JSON from Connectivity into `~/.config/muse/settings.json` (on
+   Windows `%USERPROFILE%\.config\muse\settings.json`), keeping what is already there. Keep
+   its `env` block: Muse Code starts a server with only the variables it is given, and on
+   Windows the server cannot find your profile folder, or start at all, without them. In the
+   folder you will work in, run `muse` and ask it to call the `lx` status tool. A one-shot
+   check is `muse exec "Call the lx status tool and say what it listed"`. After editing the
+   settings file, start a new session.
+5. Put your samples in a folder, one `sample-*` folder each, in the folder the agent works
+   in. Every lx tool takes a workspace's full folder path, and the agent sets one up with
+   `init`. A preview or run returns at once for the agent to poll, and a run keeps going
+   after the agent closes. Say in your first message whether it may approve and run.
+
+If the agent does not see the `lx` tools:
+
+- Agent access is Stopped: start it. A stopped switch refuses every call, even in open sessions.
+- The MCP extra is not installed: run `uv sync --extra mcp` again.
+- Muse Code marks `lx` as `"mode": "optional"`, so a server that fails to start is skipped
+  without a message. Set it to `"required"` to see the error, then set it back.
+- On Windows with Muse Code, the `env` block is missing, or lacks `USERPROFILE` or `SYSTEMROOT`.
+- LX was moved or reinstalled, so the Python path changed: copy the setup from Connectivity again.
+- The client was open when its settings changed: start a new session.
 
 The agent can draft the spec and check, test the check, run previews, approve a live spec
 and start live runs and trials. Approving spends your money and sends your samples to the

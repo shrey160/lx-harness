@@ -192,3 +192,4 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .edit-notes { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); }
 .diff .add { color: var(--accent); }
 .diff .del { color: var(--bad); }
+.steps-plain { padding-left: 20px; } .steps-plain li { margin-bottom: 8px; }

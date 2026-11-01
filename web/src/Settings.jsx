@@ -71,12 +71,34 @@ function ConnectAgent({setup}){
   return <>
     <h3>Connect an agent</h3>
     <p className="muted">An agent can set up tasks here with its own model and account. It needs no keys, because workers, the improver and tools run through LX. It can run previews, and it can approve and start live runs, which spend your money and send your samples to your providers, up to the budgets you set. Connect only agents you trust with that.</p>
-    {!setup.installed&&<p className="callout warn">The MCP extra is not installed. Run your <code>uv sync</code> command again with <code>--extra mcp</code>.</p>}
-    <p>Claude Code: run this in the folder you will work in.</p>
-    <pre className="setup"><code>{setup.claude}</code></pre>
-    <p>Muse Code: add this to <code>~/.config/muse/settings.json</code>, merging it with what is there.</p>
-    <pre className="setup"><code>{setup.muse}</code></pre>
-    <p className="muted">A connected agent can read every file in a workspace, including the answers, and what it reads goes to its own provider. Use it on samples you are happy to share there.</p>
+    {!setup.installed&&<p className="callout warn">The MCP extra is not installed. Run your <code>uv sync</code> command again with <code>--extra mcp</code>, then connect.</p>}
+    <h4>Claude Code</h4>
+    <ol className="steps-plain">
+      <li>Open a terminal in the folder you will work in and run:<pre className="setup"><code>{setup.claude}</code></pre></li>
+      <li>Start <code>claude</code> there, and ask it to call the <code>lx</code> status tool. <code>claude mcp list</code> should show <code>lx</code> as connected.</li>
+    </ol>
+    <h4>Muse Code</h4>
+    <ol className="steps-plain">
+      <li>Open <code>~/.config/muse/settings.json</code> (on Windows, <code>%USERPROFILE%\.config\muse\settings.json</code>) and merge this in, keeping what is already there. Keep the <code>env</code> block: Muse Code starts the server with only the variables listed, and on Windows the server cannot start without them.<pre className="setup"><code>{setup.muse}</code></pre></li>
+      <li>Open a terminal in the folder you will work in and run <code>muse</code>. Ask it to call the <code>lx</code> status tool. A one-shot check is <code>muse exec "Call the lx status tool and say what it listed"</code>.</li>
+      <li>After you edit the settings file, start a new Muse session so it reads them again.</li>
+    </ol>
+    <h4>Working with an agent</h4>
+    <ul>
+      <li>Put your samples in a folder, one <code>sample-*</code> folder each, in the folder the agent works in. The lx tools take a workspace's full folder path; the agent sets one up with <code>init</code>.</li>
+      <li>The agent can read every file in that folder, including the answers, and what it reads goes to its own provider. Use it on samples you are happy to share there.</li>
+      <li>Say in your first message whether it may approve and run. Approving and running spend your money; without your word it should stop after <code>ready</code>.</li>
+    </ul>
+    <details><summary>The agent does not see the lx tools</summary>
+      <ul>
+        <li>Agent access above says Stopped: start it. A stopped switch refuses every call, even in sessions already open.</li>
+        <li>The MCP extra is not installed: run <code>uv sync --extra mcp</code> again.</li>
+        <li>Muse Code lists <code>lx</code> as optional, so a server that fails to start is skipped without a message. Change <code>"mode": "optional"</code> to <code>"required"</code> to see the error, then change it back.</li>
+        <li>On Windows with Muse Code, the <code>env</code> block above is missing or lacks <code>USERPROFILE</code> or <code>SYSTEMROOT</code>.</li>
+        <li>LX was moved or reinstalled, so the Python path in the setup changed: copy the setup again from here.</li>
+        <li>The client was already open when you changed its settings: start a new session.</li>
+      </ul>
+    </details>
   </>;
 }
 
