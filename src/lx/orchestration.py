@@ -17,7 +17,7 @@ ACTIONS = ("status", "guide", "environment", "init", "samples", "read_sample", "
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
-_RUN_FIELDS = ("id", "kind", "status", "phase", "mode", "created_at", "finished_at", "approved_by", "grant", "progress", "error")
+_RUN_FIELDS = ("id", "kind", "status", "phase", "mode", "created_at", "finished_at", "approved_by", "grant", "progress", "error", "from_run")
 
 
 class Orchestration:
@@ -127,11 +127,11 @@ class Orchestration:
         """Starts an approved live run, or one a grant covers. Otherwise it stays pending."""
         return self._start(workspace, trial=False)
 
-    def trial_start(self, workspace):
-        """One sample on the base harness, under the same terms as a live run (D-025)."""
-        return self._start(workspace, trial=True)
+    def trial_start(self, workspace, from_run=None):
+        """One sample on the base harness, or on a finished run's package, under the same terms as a live run (D-025)."""
+        return self._start(workspace, trial=True, from_run=from_run)
 
-    def _start(self, workspace, *, trial):
+    def _start(self, workspace, *, trial, from_run=None):
         identifier = self._id(workspace)
         project = self.engine.project(identifier)
         draft, approved = project["draft"], project["approved"]
@@ -140,8 +140,8 @@ class Orchestration:
         if project["blocked"]:
             return {"status": "blocked", "reason": project["blocked"]}
         if not approved or approved["version"] != draft["version"] or approved.get("by", "person") not in {"person", "agent"}:
-            return self.engine.start_granted(identifier, launch=self.launch, trial=trial)
-        return {"status": "started", "run_id": self.engine.start(identifier, launch=self.launch, trial=trial)["id"]}
+            return self.engine.start_granted(identifier, launch=self.launch, trial=trial, from_run=from_run)
+        return {"status": "started", "run_id": self.engine.start(identifier, launch=self.launch, trial=trial, from_run=from_run)["id"]}
 
     def run_status(self, workspace):
         cost = lambda run: sum(role["spent_usd"] for role in (run.get("usage") or {}).get("per_role", {}).values())

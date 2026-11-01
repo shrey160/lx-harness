@@ -1,6 +1,7 @@
 """`trial`: one real sample on the base harness (D-025), run here on doubles of the live providers."""
 import json
 from pathlib import Path
+import shutil
 import unittest
 
 from lx import sandbox, tasks
@@ -10,6 +11,7 @@ from lx.inventory_workflow import InventoryPreviewTransport
 from lx.orchestration import Orchestration
 from lx.perception import FakeTranscription, media_hash
 from lx.spike import wire_reply
+from lx.taskrun import _adapter, _folders
 from lx.worker import execute
 from test_tasks import Base
 
@@ -128,6 +130,108 @@ class WhatItDoes(Trials):
         self.assertEqual(grant["runs_used"], 1)
         self.assertGreater(grant["spent_usd"], 0)
         self.assertEqual(self.lx.run_status(self.path)["runs"][0]["approved_by"], "grant")
+
+
+class Package(Trials):
+    """A trial of a finished run's package, on a run record written by hand: the loop's own tests cover how a package is made."""
+
+    MARK = "Learned in an earlier run."
+
+    def setUp(self):
+        super().setUp()
+        self.approve_it()
+        self.source = self.finished_run()
+
+    def finished_run(self, **changes):
+        job = self.app.start(self.id, launch=False)
+        run_dir, spec = self.workspace.run_dir(job["id"]), job["spec"]
+        _, truth, _ = tasks.build_dataset(run_dir/"snapshot", run_dir/"dataset", spec["task"], preview=False)
+        adapter = _adapter(spec["task"], run_dir, run_dir/"outputs", None, truth, self.workspace.check_source(spec["check"]),
+                           live=True, limits=self.app.limits_of(spec), tools=tasks.spec_tools(spec))
+        harness = self.workspace.package_dir(job["id"])/"harness"
+        shutil.copytree(adapter.base_harness(), harness)
+        guidance = harness/"tool_descriptions"/"tool_guidance.md"
+        guidance.write_text(guidance.read_text(encoding="utf-8")+self.MARK, encoding="utf-8")
+        result = {"scores": {"base": {}, "harness2": {}}, "package_is_base": False}
+        return self.workspace.update_run(job["id"], **{"status": "completed", "launch_pending": False, "result": result, **changes})["id"]
+
+    def test_the_agent_gets_the_package_not_the_base(self):
+        run_id = self.lx.trial_start(self.path, self.source)["run_id"]
+        seen = []
+        client = self.transport
+        self.transport = lambda body, timeout: (seen.append(json.dumps(body)), client(body, timeout))[1]
+        result = self.finish(run_id)
+        self.assertTrue(any(self.MARK in body for body in seen))
+        self.assertEqual(result["harness"]["from_run"], self.source)
+        self.assertEqual((client.calls["improver"], client.calls["reflection"]), (0, 0))
+
+    def test_a_plain_trial_stays_on_the_base(self):
+        run_id = self.lx.trial_start(self.path)["run_id"]
+        self.assertNotIn("from_run", self.workspace.run(run_id))
+        self.assertFalse((self.workspace.run_dir(run_id)/"harness").exists())
+        self.assertNotIn("harness", self.finish(run_id))
+
+    def test_it_keeps_its_own_copy_of_the_harness(self):
+        run_id = self.lx.trial_start(self.path, self.source)["run_id"]
+        self.assertIn(self.MARK, (self.workspace.run_dir(run_id)/"harness"/"tool_descriptions"/"tool_guidance.md").read_text(encoding="utf-8"))
+        shutil.rmtree(self.workspace.package_dir(self.source))
+        self.assertEqual(self.finish(run_id)["harness"]["sample_seen"], False)
+
+    def test_it_says_when_the_run_saw_the_sample(self):
+        run_id = self.lx.trial_start(self.path, self.source)["run_id"]
+        self.assertRegex(self.finish(run_id)["note"], "never saw")
+        folder = self.workspace.run(run_id)["result"]["sample"]
+        sample = next(key for key, value in _folders(self.workspace.run_dir(self.source)).items() if value == folder)
+        self.workspace.update_run(self.source, result={"scores": {"base": {sample: 1.0}}, "package_is_base": False})
+        second = self.lx.trial_start(self.path, self.source)["run_id"]
+        result = self.finish(second)
+        self.assertTrue(result["harness"]["sample_seen"])
+        self.assertRegex(result["note"], "reads high")
+
+    def test_a_grant_covers_it(self):
+        self.app.store.delete("approval", self.id)
+        self.app.set_grant(self.id, {"cap_usd": 1, **ACCEPTED})
+        started = self.lx.trial_start(self.path, self.source)
+        self.assertEqual(started["status"], "started")
+        self.assertEqual(self.workspace.run(started["run_id"])["from_run"], self.source)
+
+    def test_only_a_finished_live_task_run_counts(self):
+        unfinished = self.app.start(self.id, launch=False)["id"]
+        self.workspace.update_run(unfinished, status="stopped", launch_pending=False)
+        trial = self.app.start(self.id, launch=False, trial=True)["id"]
+        self.workspace.update_run(trial, status="completed", launch_pending=False, result={})
+        for run_id in (unfinished, trial):
+            with self.subTest(run_id), self.assertRaisesRegex(ValueError, "finished live run"):
+                self.lx.trial_start(self.path, run_id)
+
+    def test_a_preview_run_has_no_harness_to_try(self):
+        job = self.workspace.run(self.source)
+        self.workspace.update_run(self.source, spec={**job["spec"], "mode": "controlled_preview"})
+        with self.assertRaisesRegex(ValueError, "finished live run"):
+            self.lx.trial_start(self.path, self.source)
+
+    def test_a_package_that_is_the_base_is_refused(self):
+        self.workspace.update_run(self.source, result={"scores": {"base": {}}, "package_is_base": True})
+        with self.assertRaisesRegex(ValueError, "plain trial"):
+            self.lx.trial_start(self.path, self.source)
+
+    def test_another_task_is_refused(self):
+        job = self.workspace.run(self.source)
+        self.workspace.update_run(self.source, spec={**job["spec"], "task": {**job["spec"]["task"], "name": "another"}})
+        with self.assertRaisesRegex(ValueError, "another task"):
+            self.lx.trial_start(self.path, self.source)
+
+    def test_another_tool_list_is_refused(self):
+        job = self.workspace.run(self.source)
+        self.workspace.update_run(self.source, spec={**job["spec"], "mcp_tools": [{"server": "other", "tool": "read"}]})
+        with self.assertRaisesRegex(ValueError, "tool list"):
+            self.lx.trial_start(self.path, self.source)
+
+    def test_a_run_that_does_not_exist_is_refused(self):
+        for run_id in ("0123456789ab", "../../secret"):
+            with self.subTest(run_id), self.assertRaisesRegex(ValueError, "Record not found|Invalid run"):
+                self.lx.trial_start(self.path, run_id)
+        self.assertEqual(len(self.app.runs(self.id)), 1)
 
 
 class Refused(Trials):

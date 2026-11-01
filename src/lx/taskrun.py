@@ -70,7 +70,7 @@ def limitations(spec, report, chosen, live, approved_by="person"):
              (f"- This harness was adopted on {chosen}, the last sample in this run's order. Scores played no part in that, "
               "and another run's order would give another harness." if chosen else "- The last sample in this run's order kept the base harness, so this is the base harness."),
              f"- Learned with {worker} as the agent. A harness can fail on another model; retest it after a swap.",
-             "- Reuse on a new sample is not built yet. The harness is plain files you can read and copy.",
+             "- A trial can run this harness on one sample in this workspace. It is otherwise plain files you can read and copy.",
              ("- A connected agent set this run up. It could read every file in the workspace, including the answers, "
               "so the task text and check may reflect them." if spec["roles"]["orchestrator"] == EXTERNAL else
               "- The built-in orchestrator can read the file list, sample input text and the shape of the answers, never their values.")]
@@ -125,6 +125,10 @@ def _harness_files(folder):
     return {path.relative_to(folder).as_posix(): path.read_bytes() for path in sorted(folder.rglob("*")) if path.is_file() and not path.is_symlink()}
 
 
+def harness_sha256(folder):
+    return hashlib.sha256(json.dumps({name: _text(body) for name, body in _harness_files(Path(folder)).items()}, sort_keys=True).encode()).hexdigest()
+
+
 def clean_base(adapter):
     """The fingerprint of the harness a run starts from, refused if it holds anything learned. Each run rebuilds
     its base from code in its own folder, so nothing carries over from an earlier run; this keeps that true."""
@@ -133,7 +137,7 @@ def clean_base(adapter):
     learned = [name for name in files if name.split("/")[0] in LEARNED_FOLDERS]
     if learned:
         raise ValueError("The base harness must start with nothing learned; found "+", ".join(learned[:3]))
-    return hashlib.sha256(json.dumps({name: _text(body) for name, body in files.items()}, sort_keys=True).encode()).hexdigest()
+    return harness_sha256(folder)
 
 
 def _stage_key(label):
@@ -269,7 +273,8 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
 
 
 def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
-    """One stream sample on the base harness, graded by the check (D-025). No improver and no package.
+    """One stream sample on the base harness, or a finished run's package when the job names one, graded by
+    the check (D-025). No improver and no package of its own.
 
     The result holds no trace or answer, because it reaches an outside agent, and
     those would invite procedure into the task text, which the loop learns (D-021).
@@ -286,7 +291,7 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
     try:
         if mcp:
             mcp.check()
-        run = adapter.execute(sample, adapter.base_harness(), "trial")
+        run = adapter.execute(sample, workspace.run_dir(identifier)/"harness" if job.get("from_run") else adapter.base_harness(), "trial")
     finally:
         if mcp:
             mcp.close()
@@ -297,9 +302,21 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
     for step in steps:
         if step["type"] == "tool":
             calls[step["name"]] = calls.get(step["name"], 0)+1
-    return {"kind": "trial", "task": task["name"], "live": True, "sample": _folders(run_dir).get(sample, sample), "score": sum(item["passed"] for item in named)/len(named),
-            "base_sha256": base, "checks": named, "stopped": next((step["reason"] for step in steps if step["type"] == "stopped"), None), "tool_calls": calls,
-            "note": "One sample on the base harness: a smoke test, not a measure of what the loop can reach."}
+    folder = _folders(run_dir).get(sample, sample)
+    result = {"kind": "trial", "task": task["name"], "live": True, "sample": folder, "score": sum(item["passed"] for item in named)/len(named),
+              "base_sha256": base, "checks": named, "stopped": next((step["reason"] for step in steps if step["type"] == "stopped"), None), "tool_calls": calls,
+              "note": "One sample on the base harness: a smoke test, not a measure of what the loop can reach."}
+    return {**result, **_tried_harness(workspace, job, folder)} if job.get("from_run") else result
+
+
+def _tried_harness(workspace, job, folder):
+    """What a reader must know about a trial of a package: which harness ran, and whether its run saw this sample."""
+    source = job["from_run"]
+    folders = _folders(workspace.run_dir(source))
+    seen = folder in {folders.get(sample, sample) for sample in workspace.run(source)["result"]["scores"]["base"]}
+    return {"harness": {"from_run": source, "sha256": harness_sha256(workspace.run_dir(job["id"])/"harness"), "sample_seen": seen},
+            "note": (f"One sample on the package of run {source}, which saw this sample, so this reads high: a smoke test, not a measure." if seen else
+                     f"One sample on the package of run {source}, which never saw this sample. One sample is still a smoke test, not a measure.")}
 
 
 def regrade(engine, workspace, job, *, live):

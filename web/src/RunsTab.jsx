@@ -8,7 +8,8 @@ export function RunsTab({project,jobs,ui,setTab}){
   const start=()=>ui.act(async()=>{const run=await api(`projects/${project.id}/run`,{});if(run?.id)setOpenId(run.id);});
   const trial=()=>ui.act(async()=>{const run=await api(`projects/${project.id}/trial`,{});if(run?.id)setOpenId(run.id);});
   const canTry=project.draft.mode==='live'&&project.draft.task;
-  if(job)return <RunPage project={project} job={job} ui={ui} back={()=>setOpenId(null)}/>;
+  const tryHarness=from_run=>ui.act(async()=>{const run=await api(`projects/${project.id}/trial`,{from_run});if(run?.id)setOpenId(run.id);});
+  if(job)return <RunPage project={project} job={job} ui={ui} back={()=>setOpenId(null)} canTry={project.approved&&!busyRun} tryHarness={tryHarness}/>;
   return <section>
     <div className="actions">
       <button className="button primary" disabled={ui.busy||!project.approved||busyRun} onClick={start}>{project.draft.mode==='live'?'Start live run':'Start preview'}</button>
@@ -19,7 +20,7 @@ export function RunsTab({project,jobs,ui,setTab}){
       <thead><tr><th>Started</th><th>Version</th><th>Mode</th><th>Status</th><th>Score</th><th>Cost</th></tr></thead>
       <tbody>{jobs.map(run=><tr key={run.id} onClick={()=>setOpenId(run.id)}>
         <td><button className="link" onClick={()=>setOpenId(run.id)}>{when(run.created_at)}</button></td>
-        <td>{run.spec.version}</td><td>{run.kind==='trial'?'Trial':modeName(run.mode)}</td>
+        <td>{run.spec.version}</td><td>{run.kind==='trial'?(run.from_run?'Trial of a package':'Trial'):modeName(run.mode)}</td>
         <td><span className={'dot '+tone(run)}/>{statusName(run)}</td>
         <td>{run.kind==='trial'&&run.result?run.result.score.toFixed(2):scores(run.result)?`${scores(run.result).base.toFixed(2)} → ${scores(run.result).harness2.toFixed(2)}`:'–'}</td>
         <td>{money(run.usage.spent_usd)}</td>
@@ -28,7 +29,7 @@ export function RunsTab({project,jobs,ui,setTab}){
   </section>;
 }
 
-function RunPage({project,job,ui,back}){
+function RunPage({project,job,ui,back,canTry,tryHarness}){
   const path=`jobs/${project.id}/${job.id}`;
   const {result,progress}=job,live=job.mode==='live';
   const post=(action,body={})=>ui.act(()=>api(`${path}/${action}`,body));
@@ -45,7 +46,7 @@ function RunPage({project,job,ui,back}){
       {resumable(job)&&<button className="button" disabled={ui.busy} onClick={()=>post('resume')}>Resume</button>}
       {job.status==='failed'&&job.spec.task&&job.kind!=='trial'&&<button className="button" disabled={ui.busy} onClick={()=>post('regrade')}>Grade saved answers</button>}
     </div>
-    {result&&(job.kind==='trial'?<TrialResult project={project} job={job}/>:<Result project={project} job={job} ui={ui} post={post} live={live}/>)}
+    {result&&(job.kind==='trial'?<TrialResult project={project} job={job}/>:<Result project={project} job={job} ui={ui} post={post} live={live} canTry={canTry} tryHarness={tryHarness}/>)}
     {job.kind!=='trial'&&job.spec.task&&<Edits project={project} job={job}/>}
     <Health job={job} busy={ui.busy} release={charged=>post('release',{charged})}/>
     <h3>Usage{live?'':' (simulated)'}</h3>
@@ -101,7 +102,7 @@ function TrialResult({project,job}){
   return <div className="result">
     <h3>Trial on one sample</h3>
     <div className="stats"><Stat value={result.score.toFixed(2)} label={`score on ${result.sample}`}/><Stat value={`${result.checks.length-failed.length}/${result.checks.length}`} label="checks passed"/></div>
-    <p className="muted">{result.note} Started from the stock harness (<code>{result.base_sha256.slice(0,12)}</code>).</p>
+    <p className="muted">{result.note} {result.harness?<>Harness <code>{result.harness.sha256.slice(0,12)}</code>.</>:<>Started from the stock harness (<code>{result.base_sha256.slice(0,12)}</code>).</>}</p>
     {result.stopped&&<p className="callout warn">It stopped early: {result.stopped}.</p>}
     {failed.length>0&&<p>Failed: {failed.map(check=>check.name).join(', ')}</p>}
     <p className="muted">Tool calls: {Object.entries(result.tool_calls).map(([name,count])=>`${name} ${count}`).join(', ')||'none'}</p>
@@ -109,7 +110,7 @@ function TrialResult({project,job}){
   </div>;
 }
 
-function Result({project,job,ui,post,live}){
+function Result({project,job,ui,post,live,canTry,tryHarness}){
   const {result}=job;
   const legacy=result.improved?(live?'The harness improved.':'Improvement path exercised with scripted replies.'):'Base harness kept: the candidate did not beat it.';
   const headline=result.improved!==undefined?legacy:result.package_is_base?'The last sample kept the base harness.':"The package is the last adopted harness.";
@@ -123,6 +124,7 @@ function Result({project,job,ui,post,live}){
     <div className="actions">
       <a className="button primary" href={`/api/packages/${project.id}/${job.id}/download`} download="harness-package.zip">Download package</a>
       {result.task&&<a className="button" href={`/api/trajectories/${project.id}/${job.id}/download`} download="trajectories.zip" title="Every agent run's trace, for fine-tuning. These can hold your data, and no answers.">Download trajectories</a>}
+      {live&&result.task&&!result.package_is_base&&<button className="button" disabled={ui.busy||!canTry} onClick={()=>tryHarness(job.id)} title="One sample on this package, with no loop. Needs the current spec approved.">Try this harness on one sample (up to {money(project.trial_cap_usd)})</button>}
       {!result.task&&<button className="button" disabled={ui.busy} onClick={()=>post('fresh')}>Try a new scene</button>}
     </div>
     {result.base_sha256&&<p className="muted">Started from the stock harness, with nothing learned from earlier runs (<code>{result.base_sha256.slice(0,12)}</code>).</p>}

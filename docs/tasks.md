@@ -32,6 +32,11 @@ text as well: `spec_draft` refuses text that repeats them.
    money and send samples to providers, so only do them when the person asked for
    that run.
 8. `run_status`, then `results` and `edits`.
+9. `trial_start` with `from_run` set to a finished live run, to try that run's package
+   on one sample. It runs the same sample as a plain trial, so the two can be compared.
+   Its result says whether that run saw the sample. The task and the agent's tools must
+   match the current spec; the worker model and the check may differ. One sample is a
+   smoke test, not a measure.
 
 The same actions exist as `lx` commands. Run `lx --help`.
 
