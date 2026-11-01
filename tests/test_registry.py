@@ -342,6 +342,17 @@ class RegistryTests(unittest.TestCase):
         with self.assertRaisesRegex(RegistryError, "stays on"):
             self.registry.set_enabled("spark-contributor", False)
 
+    def test_a_model_on_meta_shares_the_meta_key_without_copying_it(self):
+        from lx.providers import META_API
+        with patch("lx.live._runtime_key", return_value="dummy-meta-key"):
+            entry = self.registry.create("Meta other", "meta/other", ["General"], base_url=META_API, key_from="spark-contributor")
+            self.assertEqual((entry["has_key"], entry["credential_source"]), (False, "shared Meta key"))
+            self.assertEqual(self.registry.credential(entry["id"]), "dummy-meta-key")
+            self.assertEqual(self.registry.sibling_key("spark-contributor", META_API), "dummy-meta-key")
+        profile = self.registry.profile(entry["id"])
+        self.assertEqual((profile.endpoint, profile.token_param), (META_API + "/chat/completions", "max_completion_tokens"))
+        self.assertEqual(self.registry.profile(self.registry.create("Else", "x/y", ["General"], base_url="https://openrouter.ai/api/v1")["id"]).token_param, "max_tokens")
+
 
 if __name__ == "__main__":
     unittest.main()

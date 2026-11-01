@@ -102,7 +102,7 @@ class Engine:
             return self._live_transport_factory(truth)
         if not self.live_enabled:
             raise ValueError("Live runs are unavailable here; use the local app workspace")
-        keyed = entry == DEFAULT_ROLE_ENTRY or any(m["id"] == entry and m["has_key"] for m in self.registry.list_models())
+        keyed = entry == DEFAULT_ROLE_ENTRY or any(m["id"] == entry and (m["has_key"] or m["credential_source"] == "shared Meta key") for m in self.registry.list_models())
         return LiveChatTransport((lambda: self.registry.credential(entry)) if keyed else None, call_limit=call_limit,
                                  call_ceiling=call_limit, profile=profile, max_call_seconds=limits["call_seconds"],
                                  requests_per_minute=rate, **(contract or {}))
@@ -274,7 +274,9 @@ class Engine:
             return stale
         if spec.get("mode") != "live" or self._live_transport_factory is not None:
             return None  # previews need no key
-        users = (["Spark"] if DEFAULT_ROLE_ENTRY in spec["roles"].values() else []) + [SHORT_NAMES[tool] for tool in tools]
+        meta_models = [models[entry]["name"] for entry in sorted(set(spec["roles"].values()))
+                       if entry in models and entry != DEFAULT_ROLE_ENTRY and models[entry]["credential_source"] == "shared Meta key"]
+        users = (["Spark"] if DEFAULT_ROLE_ENTRY in spec["roles"].values() else []) + meta_models + [SHORT_NAMES[tool] for tool in tools]
         if not users or self.registry.meta_key_source():
             return None
         who = ", ".join(users[:-1])+" and "+users[-1] if len(users) > 1 else users[0]

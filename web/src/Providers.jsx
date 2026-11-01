@@ -38,13 +38,13 @@ export function Providers({state,ui}){
   if(adding)return <AddProvider ui={ui} close={()=>setAdding(false)}/>;
   if(addingTo)return <AddProvider ui={ui} provider={addingTo} close={()=>setAddingTo(null)}/>;
   if(form)return <EditProvider form={form} set={set} editing={editing} ui={ui} save={save} close={close}/>;
-  const groups=providerGroups(state.models.filter(m=>m.kind==='chat'));
+  const groups=providerGroups(state.models.filter(m=>m.kind==='chat'),state.models);
   return <section>
     <div className="section-head"><h2>Providers</h2><button className="button primary" onClick={()=>setAdding(true)}>Add provider</button></div>
     <p className="muted">A provider can host many models. Add the ones you want from its list, switch each on or off, or remove it. Any model that is on and has an endpoint can fill any role; assign them on a workspace's Spec tab.</p>
     {groups.map(group=><div className="provider-card" key={group.url}>
       <div className="section-head"><h3>{group.label}<small className="muted">{group.host}</small></h3>
-        {group.keyFrom!==undefined&&<button className="button small" disabled={ui.busy} onClick={()=>setAddingTo({label:group.label,baseUrl:group.url,keyFrom:group.keyFrom,free:group.free,rate:group.rate})}>Add a model</button>}</div>
+        {group.keyFrom!==undefined&&<button className="button small" disabled={ui.busy} onClick={()=>setAddingTo({label:group.label,baseUrl:group.url,keyFrom:group.keyFrom,free:group.free,rate:group.rate,have:group.have})}>Add a model</button>}</div>
       <ul className="list providers">{group.models.map(model=><li key={model.id}>
         <div className="provider-row">
           <div><strong>{model.name}</strong><small className="muted">{model.model_id}{model.requests_per_minute?` · ${model.requests_per_minute} requests a minute`:''}</small></div>
@@ -62,7 +62,7 @@ export function Providers({state,ui}){
 const hostOf=url=>{try{return new URL(url).host;}catch{return url||'';}};
 
 // One card per endpoint. A model with a stored key lends it to the others on that endpoint, so only the first needs a paste.
-function providerGroups(models){
+function providerGroups(models,all){
   const byUrl=new Map();
   for(const model of models){
     const url=(model.base_url||'').replace(/\/$/,'');
@@ -73,8 +73,8 @@ function providerGroups(models){
     const known=SOURCES.find(s=>s.baseUrl&&s.baseUrl.replace(/\/$/,'')===url);
     const builtIn=list.some(m=>m.id==='spark-contributor');
     const lender=list.find(m=>m.has_key&&m.id!=='spark-contributor');
-    return {url,host:hostOf(url),label:builtIn?'Meta':known?known.label:hostOf(url)||'No endpoint',models:list,
-      keyFrom:builtIn||!url?undefined:lender?lender.id:null,free:known?.free,rate:known?.rate};
+    return {url,host:hostOf(url),label:builtIn?'Meta':known?known.label:hostOf(url)||'No endpoint',models:list,have:all.filter(m=>(m.base_url||'').replace(/\/$/,'')===url).map(m=>m.model_id),
+      keyFrom:!url?undefined:builtIn?'spark-contributor':lender?lender.id:null,free:known?.free,rate:known?.rate};
   });
 }
 
@@ -91,7 +91,7 @@ function AddProvider({ui,close,provider}){
   useEffect(()=>{if(provider&&(provider.keyFrom||provider.free))look(provider.baseUrl);},[]);
   const pick=item=>{setSource(item);setBaseUrl(item.baseUrl);setModels(null);setProblem('');if(item.baseUrl)look(item.baseUrl);};
   const wanted=search.trim().toLowerCase();
-  const found=(models||[]).filter(m=>!wanted||m.name.toLowerCase().includes(wanted)||m.id.toLowerCase().includes(wanted));
+  const found=(models||[]).filter(m=>!provider?.have?.includes(m.id)).filter(m=>!wanted||m.name.toLowerCase().includes(wanted)||m.id.toLowerCase().includes(wanted));
   const model=(models||[]).find(m=>m.id===chosen)||(typed.trim()?{id:typed.trim(),name:typed.trim()}:null);
   const add=()=>ui.act(async()=>{
     const images=model.accepts_images??true,tools=model.supports_tools??true;

@@ -230,6 +230,7 @@ class Registry:
             "credential_source": (
                 "registered" if row["secret_ref"] is not None
                 else "runtime configuration" if row["builtin"]
+                else "shared Meta key" if row["base_url"] == META_API
                 else None
             ),
         }
@@ -269,7 +270,8 @@ class Registry:
         if key_from is not None:
             if key is not None:
                 raise RegistryError("give an API key or a model to take it from, not both")
-            key = self.sibling_key(key_from, url)
+            # Models on Meta's endpoint use the one Meta key where it already is, so no copy is made.
+            key = None if url == META_API else self.sibling_key(key_from, url)
         prices = self._pricing(pricing)
         context = self._context_limit(context_limit)
         rate = self._rate(requests_per_minute) or None
@@ -369,6 +371,8 @@ class Registry:
 
         It stays on the server and goes only to the endpoint it was registered for."""
         url = self._base_url(base_url)
+        if url == META_API:
+            return self.credential(_META_KEY_ENTRY)
         with self._connect() as db:
             row = db.execute("SELECT base_url, secret_ref, builtin FROM models WHERE id=?", (record_id,)).fetchone()
         if row is None or row["builtin"] or not row["secret_ref"] or (row["base_url"] or "").rstrip("/") != url:
@@ -412,12 +416,12 @@ class Registry:
 
     def credential(self, record_id: str) -> str:
         with self._connect() as db:
-            row = db.execute("SELECT model_id, secret_ref, builtin FROM models WHERE id=?", (record_id,)).fetchone()
+            row = db.execute("SELECT model_id, secret_ref, builtin, base_url FROM models WHERE id=?", (record_id,)).fetchone()
         if row is None:
             raise RegistryError("unknown model id")
         if row["secret_ref"]:
             return self._read_secret(row["secret_ref"])
-        if row["builtin"]:
+        if row["builtin"] or row["base_url"] == META_API:
             # Spark, SAM and Transcribe share one Meta key: the one on the Spark entry, else the runtime configuration (D-008).
             with self._connect() as db:
                 shared = db.execute("SELECT secret_ref FROM models WHERE id=?", (_META_KEY_ENTRY,)).fetchone()
@@ -464,7 +468,8 @@ class Registry:
                 kind=row["kind"], endpoint=chat_endpoint(row["base_url"]), model=row["model_id"],
                 input_price=per_token("input_per_million"),
                 cached_price=per_token(_CACHED_PRICE if _CACHED_PRICE in prices else "input_per_million"),
-                output_price=per_token("output_per_million"), token_param="max_tokens",
+                output_price=per_token("output_per_million"),
+                token_param="max_completion_tokens" if row["base_url"] == META_API else "max_tokens",
                 **({"context_limit": row["context_limit"]} if row["context_limit"] else {}),
                 accepts_images=bool(row["accepts_images"]), supports_tools=bool(row["supports_tools"]))
         except ValueError as exc:
