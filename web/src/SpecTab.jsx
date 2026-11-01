@@ -81,7 +81,7 @@ export function SpecTab({state,project,ui,setTab}){
       <button className="button primary" disabled={ui.busy||specDirty} onClick={()=>setReviewing(true)}>{project.approved?'Review approval':'Review and approve'}</button>
       {specDirty&&<span className="muted" role="status">Save first: approval covers a saved version.</span>}
     </div>
-    {reviewing&&<Review project={project} ui={ui} close={()=>setReviewing(false)} done={()=>setTab('runs')}/>}
+    {reviewing&&<Review project={project} jobs={state.jobs} limitFields={state.limit_fields} ui={ui} close={()=>setReviewing(false)} done={()=>setTab('runs')}/>}
     {project.external_orchestrator&&<Grant project={project} ui={ui}/>}
   </section>;
 }
@@ -153,7 +153,18 @@ function Limits({fields,values,defaults,onChange}){
   </details>;
 }
 
-function Review({project,ui,close,done}){
+function Spending({project,jobs,limitFields}){
+  const {draft}=project,worker=draft.providers.worker.name;
+  const past=jobs.filter(job=>job.project_id===project.id&&job.mode==='live'&&job.kind!=='trial'&&job.status==='completed'&&job.spec.models.worker===worker).map(job=>job.usage.spent_usd);
+  const open=limitFields.filter(field=>field.max==null&&!(project.hidden_limits||[]).includes(field.name)&&draft.limits[field.name]==null).map(field=>field.label.replace(/ \(.*$/,''));
+  return <>
+    <h3>Spending</h3>
+    <p className="muted">{past.length>1?`Past full runs here with ${worker} cost ${money(Math.min(...past))} to ${money(Math.max(...past))}. A new run can differ.`:past.length?`The one past full run here with ${worker} cost ${money(past[0])}. A new run can differ.`:`No full run here with ${worker} yet, so there is no estimate.`} {project.free_providers.length?'':`This run stops at its budget of ${money(draft.budget_usd)}.`}</p>
+    {open.length>0&&<p className="callout warn">No limit set: {open.join('; ')}. An agent can keep calling tools until the budget or a run-wide limit stops it. Set these under Advanced: run limits.</p>}
+  </>;
+}
+
+function Review({project,jobs,limitFields,ui,close,done}){
   const {draft}=project,dialog=useRef(null),[check,setCheck]=useState(null),[checkError,setCheckError]=useState('');
   useEffect(()=>{dialog.current.showModal();},[]);
   useEffect(()=>{if(draft.task)api(`projects/${project.id}/check-test`,{}).then(setCheck,error=>setCheckError(error.message));},[draft.version]);
@@ -169,6 +180,7 @@ function Review({project,ui,close,done}){
       <dt>Budget</dt><dd>${draft.budget_usd} for this run, ${project.budget.cap_usd} for the workspace</dd>
       {['orchestrator','improver','worker'].map(role=><React.Fragment key={role}><dt className="capital">{role}</dt><dd>{draft.providers[role].name}</dd></React.Fragment>)}
     </dl>
+    {live&&<Spending project={project} jobs={jobs} limitFields={limitFields}/>}
     {draft.task&&<><h3>How the check scores</h3>{check?<CheckScores result={check}/>:checkError?<p className="callout bad" role="alert">{checkError}</p>:<p className="muted" role="status">Testing the check…</p>}</>}
     {project.external_orchestrator&&<p className="muted">A connected agent is the orchestrator. It uses its own model and account, so the costs shown here leave it out.</p>}
     {live&&<><h3>Who receives what</h3><ul className="plain">{project.notice.map(entry=><li key={entry.who}><strong>{entry.who}</strong> ({entry.host}): {entry.gets}</li>)}</ul></>}
