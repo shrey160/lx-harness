@@ -157,11 +157,11 @@ def write_synthetic(root, count, *, seed=20261029):
     return sorted(p.name for p in root.iterdir())
 
 
-def caps(n_photos, *, turns_per_photo=3, tools_per_photo=6):
+def caps(n_photos, *, turns_per_photo=3, tools_per_photo=6, min_photos=MIN_PHOTOS):
     """Turn and tool-call caps for one item: room to view, segment and count every photo.
     A per-photo count of None is no cap; only a user sets that."""
-    if type(n_photos) is not int or not MIN_PHOTOS <= n_photos <= MAX_PHOTOS:
-        raise ValueError(f"photo count must be {MIN_PHOTOS}-{MAX_PHOTOS}")
+    if type(n_photos) is not int or not min_photos <= n_photos <= MAX_PHOTOS:
+        raise ValueError(f"photo count must be {min_photos}-{MAX_PHOTOS}")
     return {"max_turns": None if turns_per_photo is None else 4 + turns_per_photo * n_photos,
             "max_tool_calls": None if tools_per_photo is None else 6 + tools_per_photo * n_photos}
 

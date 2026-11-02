@@ -26,6 +26,7 @@ from .perception import FakeTranscription, media_hash
 from .orchestrator import preview_turn
 from .spike import wire_reply
 from .workflow import ImagesAdapter
+from .sample_input import staged_input
 
 BASE_PROMPT = "Answer the spoken request about the photos and return JSON."
 ADAPTER_SPLITS = {"stream": "dev", "check": "check", "heldout": "heldout", "calibration": "calibration"}
@@ -66,6 +67,7 @@ class InventoryDomain:
     task_prompt = CONTRACT
     photos_note = PHOTOS_NOTE
     whole_context = False  # spec-driven tasks only; the paused experiments keep their approved loop
+    min_photos = 3
     verify = staticmethod(verify_inventory)
 
     def __init__(self, scripts_enabled=True):
@@ -81,8 +83,8 @@ class InventoryDomain:
                              "colours were counted per photo, tool results were filtered sensibly, and the "
                              "answer equals the per-photo totals.")
 
-    @staticmethod
-    def samples_from(snapshot):
+    @classmethod
+    def samples_from(cls, snapshot):
         root = Path(snapshot)
         manifest = root/"manifest.json"
         if root.is_symlink() or manifest.is_symlink():
@@ -92,26 +94,33 @@ class InventoryDomain:
             raise ValueError("Expected 1..2000 inventory samples")
         ids, mapped = set(), []
         for sample in samples:
-            if type(sample) is not dict or set(sample) != {"sample_id", "split", "photos", "audio"}:
+            if (type(sample) is not dict or not {"sample_id", "split", "photos", "audio"} <= set(sample)
+                    or set(sample) - {"sample_id", "split", "photos", "audio", "input"}):
                 raise ValueError("Invalid inventory manifest fields")
             if sample["split"] not in ADAPTER_SPLITS or type(sample["photos"]) is not list:
                 raise ValueError("Invalid inventory manifest values")
             if re.fullmatch(r"[A-Za-z0-9_-]{1,100}", str(sample["sample_id"])) is None or sample["sample_id"] in ids:
                 raise ValueError("Invalid or duplicate inventory identity")
-            if not 3 <= len(sample["photos"]) <= 7:
-                raise ValueError("Each inventory sample needs 3-7 photos")
+            if not cls.min_photos <= len(sample["photos"]) <= 7:
+                raise ValueError(f"Each photo sample needs {cls.min_photos}-7 photos")
             for photo in sample["photos"]:
                 media_path(root, photo, ".jpg")
             media_path(root, sample["audio"], ".wav")
             ids.add(sample["sample_id"])
-            mapped.append(dict(sample, split=ADAPTER_SPLITS[sample["split"]]))
+            entry = dict(sample, split=ADAPTER_SPLITS[sample["split"]])
+            if "input" in sample:
+                entry["input"] = staged_input(root, sample)
+            mapped.append(entry)
         return root, mapped
 
     def messages(self, sample, prompt, sizes):
-        text = json.dumps({"sample_id": sample["sample_id"],
+        data = {"sample_id": sample["sample_id"],
                            "photos": [{"photo": k, "width": w, "height": h} for k, (w, h) in enumerate(sizes, 1)],
                            "photos_note": self.photos_note,
-                           "spoken_request": "audio only; use transcribe"})
+                           "spoken_request": "audio only; use transcribe"}
+        if "input" in sample:
+            data["input"] = sample["input"]
+        text = json.dumps(data)
         return [{"role": "developer", "content": WORKER_MARKER+"\n"+prompt+"\n\nTask contract:\n"+self.task_prompt},
                 {"role": "user", "content": text}]
 
@@ -155,7 +164,7 @@ class InventoryAdapter(ImagesAdapter):
     def _caps(self, task):
         limits = self.limits or {}
         return caps(len(self.by_id[task]["photos"]), turns_per_photo=limits.get("agent_turns_per_photo"),
-                    tools_per_photo=limits.get("agent_tools_per_photo"))
+                    tools_per_photo=limits.get("agent_tools_per_photo"), min_photos=self.domain.min_photos)
 
     def _photos(self, task):
         return [media_path(self.input_root, p, ".jpg").read_bytes() for p in self.by_id[task]["photos"]]
@@ -164,7 +173,10 @@ class InventoryAdapter(ImagesAdapter):
         return media_path(self.input_root, self.by_id[task]["audio"], ".wav").read_bytes()
 
     def _inputs(self, task):
-        return {"photos_sha256": [media_hash(p) for p in self._photos(task)], "audio_sha256": media_hash(self._audio(task))}
+        inputs = {"photos_sha256": [media_hash(p) for p in self._photos(task)], "audio_sha256": media_hash(self._audio(task))}
+        if "input" in self.by_id[task]:
+            inputs["input_sha256"] = hashlib.sha256(json.dumps(self.by_id[task]["input"], sort_keys=True).encode()).hexdigest()
+        return inputs
 
     def _window(self, task):
         """No count of images when the conversation stays in view; the request's size bounds it."""

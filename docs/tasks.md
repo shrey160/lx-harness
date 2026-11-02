@@ -47,9 +47,15 @@ Two templates exist.
 
 **`photo-request`.** Each sample is a folder `sample-*/` holding:
 
-- `photos/1.jpg` and on, 3 to 7 photos, numbered from 1. JPEG or PNG. Paperwork can be
+- `photos/1.jpg` and on, 2 to 7 photos, numbered from 1. JPEG or PNG. Paperwork can be
   a photo.
 - `request.wav`, the spoken request. A live run needs it in every sample.
+- Optional `input.json`: starting task data as a UTF-8 JSON object, up to 64 KiB.
+  It is delivered directly as `input` in the worker's user message and in the
+  improver's sample context. It is frozen and hashed with the photos/audio; never
+  put the expected answer here. Duplicate keys, non-finite numbers and links are
+  refused. Other JSON files are not automatically exposed. Legacy inventory
+  checks still require 3 to 7 photos; general tasks can use 2.
 - `truth.json`, read only by the check.
 
 **`text-request`.** A request in text and an answer in JSON. Use `samples` to see how

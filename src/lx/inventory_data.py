@@ -4,7 +4,8 @@ Layout of a dataset root (frozen by `finalize_inventory`):
 
 - `worker_inputs/manifest.json`: samples [{sample_id, split, photos: [...],
   audio}] with paths under `worker_inputs/`; the only part a worker sees.
-- `worker_inputs/media/<sample_id>/<k>.jpg`, `worker_inputs/media/<sample_id>.wav`.
+- `worker_inputs/media/<sample_id>/<k>.jpg`, `worker_inputs/media/<sample_id>.wav`,
+  and optional `worker_inputs/media/<sample_id>/input.json` task data.
 - `controller_truth/ground_truth.json` (truth per sample, `lx.inventory`
   schema), `requests.json` (request text and audio origin), `scripts.json`
   (requests still to be voiced by `scripts/synthesize_voicecount.py`),
@@ -27,6 +28,7 @@ from pathlib import Path
 from .inventory import MAX_PHOTOS, MIN_PHOTOS, request_text, validate_truth
 from .perception import wav_duration_ms
 from .voicecount import VOICES
+from .sample_input import read_input, staged_input
 
 SPLITS = ("stream", "check", "heldout", "calibration")  # check: the user bundle's own check (E-B/E-C)
 MAX_SIDE = 1024
@@ -55,7 +57,7 @@ def normalize_photo(data, *, max_side=MAX_SIDE):
     return out.getvalue()
 
 
-def check_sample_folder(folder, *, inventory=True, need_truth=True):
+def check_sample_folder(folder, *, inventory=True, need_truth=True, min_photos=MIN_PHOTOS):
     """Validate a user sample folder; returns (photo paths in order, truth, wav path or None, text or None).
 
     `inventory` applies the inventory truth schema; other tasks' truth is the check file's business.
@@ -73,8 +75,9 @@ def check_sample_folder(folder, *, inventory=True, need_truth=True):
             raise ValueError(f"{folder.name}: two files for photo {match.group(1)}")
         photos[match.group(1)] = path
     numbers = sorted(int(n) for n in photos)
-    if not MIN_PHOTOS <= len(numbers) <= MAX_PHOTOS or numbers != list(range(1, len(numbers) + 1)):
-        raise ValueError(f"{folder.name}: photos must be numbered 1..N with N from {MIN_PHOTOS} to {MAX_PHOTOS}")
+    if not min_photos <= len(numbers) <= MAX_PHOTOS or numbers != list(range(1, len(numbers) + 1)):
+        raise ValueError(f"{folder.name}: photos must be numbered 1..N with N from {min_photos} to {MAX_PHOTOS}")
+    read_input(folder / "input.json")
     try:
         truth = json.loads((folder / "truth.json").read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -128,7 +131,7 @@ class _Dataset:
     def split_of(self, sample_id):
         return next(s["split"] for s in self.manifest["samples"] if s["sample_id"] == sample_id)
 
-    def add(self, sample_id, split, photos, truth, *, audio=None, text=None, voice=None, source):
+    def add(self, sample_id, split, photos, truth, *, audio=None, text=None, voice=None, source, input_data=None):
         if split not in SPLITS:
             raise ValueError(f"split must be one of {SPLITS}")
         if sample_id in self.truth:
@@ -145,6 +148,9 @@ class _Dataset:
             self.scripts[sample_id] = {"text": text, "voice": voice}
         self.manifest["samples"].append({"sample_id": sample_id, "split": split, "photos": paths,
                                          "audio": f"media/{sample_id}.wav"})
+        if input_data is not None:
+            (media / "input.json").write_text(json.dumps(input_data, ensure_ascii=False, allow_nan=False), encoding="utf-8")
+            self.manifest["samples"][-1]["input"] = f"media/{sample_id}/input.json"
         self.truth[sample_id] = truth
         self.requests[sample_id] = {"text": text, "audio": "recorded" if audio is not None else "kokoro"}
         self.sources[sample_id] = source
@@ -158,7 +164,7 @@ class _Dataset:
 
 
 def add_user_samples(dataset_root, source_root, *, need_truth=True, stream_count=6, calibration_count=0, seed=20261029, prefix="user",
-                     inventory=True):
+                     inventory=True, min_photos=MIN_PHOTOS):
     """Copy user sample folders into the dataset with a seeded split.
 
     Folders are shuffled with `seed` (so the order they were made in cannot
@@ -171,19 +177,20 @@ def add_user_samples(dataset_root, source_root, *, need_truth=True, stream_count
     if stream_count + calibration_count > len(folders):
         raise ValueError(f"only {len(folders)} sample folders for {stream_count} stream + {calibration_count} calibration")
     random.Random(f"{seed}:user-split").shuffle(folders)
-    checked = [(folder, *check_sample_folder(folder, inventory=inventory, need_truth=need_truth)) for folder in folders]
+    checked = [(folder, *check_sample_folder(folder, inventory=inventory, need_truth=need_truth, min_photos=min_photos),
+                read_input(folder / "input.json")) for folder in folders]
     # Normalise everything before writing, so a bad photo leaves the dataset untouched.
-    normalized = [[normalize_photo(path.read_bytes()) for path in paths] for _, paths, _, _, _ in checked]
+    normalized = [[normalize_photo(path.read_bytes()) for path in paths] for _, paths, _, _, _, _ in checked]
     dataset = _Dataset(dataset_root)
     rng = random.Random(f"{seed}:user")
     added = []
-    for index, ((folder, photo_paths, truth, wav, text), photos) in enumerate(zip(checked, normalized), 1):
+    for index, ((folder, photo_paths, truth, wav, text, input_data), photos) in enumerate(zip(checked, normalized), 1):
         sample_id = f"{prefix}-{index:02d}"
         split = ("stream" if index <= stream_count else
                  "calibration" if index <= stream_count + calibration_count else "heldout")
         dataset.add(sample_id, split, photos, truth,
                     audio=wav.read_bytes() if wav else None, text=text,
-                    voice=None if wav else rng.choice(VOICES),
+                    voice=None if wav else rng.choice(VOICES), input_data=input_data,
                     source={"origin": "user", "folder": folder.name,
                             "original_sha256": [hashlib.sha256(p.read_bytes()).hexdigest() for p in photo_paths]})
         added.append(sample_id)
@@ -399,7 +406,8 @@ def add_fsc_samples(dataset_root, fsc_root, count, *, split="heldout", seed=2026
 def _media_hashes(root, manifest):
     hashes = {}
     for sample in manifest["samples"]:
-        for path in sample["photos"] + [sample["audio"]]:
+        staged_input(Path(root) / "worker_inputs", sample)
+        for path in sample["photos"] + [sample["audio"]] + ([sample["input"]] if "input" in sample else []):
             hashes[path] = hashlib.sha256((Path(root) / "worker_inputs" / path).read_bytes()).hexdigest()
     return hashes
 

@@ -247,7 +247,7 @@ class Engine:
         gets = {"orchestrator":"your goal, messages, file names, sizes and hashes, and the sample input text it reads",
                 "improver":"run traces and answers, including text from the samples"+(", and the hints you wrote" if draft.get("hints") else "")
                            +(", and which model the worker is" if draft.get("tell_improver_worker") else ""),
-                "worker":"the sample requests" if tasks.is_text(task) else "the sample photos and transcribed requests" if task else "the sample images and transcripts"}
+                "worker":"the sample requests" if tasks.is_text(task) else "the sample photos, transcribed requests and any input.json task data" if task else "the sample images and transcripts"}
         notice = [{"who":role,"host":host(draft["providers"][role]["base_url"]),"gets":gets[role]} for role in ROLES if draft["roles"][role] != EXTERNAL]
         notice += [{"who":"orchestrator","host":"your connected agent","gets":"whatever it reads in this folder, on its own provider and account"}
                    ] if draft["roles"]["orchestrator"] == EXTERNAL else []

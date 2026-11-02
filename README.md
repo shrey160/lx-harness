@@ -214,8 +214,9 @@ The `photo-request` template expects a folder per sample:
 ```text
 samples/
   sample-01/
-    photos/1.jpg  2.jpg  3.jpg
+    photos/1.jpg  2.jpg
     request.wav
+    input.json       # optional starting data for the task
     truth.json
   sample-02/
     ...
@@ -223,7 +224,7 @@ samples/
 
 - **Samples:** 6 by default, in folders named `sample-*`. With more, a fixed shuffle
   picks which 6 run in the loop, so folder order cannot bias the choice.
-- **Photos:** 3 to 7, numbered from 1, as `.jpg`, `.jpeg` or `.png`. Intake applies
+- **Photos:** 2 to 7 for general tasks, numbered from 1, as `.jpg`, `.jpeg` or `.png`. The built-in inventory check still requires 3 to 7. Intake applies
   the EXIF orientation, drops all metadata, and resizes the longest side to 1024.
 - **Request:** `request.wav`, mono 16-bit PCM at 16 or 24 kHz. A live run needs it in
   every sample; `request.txt` works only in a preview. To convert a recording:
@@ -231,6 +232,12 @@ samples/
 - **Size:** at most 100 files and 200 MiB for a task. A ZIP upload is limited to 20 MiB.
 - **From a frozen dataset:** `scripts/export_samples.py` writes this layout.
 - **Truth:** `truth.json` reaches only the check, never the worker or the improver.
+- **Task data:** optional `input.json`, a UTF-8 JSON object up to 64 KiB, is passed
+  directly as `input` in the worker's user message and included in the improver's
+  sample context. Use it for starting inventory, account balances or other task
+  inputs. It is frozen and hashed at approval; no need to render it as a photo.
+  Duplicate fields, non-finite numbers and linked files are refused. Only this
+  named input is exposed; other JSON files are not automatically read as inputs.
 
 For the inventory task, `truth.json` holds what is really in each photo. Each photo
 number lists its items. Include every item a correct answer should count.

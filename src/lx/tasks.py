@@ -1,7 +1,7 @@
 """General task spec: what a run does is data in the spec plus a check file, not code.
 
 Two templates exist. `text-request` is in lx.text_task. `photo-request`: each sample is a folder `sample-*/` with
-photos/1.jpg ... (3-7 photos), a spoken request (request.wav, or request.txt for
+photos/1.jpg ... (2-7 photos), optional input.json task data, a spoken request (request.wav, or request.txt for
 previews) and truth.json for the check. The spec's task holds the contract, the
 base prompt and the wording the loop uses; check.py scores answers (lx.checks).
 Truth stays on the controller and reaches only the sandboxed check. Inventory
@@ -155,6 +155,7 @@ def inventory_check_source():
 class TaskDomain(InventoryDomain):
     """A photo-request task defined by its spec; answers are scored by its check file."""
     whole_context = True
+    min_photos = 2
 
     def __init__(self, task, check, scripts_enabled=True, segmentation=True):
         super().__init__(scripts_enabled)
@@ -190,7 +191,8 @@ def sample_truths(root, task, *, need_truth=True):
         raise ValueError(f"This task needs at least {task['stream_samples']} sample folders; found {len(folders)}")
     if is_text(task):
         return {folder.name: text_task.check_sample_folder(folder, need_truth=need_truth)[1] for folder in folders}
-    return {folder.name: check_sample_folder(folder, inventory=_inventory(task, need_truth), need_truth=need_truth)[1] for folder in folders}
+    return {folder.name: check_sample_folder(folder, inventory=_inventory(task, need_truth), need_truth=need_truth,
+                                            min_photos=TaskDomain.min_photos)[1] for folder in folders}
 
 
 def require_audio(root):
@@ -203,7 +205,7 @@ def _media_problems(folder, inventory, need_truth):
     """What would stop this photo sample in a live run. Photos are read as the worker and SAM will get them."""
     from .agent import render_view
     from .inventory_probe import MAX_VIEW_BYTES
-    photos, _, wav, _ = check_sample_folder(folder, inventory=inventory, need_truth=need_truth)
+    photos, _, wav, _ = check_sample_folder(folder, inventory=inventory, need_truth=need_truth, min_photos=TaskDomain.min_photos)
     found = [] if wav else ["add request.wav: a live run needs the spoken request"]
     for path in photos:
         try:
@@ -260,7 +262,8 @@ def build_dataset(snapshot, root, task, *, preview, need_truth=True):
     root = Path(root)
     inventory = _inventory(task, need_truth)
     if not (root/"controller_truth"/"media.json").exists():
-        add_user_samples(root, snapshot, need_truth=need_truth, stream_count=task["stream_samples"], prefix="sample", inventory=inventory)
+        add_user_samples(root, snapshot, need_truth=need_truth, stream_count=task["stream_samples"], prefix="sample", inventory=inventory,
+                         min_photos=TaskDomain.min_photos)
         manifest = json.loads((root/"worker_inputs"/"manifest.json").read_text(encoding="utf-8"))
         for index, sample in enumerate(manifest["samples"], 1):
             audio = root/"worker_inputs"/sample["audio"]

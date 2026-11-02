@@ -28,6 +28,7 @@ separate `worker.py` process, so credentials load there and never in task worker
 | File | Purpose |
 |---|---|
 | `tasks.py` | General task spec: a run is data in the spec plus a check file |
+| `sample_input.py` | Bounded optional input.json data for photo tasks, separate from controller truth |
 | `taskrun.py` | One spec-driven run, graded by its check |
 | `text_task.py` | The `text-request` template: its samples, dataset, adapter and preview double |
 | `records_check.py` | The order-records check: a standalone file, standard library only |
