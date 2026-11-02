@@ -189,11 +189,12 @@ class Server(BaseHTTPRequestHandler):
         self.reply(200)
 
     def do_POST(self):
+        # Read the request first: closing with it unread makes Windows reset the connection, which the client sees as no server.
+        message = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if self.path == "/moved":
             return self.reply(302, headers=[("Location", self.server.elsewhere)])
         if self.token and self.headers.get("Authorization") != "Bearer "+self.token:
             return self.reply(401)
-        message = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         method = message.get("method")
         self.seen.append(method)
         if "id" not in message:
