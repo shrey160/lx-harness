@@ -54,3 +54,18 @@ Prepared workspace `.lx/inventory-update-json`, **spec v4**:
 No paid calls or replacement run started while preparing this configuration.
 Earlier e46e9101cc9c remains complete at 0.9375 -> 0.50, unchanged base package,
 $0.055223268, no holds. Its outputs and specification are untouched.
+
+## Follow-up: explicitly approved run started
+
+After the exact v4/settings/criteria and $1 + $0.25 caps were shown, the person
+replied **"approved"** in chat. The app still had no stored approval. That
+specific human confirmation was recorded through the human approval API, by
+person; it was **not a GUI click or autonomous agent approval**. The original
+weakness gate for unattended agents remains. Chat confirmation provenance is
+kept in local uncapped-judged-run.json and project context.
+
+Full run **5a2e37184043** was created once and its native worker launched hidden,
+avoiding temporary MCP session teardown. Confirmed running/preflight with 0/2
+complete and $0 recorded at the first check. Results and judge verdicts pending;
+no further rerun authorized. App was reloaded on port 8765. No runtime changes
+were made after the tested no-cap implementation.
