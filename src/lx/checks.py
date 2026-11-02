@@ -79,6 +79,19 @@ def named_checks(source, truth, answer):
     return [{"name": check["name"], "passed": check["passed"]} for check in results[0]["checks"]]
 
 
+def shown_checks(source, items):
+    """Each check's name and result for [(truth, answer), ...], for someone who must not learn the truth: a name that reveals it is withheld."""
+    results = _call(source, {"items": [{"truth": truth, "answer": answer} for truth, answer in items]}).get("results")
+    if type(results) is not list or len(results) != len(items):
+        raise CheckError("The scoring check must return one result per item")
+    shown = []
+    for entry, (truth, _) in zip(results, items):
+        _graded(entry)
+        shown.append([{"name": f"check {number}" if _reveals(check["name"], [truth]) else check["name"], "passed": check["passed"]}
+                      for number, check in enumerate(entry["checks"], 1)])
+    return shown
+
+
 def examples(source, truths):
     answers = _call(source, {"examples": list(truths)}).get("answers")
     if type(answers) is not list or len(answers) != len(truths):

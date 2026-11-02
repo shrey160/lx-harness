@@ -16,7 +16,7 @@ from types import SimpleNamespace
 from dataclasses import replace
 
 from . import hints as hint_notes
-from .checks import named_checks
+from .checks import CheckError, named_checks, shown_checks
 from .inventory_workflow import InventoryAdapter, grade_stream, preview_transcription, run_stream
 from .tasks import EXTERNAL, SEGMENTATION, TaskDomain, build_dataset, is_text, preview_scenes, spec_mcp, spec_tools, tool_catalog
 from .text_task import TextAdapter, TextDomain
@@ -27,6 +27,9 @@ STAGE_NAMES = {"inv": "How the agent works", "dom": "The subject", "c": "Combine
 STAGE_ORDER = ("inv", "dom", "c")
 LEARNED_FOLDERS = ("skills", "scripts", "plugin", "sub_agents")
 MCP_NOTE = " A script's input also holds mcp_results: this agent run's MCP tool results, each with tool, arguments, text and truncated."
+
+
+MAX_TRY_RUNS = 20
 
 
 def run_order(stream, identifier):
@@ -323,6 +326,61 @@ def _tried_harness(workspace, job, folder):
     return {"harness": {"from_run": source, "sha256": harness_sha256(workspace.run_dir(job["id"])/"harness"), "sample_seen": seen},
             "note": (f"One sample on the package of run {source}, which saw this sample, so this reads high: a smoke test, not a measure." if seen else
                      f"One sample on the package of run {source}, which never saw this sample. One sample is still a smoke test, not a measure.")}
+
+
+def saved_answers(run_dir):
+    """Each answer a run saved, as (sample id, where it sits, answer)."""
+    folder = Path(run_dir)/"outputs"/"runs"/"executions"
+    found = []
+    for path in sorted(folder.rglob("answer.json")) if folder.is_dir() else []:
+        try:
+            sample = json.loads(path.with_name("execution.json").read_text(encoding="utf-8"))["task"]
+            found.append((sample, path.parent.relative_to(folder).as_posix(), json.loads(path.read_text(encoding="utf-8"))))
+        except (OSError, ValueError, KeyError):
+            continue
+    return found
+
+
+def _score(named):
+    return sum(item["passed"] for item in named)/len(named)
+
+
+def _changes(old, new):
+    """The checks whose result differs, including those that came or went."""
+    before, after = ({item["name"]: item["passed"] for item in named} for named in (old, new))
+    return [{"name": name, "old": before.get(name), "new": after.get(name)} for name in {**before, **after} if before.get(name) != after.get(name)]
+
+
+def _old_checks(source, items):
+    """What the run's own check says now; a check that no longer runs is no reason to stop looking at a draft."""
+    try:
+        return shown_checks(source, items)
+    except (CheckError, ValueError):
+        return None
+
+
+def try_check(workspace, source):
+    """Score saved answers with a check and say what changes, against each run's own check. Reads runs and writes
+    nothing. Reports scores and check names, never an answer, and only to whoever is setting up the task."""
+    tried, skipped = [], []
+    finished = [job for job in workspace.runs() if job["status"] not in {"queued", "running"} and job["spec"].get("check")]
+    for job in finished[:MAX_TRY_RUNS]:
+        run_dir = workspace.run_dir(job["id"])
+        truth_file = run_dir/"dataset"/"controller_truth"/"ground_truth.json"
+        truth = json.loads(truth_file.read_text(encoding="utf-8")) if truth_file.is_file() else {}
+        answers = [item for item in saved_answers(run_dir) if item[0] in truth]
+        if not answers:
+            skipped.append(job["id"])
+            continue
+        items = [(truth[sample], answer) for sample, _, answer in answers]
+        new = shown_checks(source, items)
+        old = _old_checks(workspace.check_source(job["spec"]["check"]), items) or [None]*len(items)
+        folders = _folders(run_dir)
+        tried += [{"run": job["id"], "sample": folders.get(sample, sample), "where": where, "old": old_named and _score(old_named), "new": _score(new_named),
+                   "changed": _changes(old_named or [], new_named)} for (sample, where, _), old_named, new_named in zip(answers, old, new)]
+    changed = [item for item in tried if item["old"] != item["new"] or item["changed"]]
+    return {"answers": len(tried), "changed": len(changed), "results": changed, "no_answers_saved": skipped, "runs_left_out": max(0, len(finished)-MAX_TRY_RUNS),
+            "note": "Saved answers only, so this shows what an edit changes, not how a harness would do."}
 
 
 def regrade(engine, workspace, job, *, live):

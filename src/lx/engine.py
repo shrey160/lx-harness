@@ -695,6 +695,15 @@ class Engine:
         source = workspace.check_source(draft["check"]) if check is None else tasks.validate_check_source(check)
         return checks.self_test(source, tasks.sample_truths(workspace.samples_path, draft["task"]))
 
+    def try_check(self, identifier, check=None):
+        """Score saved answers with the current check, or a draft's text, and say what changes; changes nothing."""
+        workspace = self.workspace(identifier)
+        draft = workspace.spec(workspace.project()["spec_version"])
+        if not draft.get("task"):
+            raise ValueError("This workflow has a built-in check")
+        from .taskrun import try_check
+        return try_check(workspace, workspace.check_source(draft["check"]) if check is None else tasks.validate_check_source(check))
+
     def ready(self, identifier):
         """Whether the current spec could run live on the samples as they are now. No model and no network:
         it says this can run, never that it is good. Works on any samples, unlike a preview."""

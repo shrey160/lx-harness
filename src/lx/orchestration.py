@@ -13,7 +13,7 @@ from .engine import EXTERNAL
 from .guides import guide_list, read_guide
 from .limits import field_list
 
-ACTIONS = ("status", "guide", "environment", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
+ACTIONS = ("status", "guide", "environment", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "check_try", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
@@ -125,6 +125,10 @@ class Orchestration:
     def check_test(self, workspace, check=None, use_eval_file=False):
         identifier = self._id(workspace)
         return self.engine.test_check(identifier, self._check_text(identifier, check, use_eval_file))
+
+    def check_try(self, workspace, check=None, use_eval_file=False):
+        identifier = self._id(workspace)
+        return self.engine.try_check(identifier, self._check_text(identifier, check, use_eval_file))
 
     def _check_text(self, identifier, check, use_eval_file):
         if use_eval_file and check is not None:

@@ -159,6 +159,13 @@ class RulesForm(unittest.TestCase):
         self.assertEqual([(r.score, r.n_passed, r.n_criteria) for r in rules], [(r.score, r.n_passed, r.n_criteria) for r in checks.run_checks(full, pairs)])
 
 
+@unittest.skipUnless(sandbox.available(), "needs the script sandbox")
+class ShownChecks(unittest.TestCase):
+    def test_a_name_that_reveals_the_truth_is_withheld(self):
+        source = check_forms.saved_form('def score(truth, answer):\n    return {truth["value"]: True, "plain": False}\n')
+        self.assertEqual(checks.shown_checks(source, [(TRUTHS["a"], {})]), [[{"name": "check 1", "passed": True}, {"name": "plain", "passed": False}]])
+
+
 class EvalFolderIsNotSamples(unittest.TestCase):
     def test_a_samples_folder_at_the_workspace_root_leaves_eval_out(self):
         with tempfile.TemporaryDirectory() as folder:

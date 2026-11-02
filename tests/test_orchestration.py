@@ -260,6 +260,23 @@ class WholeFlow(Actions):
         self.assertEqual((run["status"], run["approved_by"], run["mode"]), ("completed", "preview", "controlled_preview"))
         self.assertNotIn("spec", self.lx.results(self.path, run_id))
 
+    def test_saved_answers_show_what_a_draft_check_would_change(self):
+        project = self.begin()
+        run_id = self.lx.preview(self.path)["run_id"]
+        workspace = self.app.workspace(project["id"])
+        execute(self.app, workspace, run_id, workspace.run_dir(run_id)/"snapshot")
+        before = self.lx.results(self.path, run_id)
+        same = self.lx.check_try(self.path)
+        self.assertGreater(same["answers"], 0)
+        self.assertEqual((same["changed"], same["results"]), (0, []))
+        harsh = self.lx.check_try(self.path, 'def score(truth, answer):\n    return {"never": False}\n')
+        self.assertEqual(harsh["changed"], harsh["answers"])
+        first = harsh["results"][0]
+        self.assertEqual((first["new"], first["run"]), (0, run_id))
+        self.assertIn({"name": "never", "old": None, "new": False}, first["changed"])
+        self.assertEqual(set(first), {"run", "sample", "where", "old", "new", "changed"})
+        self.assertEqual(self.lx.results(self.path, run_id), before)
+
 
 if __name__ == "__main__":
     unittest.main()

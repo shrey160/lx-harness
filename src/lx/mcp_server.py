@@ -100,6 +100,12 @@ def server_for(engine):
         return lx.check_test(workspace, check, use_eval_file)
 
     @tool(READ)
+    def check_try(workspace: str, check: str | None = None, use_eval_file: bool = False) -> dict[str, Any]:
+        """Score the answers saved by earlier trials and runs with the current check, or with a draft given as `check` or by `use_eval_file`, and list
+        which scores and named checks change. Free, saves nothing, and shows scores and check names, never answers."""
+        return lx.check_try(workspace, check, use_eval_file)
+
+    @tool(READ)
     def ready(workspace: str) -> dict[str, Any]:
         """Whether this spec could run live on the samples as they are now, on any samples, with no calls and no spending.
         Lists problems per sample and what blocks a live run. It says this can run, never that it is good."""
