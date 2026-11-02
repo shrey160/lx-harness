@@ -94,9 +94,10 @@ def server_for(engine):
                              hints=hints, sample_hints=sample_hints, use_hint_files=use_hint_files)
 
     @tool(READ)
-    def check_test(workspace: str) -> dict[str, Any]:
-        """Self-test the check on the samples: how a correct, a blank and a wrong answer score, and any weaknesses."""
-        return lx.check_test(workspace)
+    def check_test(workspace: str, check: str | None = None) -> dict[str, Any]:
+        """Self-test the check on the samples: how a correct, a blank and a wrong answer score, and any weaknesses.
+        Give `check` to test a draft's text without saving it: no new version, and any approval stays."""
+        return lx.check_test(workspace, check)
 
     @tool(READ)
     def ready(workspace: str) -> dict[str, Any]:

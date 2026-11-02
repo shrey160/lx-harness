@@ -121,8 +121,8 @@ class Orchestration:
         samples = {**held["samples"], **(per_sample or {})}
         return {"all": held["all"] if everyone is None else everyone, "samples": samples}
 
-    def check_test(self, workspace):
-        return self.engine.test_check(self._id(workspace))
+    def check_test(self, workspace, check=None):
+        return self.engine.test_check(self._id(workspace), check)
 
     def ready(self, workspace):
         return self.engine.ready(self._id(workspace))

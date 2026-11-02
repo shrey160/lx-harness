@@ -152,7 +152,9 @@ def parser():
     item.add_argument("--limits", metavar="FILE", help="JSON of run limits")
 
     check = commands.add_parser("check", help="test the check").add_subparsers(dest="check", required=True)
-    action(check, "test", "check_test", "self-test the check on the samples")
+    item = command(check, "test", lambda engine, lx, args: lx.check_test(args.workspace, Path(args.check).read_text(encoding="utf-8") if args.check else None),
+                   help="self-test the check on the samples")
+    item.add_argument("--check", metavar="FILE", help="test this draft without saving it")
     action(check, "shape", "truth_shape", "field names and types of the answers, never their values")
 
     action(commands, "ready", "ready", "whether this spec could run live on the samples as they are now; no calls")

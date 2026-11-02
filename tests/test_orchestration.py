@@ -106,6 +106,15 @@ class WhatItMayDo(Actions):
         self.assertEqual(after["task"]["contract"], before["task"]["contract"])
         self.assertEqual(self.lx.check_test(self.path)["samples"], 6)
 
+    def test_a_draft_check_is_tested_without_saving_it(self):
+        self.begin()
+        before = self.lx.spec_show(self.path)
+        self.assertEqual(self.lx.check_test(self.path, tasks.inventory_check_source()+"# draft")["samples"], 6)
+        with self.assertRaisesRegex(ValueError, "crashed"):
+            self.lx.check_test(self.path, "raise SystemExit(3)")
+        after = self.lx.spec_show(self.path)
+        self.assertEqual((after["version"], after["check"]), (before["version"], before["check"]))
+
     def test_a_new_task_is_read_by_its_own_rules_not_the_old_drafts(self):
         self.begin()
         samples = Path(self.path)/"samples"

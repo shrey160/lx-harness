@@ -666,13 +666,14 @@ class Engine:
                         hints=hints, take_hint_files=take_hint_files)
         return self._view(workspace)
 
-    def test_check(self, identifier):
-        """Self-test the current check on the samples as they are now; changes nothing."""
+    def test_check(self, identifier, check=None):
+        """Self-test the current check, or a draft's text, on the samples as they are now; changes nothing."""
         workspace = self.workspace(identifier)
         draft = workspace.spec(workspace.project()["spec_version"])
         if not draft.get("task"):
             raise ValueError("This workflow has a built-in check")
-        return checks.self_test(workspace.check_source(draft["check"]), tasks.sample_truths(workspace.samples_path, draft["task"]))
+        source = workspace.check_source(draft["check"]) if check is None else tasks.validate_check_source(check)
+        return checks.self_test(source, tasks.sample_truths(workspace.samples_path, draft["task"]))
 
     def ready(self, identifier):
         """Whether the current spec could run live on the samples as they are now. No model and no network:

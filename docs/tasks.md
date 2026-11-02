@@ -117,7 +117,8 @@ so that junk gets the same list.
 `check_test` proves the check: a correct answer must score 1.0, junk must be graded
 without a crash, and grading must repeat exactly. Another sample's answer passing is a
 weakness, so the check waits for a person, who may accept it when one answer can suit
-several samples.
+several samples. Give `check_test` a `check` to test a draft: it makes no new version
+and keeps any approval.
 
 **Rules that catch people out**
 
