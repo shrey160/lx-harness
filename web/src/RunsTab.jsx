@@ -23,7 +23,7 @@ export function RunsTab({project,jobs,ui,setTab}){
         <td><button className="link" onClick={()=>setOpenId(run.id)}>{when(run.created_at)}</button></td>
         <td>{run.spec.version}</td><td>{runName(run)}</td><td>{run.spec.models.worker||'–'}</td>
         <td><span className={'dot '+tone(run)}/>{statusName(run)}</td>
-        <td>{run.kind==='trial'&&run.result?run.result.score.toFixed(2):scores(run.result)?`${scores(run.result).base.toFixed(2)} → ${scores(run.result).harness2.toFixed(2)}`:'–'}</td>
+        <td>{run.result?.scored===false?'not scored':run.kind==='trial'&&run.result?run.result.score.toFixed(2):scores(run.result)?`${scores(run.result).base.toFixed(2)} → ${scores(run.result).harness2.toFixed(2)}`:'–'}</td>
         <td>{money(run.usage.spent_usd)}</td>
       </tr>)}</tbody>
     </table></div>:<p className="empty">No runs yet.</p>}
@@ -107,7 +107,7 @@ function TrialResult({project,job}){
   useEffect(()=>{api(`trajectories/${project.id}/${job.id}`).then(list=>setExecution(list.executions[0]),()=>{});},[job.id]);
   return <div className="result">
     <h3>Trial on one sample</h3>
-    <div className="stats"><Stat value={result.score.toFixed(2)} label={`score on ${result.sample}`}/><Stat value={`${result.checks.length-failed.length}/${result.checks.length}`} label="checks passed"/></div>
+    {result.scored===false?<p className="muted">Not scored on {result.sample}: this spec has no check. Trajectories shows the reply.</p>:<div className="stats"><Stat value={result.score.toFixed(2)} label={`score on ${result.sample}`}/><Stat value={`${result.checks.length-failed.length}/${result.checks.length}`} label="checks passed"/></div>}
     <p className="muted">{result.note} {result.harness?<>Harness <code>{result.harness.sha256.slice(0,12)}</code>.</>:<>Started from the stock harness (<code>{result.base_sha256.slice(0,12)}</code>).</>}</p>
     {result.stopped&&<p className="callout warn">It stopped early: {result.stopped}.</p>}
     {failed.length>0&&execution?.answered&&execution.reply==='text'&&<p className="callout warn">The final reply was not JSON on its own, so the check could not read the answer. These failures are about the reply's form and say nothing about the work. Trajectories shows the reply.</p>}
@@ -125,9 +125,11 @@ function Result({project,job,ui,post,live,canTry,tryHarness}){
     <h3>{headline}</h3>
     {result.regraded&&<p className="muted">Graded afterwards from the run's saved answers.</p>}
     {!live&&<p className="muted">Scripted replies say nothing about a model's ability.</p>}
-    {result.stream_order&&<p className="muted">Scores are a report: they chose nothing, and one run cannot separate a gain from noise. Order this run: {result.stream_order.join(', ')}.</p>}
+    {result.scored===false&&<p className="callout warn" role="status">Not scored: this run had no check, so nothing here says whether the harness is better or worse. Read the replies below before using it.</p>}
+    {result.stream_order&&<p className="muted">{result.scored===false?'':'Scores are a report: they chose nothing, and one run cannot separate a gain from noise. '}Order this run: {result.stream_order.join(', ')}.</p>}
     {scores(result)&&<div className="stats"><Stat value={scores(result).base.toFixed(2)} label="base score"/><Stat value={scores(result).harness2.toFixed(2)} label="after the loop"/></div>}
-    {result.scores?<SampleScores result={result}/>:<div className="stats">{Object.entries(result.checks).map(([label,checks])=><Stat key={label} value={`${Object.values(checks).filter(Boolean).length}/${Object.keys(checks).length}`} label={{base:'passed before',harness2:'passed after',selected_dev:'passed after',heldout:'held-out passed'}[label]||label.replaceAll('_',' ')}/>)}</div>}
+    {result.scores?<SampleScores result={result}/>:result.checks&&<div className="stats">{Object.entries(result.checks).map(([label,checks])=><Stat key={label} value={`${Object.values(checks).filter(Boolean).length}/${Object.keys(checks).length}`} label={{base:'passed before',harness2:'passed after',selected_dev:'passed after',heldout:'held-out passed'}[label]||label.replaceAll('_',' ')}/>)}</div>}
+    {result.reply_files&&<Replies project={project} job={job} open={result.scored===false}/>}
     <div className="actions">
       <a className="button primary" href={`/api/packages/${project.id}/${job.id}/download`} download="harness-package.zip">Download package</a>
       {result.task&&<a className="button" href={`/api/trajectories/${project.id}/${job.id}/download`} download="trajectories.zip" title="Every agent run's trace, for fine-tuning. These can hold your data, and no answers.">Download trajectories</a>}
@@ -138,6 +140,17 @@ function Result({project,job,ui,post,live,canTry,tryHarness}){
     <p className="muted">The package holds the approved spec, the harness and the check results; a task package adds its check file and limitations.</p>
     {job.fresh_result&&<div className={'callout '+(job.fresh_result.accepted?'':'warn')}><strong>{job.fresh_result.accepted?'New scene passed':'New scene failed'}</strong><p>{job.fresh_result.note}</p>{job.fresh_result.errors?.map(e=><p key={e}>{e}</p>)}</div>}
   </div>;
+}
+
+function Replies({project,job,open}){
+  const [replies,setReplies]=useState(null),[problem,setProblem]=useState('');
+  const load=isOpen=>{if(isOpen&&replies===null&&!problem)api(`replies/${project.id}/${job.id}`).then(reply=>setReplies(reply.samples),e=>setProblem(e.message));};
+  return <details open={open} onToggle={e=>load(e.currentTarget.open)}><summary>Replies before and after</summary>
+    {problem?<p className="callout bad">{problem}</p>:replies===null?<p className="muted">Loading…</p>:replies.map(item=><div key={item.sample}>
+      <h4>{item.sample}{item.same?' · the same reply':''}</h4>
+      <div className="three two-up"><div><p className="muted">Before</p><pre className="setup"><code>{item.before}</code></pre></div><div><p className="muted">After</p><pre className="setup"><code>{item.after}</code></pre></div></div>
+    </div>)}
+  </details>;
 }
 
 function SampleScores({result}){

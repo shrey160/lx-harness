@@ -58,6 +58,8 @@ def server_for(app, port=8765):
                     return self.respond(app.package_bytes(pieces[2],pieces[3]),mime="application/zip")
                 if len(pieces)==5 and pieces[:2]==["api","trajectories"] and pieces[4]=="download":
                     return self.respond(app.trajectory_bytes(pieces[2],pieces[3]),mime="application/zip")
+                if len(pieces)==4 and pieces[:2]==["api","replies"]:
+                    return self.respond(app.run_replies(pieces[2],pieces[3]))
                 if len(pieces)==4 and pieces[:2]==["api","trajectories"]:
                     return self.respond(app.run_trajectories(pieces[2],pieces[3]))
                 if len(pieces)==5 and pieces[:2]==["api","trajectories"] and pieces[4]=="trace":

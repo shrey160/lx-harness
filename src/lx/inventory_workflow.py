@@ -287,6 +287,7 @@ def grade_stream(adapter, output, stream, result, *, scored=True):
                       "files_added": sorted(set(chosen_tree) - {k for k, v in base_tree.items()}),
                       "harness_dir": (chosen_dir.relative_to(adapter.spec.runs_root).as_posix()
                                       if selection.get("chosen_label") and chosen_dir.is_dir() else None),
+                      "reply_files": {"base": summary["base"][0]["run_dir"], "after": selection.get("chosen_run_dir") or summary["base"][0]["run_dir"]},
                       "status": summary.get("status")}
     mean = lambda key: sum(r[key]["score"] for r in rows.values())/len(rows)
     if not rows:

@@ -328,6 +328,10 @@ class WholeFlow(Actions):
         self.assertFalse((package/"check.py").exists())
         self.assertIn("Never scored", (package/"limitations.md").read_text(encoding="utf-8"))
         self.assertTrue((package/"harness"/"systemprompt.md").is_file())
+        replies = self.app.run_replies(project["id"], run_id)["samples"]
+        self.assertEqual(len(replies), 6)
+        self.assertEqual(set(replies[0]), {"sample", "before", "after", "same"})
+        self.assertTrue(replies[0]["before"])
 
     def improver_input(self, workspace, run_id):
         """Every file of what the improver read and wrote, with what differs between any two runs taken out."""

@@ -58,6 +58,7 @@ from .workspace import NOT_SAMPLES, Workspace, native_path, write_json
 
 ROOT = Path(__file__).resolve().parents[2]
 NO_CHECK = "This run has no check, so it will not be scored."
+MAX_REPLY = 20_000
 DEFAULT_ROOT = home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
 SAMPLES = "samples"
 SAMPLE_MEDIA = {".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".wav":"audio/wav"}
@@ -1346,6 +1347,19 @@ class Engine:
         folder = workspace.run_dir(job_id)/"outputs"/"runs"/"executions"
         traces = sorted(path for path in folder.rglob("trace.json") if path.is_file() and not path.is_symlink()) if folder.is_dir() else []
         return folder, traces
+
+    def run_replies(self, identifier, job_id):
+        """Each sample's final reply before and after the loop, for a person reading a run. Not an orchestrator action: agents get no answers."""
+        from .taskrun import _folders
+        workspace = self.workspace(identifier)
+        run_dir = workspace.run_dir(job_id)
+        files = (workspace.run(job_id).get("result") or {}).get("reply_files") or {}
+        folders = _folders(run_dir)
+        def text(relative):
+            answer = json.loads((run_dir/"outputs"/"runs"/relative/"answer.json").read_text(encoding="utf-8"))
+            return (answer if isinstance(answer, str) else json.dumps(answer, indent=2, ensure_ascii=False))[:MAX_REPLY]
+        return {"samples":[{"sample":folders.get(sample, sample),"before":text(pair["base"]),"after":text(pair["after"]),"same":pair["base"] == pair["after"]}
+                           for sample, pair in files.items()]}
 
     def run_trajectories(self, identifier, job_id):
         """What each agent run of this job did, in brief. A trace is written when its agent run ends, so a running job shows the finished ones."""

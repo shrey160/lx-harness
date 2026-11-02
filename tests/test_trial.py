@@ -100,7 +100,7 @@ class WhatItDoes(Trials):
     def test_an_agent_sees_scores_and_counts_but_no_trace_or_answer(self):
         run_id, _ = self.trial()
         seen = self.lx.results(self.path, run_id)
-        self.assertEqual(set(seen) - {"usage"}, {"kind", "task", "live", "sample", "score", "base_sha256", "checks", "stopped", "tool_calls", "note", "learned"})
+        self.assertEqual(set(seen) - {"usage"}, {"kind", "task", "live", "sample", "scored", "score", "base_sha256", "checks", "stopped", "tool_calls", "note", "learned"})
         self.assertIsNone(seen["learned"])
         self.assertEqual({tuple(sorted(item)) for item in seen["checks"]}, {("name", "passed")})
         self.assertGreater(seen["tool_calls"]["transcribe"], 0)
@@ -109,6 +109,12 @@ class WhatItDoes(Trials):
         answer = (self.workspace.run_dir(run_id)/"outputs"/"runs"/"executions"/"trial"/"answer.json").read_text(encoding="utf-8")
         self.assertNotIn(answer, text)
         self.assertNotIn("final_text", text)
+
+    def test_a_spec_with_no_check_gets_a_trial_with_no_score(self):
+        self.lx.spec_draft(self.path, no_check=True)
+        _, result = self.trial()
+        self.assertEqual((result["scored"], result["score"], result["checks"]), (False, None, []))
+        self.assertTrue(result["tool_calls"])
 
     def test_a_trial_that_stops_says_so(self):
         self.transport = lambda body, timeout: (wire_reply("PREFLIGHT_OK") if body["messages"][0]["content"].startswith("LX_PREFLIGHT") else

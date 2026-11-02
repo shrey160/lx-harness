@@ -236,7 +236,7 @@ def summarize_report(task, report, last, chosen, live, folders):
     rows, scored = report["per_sample"], report.get("scored", True)
     summary = {"task": task["name"], "live": live, "stream_order": [folders.get(sample) or sample for sample in report["stream"]], "simulated_usage": not live,
                "package_sample": last, "package_is_base": chosen is None, "means": report["means"], "skipped": report["skipped"], "scored": scored, "samples": list(rows),
-               "files_added": {t: r["files_added"] for t, r in rows.items()}}
+               "files_added": {t: r["files_added"] for t, r in rows.items()}, "reply_files": {t: r["reply_files"] for t, r in rows.items()}}
     if not scored:
         return {**summary, "grading": "not scored: this run had no check"}
     return {**summary, "checks": {"base": {t: r["base"]["score"] == 1.0 for t, r in rows.items()},
@@ -309,14 +309,14 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
         if mcp:
             mcp.close()
     workspace.update_run(identifier, phase="grading")
-    named = named_checks(check, truth[sample], json.loads(adapter.deliverable_text(run)))
+    named = [] if check is None else named_checks(check, truth[sample], json.loads(adapter.deliverable_text(run)))
     steps = json.loads((run/"trace.json").read_text(encoding="utf-8"))["trace"]
     calls = {}
     for step in steps:
         if step["type"] == "tool":
             calls[step["name"]] = calls.get(step["name"], 0)+1
     folder = _folders(run_dir).get(sample, sample)
-    result = {"kind": "trial", "task": task["name"], "live": True, "sample": folder, "score": sum(item["passed"] for item in named)/len(named),
+    result = {"kind": "trial", "task": task["name"], "live": True, "sample": folder, "scored": check is not None, "score": _score(named) if named else None,
               "base_sha256": base, "checks": named, "stopped": next((step["reason"] for step in steps if step["type"] == "stopped"), None), "tool_calls": calls,
               "note": "One sample on the base harness: a smoke test, not a measure of what the loop can reach."}
     return {**result, **_tried_harness(workspace, job, folder)} if job.get("from_run") else result
