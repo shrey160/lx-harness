@@ -1,6 +1,7 @@
 
 # Speaks the check protocol for the text above; runs in the sandbox with the standard library only.
 import json
+import re
 import sys
 import traceback
 
@@ -25,7 +26,65 @@ def _line(error):
     return f"{type(error).__name__} on line {lines[-1]}"
 
 
+def _read(value, path):
+    """(found, the value at a dotted path); a number steps into a list."""
+    for step in path.split("."):
+        if type(value) is dict and step in value:
+            value = value[step]
+        elif type(value) is list and step.isdigit() and int(step) < len(value):
+            value = value[int(step)]
+        else:
+            return False, None
+    return True, value
+
+
+def _same(got, want):
+    return (type(got) is bool) == (type(want) is bool) and got == want
+
+
+def _number(value):
+    return type(value) in {int, float}
+
+
+def _items(value):
+    return sorted(json.dumps(item, sort_keys=True) for item in value)
+
+
+def _problem(rule, truth, answer):
+    """Why the answer fails this rule, or None. Reasons never carry a value."""
+    kind, (found, got) = rule["rule"], _read(answer, rule["field"])
+    if not found:
+        return "required field is missing"
+    if kind == "one_of":
+        return None if any(_same(got, value) for value in rule["values"]) else "not one of the allowed values"
+    if kind == "matches":
+        return None if type(got) is str and re.fullmatch(rule["pattern"], got) else "wrong format"
+    known, want = _read(truth, rule["field"])
+    if not known:
+        return "the expected answer has no such field"
+    if kind == "equals":
+        return None if _same(got, want) else "does not match"
+    if kind == "near":
+        return None if _number(got) and _number(want) and abs(got-want) <= rule["within"] else "not close enough"
+    return None if type(got) is list and type(want) is list and _items(got) == _items(want) else "does not have the same items"
+
+
+def _by_rules(truth, answer):
+    written, rules = json.loads(RULES), []
+    fields = [rule["field"] for rule in written["rules"]]
+    for rule in written["rules"]:
+        name = rule["field"] if fields.count(rule["field"]) == 1 else f"{rule['field']} {rule['rule']}"
+        problem = _problem(rule, truth, answer)
+        rules.append(_failed(name, problem) if problem else _passed(name))
+    if written.get("extra_fields", True) is False:
+        known = type(answer) is dict and set(answer) <= {field.split(".")[0] for field in fields}
+        rules.append(_passed("only_known_fields") if known else _failed("only_known_fields", "unknown fields"))
+    return rules
+
+
 def _checks(truth, answer):
+    if "RULES" in globals():
+        return _by_rules(truth, answer)
     try:
         got = score(truth, answer)
     except Exception as error:
