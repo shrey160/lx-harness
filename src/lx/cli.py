@@ -164,6 +164,11 @@ def parser():
                    help="self-test the check on the samples")
     item.add_argument("--check", metavar="FILE", help="test this draft without saving it")
     item.add_argument("--eval-file", action="store_true", help="test the check in eval/ without saving it")
+    judge = commands.add_parser("judge", help="try the model judges").add_subparsers(dest="judge", required=True)
+    item = command(judge, "try", lambda engine, lx, args: lx.judge_try(args.workspace, json.loads(Path(args.judges).read_text(encoding="utf-8")) if args.judges else None, args.judge_file),
+                   help="what the judges make of saved answers; spends nothing, so only kept verdicts count")
+    item.add_argument("--judges", help="a JSON file of draft judges to try in place of the spec's")
+    item.add_argument("--judge-file", action="store_true", help="try the judges in eval/judges.json")
     item = command(check, "try", lambda engine, lx, args: lx.check_try(args.workspace, Path(args.check).read_text(encoding="utf-8") if args.check else None, args.eval_file),
                    help="score saved answers with the check and list what changes")
     item.add_argument("--check", metavar="FILE", help="try this draft without saving it")

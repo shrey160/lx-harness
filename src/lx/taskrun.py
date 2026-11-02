@@ -468,11 +468,47 @@ def try_check(workspace, source):
             "note": "Saved answers only, so this shows what an edit changes, not how a harness would do."}
 
 
+def _kept_verdicts(run_dir):
+    path = Path(run_dir)/"outputs"/"judged.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+
+
+def try_judges(workspace, judge, *, reasons):
+    """Judge saved answers with these judges and say what changes against each run's own verdicts. Writes no run;
+    new verdicts are kept for the next try. Reasons can quote the expected answer, so only a person gets them."""
+    tried, skipped = [], []
+    finished = [job for job in workspace.runs() if job["status"] not in {"queued", "running"} and job["spec"].get("task")]
+    for job in finished[:MAX_TRY_RUNS]:
+        run_dir = workspace.run_dir(job["id"])
+        saved = saved_answers(run_dir)
+        if not saved:
+            skipped.append(job["id"])
+            continue
+        truth, kept, folders = run_truths(workspace, run_dir), _kept_verdicts(run_dir), _folders(run_dir)
+        requests = Path(run_dir)/"dataset"/"worker_inputs"/"requests"
+        for sample, where, answer in saved:
+            request = requests/f"{sample}.txt"
+            old = kept.get(f"executions/{where}")
+            old = old if isinstance(old, list) else None
+            item = {"run": job["id"], "sample": folders.get(sample, sample), "where": where}
+            try:
+                found = judge.verdicts(truth.get(sample), answer, request.read_text(encoding="utf-8") if request.is_file() else None)
+            except judging.NotJudged as error:
+                tried.append({**item, "not_judged": str(error)})
+                continue
+            shown = [{key: value for key, value in verdict.items() if reasons or key != "reason"} for verdict in found]
+            tried.append({**item, "old": old and _score(old), "new": _score(found), "verdicts": shown, "changed": _changes(old or [], found)})
+    judged = [item for item in tried if "new" in item]
+    return {"answers": len(tried), "judged": len(judged), "changed": sum(bool(item["changed"]) or item["old"] != item["new"] for item in judged),
+            "results": tried, "no_answers_saved": skipped, "runs_left_out": max(0, len(finished)-MAX_TRY_RUNS),
+            "note": "Saved answers only, so this shows what the judges make of them, not how a harness would do."}
+
+
 class _NoCalls:
-    """A regrade spends nothing: only verdicts already kept count, and any other answer is left not judged."""
+    """For a regrade or an agent's try, which spend nothing: only verdicts already kept count, and any other answer is left not judged."""
     def chat(self, *args, **kwargs):
         from .spark import ModelError
-        raise ModelError("a regrade makes no judge calls, and this answer has no kept verdict")
+        raise ModelError("this answer has no kept verdict, and only a person can pay for a new one")
 
 
 def regrade(engine, workspace, job, *, live):

@@ -43,7 +43,7 @@ class Tools(Base):
         tools = self.using(flow)
         self.assertEqual({tool.name for tool in tools}, set(ACTIONS))
         read = {tool.name for tool in tools if tool.annotations.read_only_hint}
-        self.assertEqual(read, {"status", "guide", "environment", "samples", "read_sample", "truth_shape", "spec_show", "check_test", "check_try", "ready", "run_status", "edits", "results"})
+        self.assertEqual(read, {"status", "guide", "environment", "samples", "read_sample", "truth_shape", "spec_show", "check_test", "check_try", "judge_try", "ready", "run_status", "edits", "results"})
 
     def test_an_agent_reads_the_guides_and_the_environment(self):
         async def flow(client):

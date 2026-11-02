@@ -97,6 +97,13 @@ def server_for(engine):
                              hints=hints, sample_hints=sample_hints, use_hint_files=use_hint_files, use_eval_file=use_eval_file, no_check=no_check,
                              judges=judges, use_judge_file=use_judge_file, no_judges=no_judges)
 
+    @tool(READ)
+    def judge_try(workspace: str, judges: dict[str, Any] | None = None, use_judge_file: bool = False) -> dict[str, Any]:
+        """What the spec's model judges, or draft criteria given as `judges` or by `use_judge_file`, make of the answers earlier runs saved, and what
+        changes against each run's own verdicts. It spends nothing: only verdicts already kept count, and a new verdict needs a person to try it in the app,
+        since a judge's call costs money. You get each criterion's name and whether it passed, never a reason, which may quote an expected answer."""
+        return lx.judge_try(workspace, judges, use_judge_file)
+
     @tool(CHANGES)
     def eval_init(workspace: str) -> dict[str, Any]:
         """Write eval/rules.json in the workspace folder, with one `equals` rule per field of the answers, to edit from there. Never overwrites a check, and changes no spec."""

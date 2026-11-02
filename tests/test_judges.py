@@ -13,6 +13,7 @@ from lx.checks import named_checks
 from lx.inventory_workflow import InventoryPreviewTransport
 from lx.spark import ModelError
 from lx.spike import wire_reply
+from lx.taskrun import saved_answers
 from lx.usage import usage_rows
 from lx.worker import execute
 from test_orchestration import Actions, WholeFlow
@@ -310,6 +311,63 @@ class JudgedRuns(Actions):
         with patch.object(judging.JudgePreviewTransport, "__call__", lambda *args: self.fail("a regrade called the judge")):
             self.app.regrade(project["id"], run_id)
         self.assertEqual(workspace.run(run_id)["result"]["means"], before)
+
+
+@unittest.skipUnless(sandbox.available(), "needs the script sandbox")
+class TryingJudges(Actions):
+    preview = WholeFlow.preview
+    OTHER = {"criteria": [{"name": "says nothing", "question": "Is the answer empty?"}]}
+
+    def setUp(self):
+        super().setUp()
+        self.project = self.begin()
+        self.lx.spec_draft(self.path, judges=READY)
+        self.workspace = self.app.workspace(self.project["id"])
+        self.run_id = self.preview(self.workspace)
+
+    def go_live(self):
+        self.lx.spec_draft(self.path, mode="live")
+        self.app._live_transport_factory = lambda hint=None: judging.JudgePreviewTransport()
+
+    def test_an_agent_sees_kept_verdicts_with_no_reasons(self):
+        tried = self.lx.judge_try(self.path)
+        saved = len(saved_answers(self.workspace.run_dir(self.run_id)))
+        # The run graded 12 answers; the others, from the loop's own stages, had no verdict until now.
+        self.assertEqual((tried["answers"], tried["judged"], tried["changed"]), (saved, saved, saved-12))
+        self.assertEqual(set(tried["results"][0]["verdicts"][0]), {"name", "passed"})
+
+    def test_draft_criteria_show_what_they_change(self):
+        tried = self.lx.judge_try(self.path, self.OTHER)
+        self.assertEqual(tried["changed"], tried["answers"])
+        first = next(item for item in tried["results"] if any(change["old"] is not None for change in item["changed"]))
+        self.assertIn({"name": "says nothing", "old": None, "new": True}, first["changed"])
+        self.assertIn({"name": "counts the asked kind", "old": True, "new": None}, first["changed"])
+        self.assertEqual(self.lx.spec_show(self.path)["judges"]["criteria"], CRITERIA["criteria"])
+
+    def test_on_a_live_spec_an_agent_never_spends(self):
+        self.go_live()
+        tried = self.lx.judge_try(self.path, self.OTHER)
+        self.assertEqual(tried["judged"], 0)
+        self.assertIn("only a person can pay", tried["results"][0]["not_judged"])
+        self.assertEqual(usage_rows(self.app._ledger(self.workspace)), [])
+
+    def test_a_person_spends_within_a_cap_after_accepting_the_notice(self):
+        self.go_live()
+        spend = {"cap_usd": 0.5}
+        with self.assertRaisesRegex(ValueError, "Accept that the judge at"):
+            self.app.try_judges(self.project["id"], self.OTHER, spend=spend)
+        with self.assertRaisesRegex(ValueError, "training"):
+            self.app.try_judges(self.project["id"], self.OTHER, spend={**spend, "notice_accepted": True})
+        with self.assertRaisesRegex(ValueError, "less than one judge call"):
+            self.app.try_judges(self.project["id"], self.OTHER, spend={"cap_usd": 0.01, "contributor_accepted": True})
+        tried = self.app.try_judges(self.project["id"], self.OTHER, spend={**spend, "contributor_accepted": True})
+        self.assertEqual(tried["judged"], tried["answers"])
+        self.assertEqual(tried["results"][0]["verdicts"][0]["reason"], "preview double")
+        rows = usage_rows(self.app._ledger(self.workspace))
+        self.assertEqual({row["role"] for row in rows}, {"judge"})
+        self.assertLessEqual(len(rows), tried["answers"])  # an answer seen twice is judged once
+        self.assertEqual(self.app.try_judges(self.project["id"], self.OTHER, spend={**spend, "contributor_accepted": True})["judged"], tried["answers"])
+        self.assertEqual(len(usage_rows(self.app._ledger(self.workspace))), len(rows))
 
 
 @unittest.skipUnless(sandbox.available(), "needs the script sandbox")

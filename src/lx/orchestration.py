@@ -13,7 +13,7 @@ from .engine import EXTERNAL
 from .guides import guide_list, read_guide
 from .limits import field_list
 
-ACTIONS = ("status", "guide", "environment", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "eval_init", "check_test", "check_try", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
+ACTIONS = ("status", "guide", "environment", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "eval_init", "check_test", "check_try", "judge_try", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
@@ -136,6 +136,13 @@ class Orchestration:
     def check_try(self, workspace, check=None, use_eval_file=False):
         identifier = self._id(workspace)
         return self.engine.try_check(identifier, self._check_text(identifier, check, use_eval_file))
+
+    def judge_try(self, workspace, judges=None, use_judge_file=False):
+        """What the judges make of saved answers. It never spends: only verdicts already kept count, so new ones wait for a person."""
+        identifier = self._id(workspace)
+        if use_judge_file and judges is not None:
+            raise ValueError("Give judges or use the judges file, not both")
+        return self.engine.try_judges(identifier, self.engine.eval_judges(identifier) if use_judge_file else judges)
 
     def _check_text(self, identifier, check, use_eval_file):
         if use_eval_file and check is not None:

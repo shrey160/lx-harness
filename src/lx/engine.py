@@ -180,12 +180,18 @@ class Engine:
         judge = spec.get("judge") or {}
         if judge.get("entry") and judge.get("cap_usd"):
             # Its own scope and cap, inside the run's, so a loop that spends its whole budget is still graded.
-            entry, profile = judge["entry"], self.registry.profile(judge["entry"])
-            transport = (judging.JudgePreviewTransport() if mode != "live" else transports.get(entry) or
-                         self._transport(entry, profile, call_limit, truth, limits=limits, contract=contract, rate=judge["provider"].get("requests_per_minute")))
-            clients["judge"] = ChatClient(transport, BudgetScope(ledger, f"{scope_id}/judge", judge["cap_usd"]), profile=profile,
-                                          max_tokens=limits["reply_tokens"], call_seconds=limits["call_seconds"])
+            clients["judge"] = self._judge_client(workspace, spec, f"{scope_id}/judge", judge["cap_usd"], transports.get(judge["entry"]) if mode == "live" else None,
+                                                  call_limit=call_limit, truth=truth, contract=contract)
         return clients
+
+    def _judge_client(self, workspace, spec, scope_id, cap_usd, transport=None, *, call_limit=None, truth=None, contract=None):
+        judge, limits, live = spec["judge"], self.limits_of(spec), spec.get("mode") == "live"
+        profile = self.registry.profile(judge["entry"])
+        if transport is None:
+            transport = (self._transport(judge["entry"], profile, call_limit or limits["chat_calls"], truth, limits=limits, contract=contract or {},
+                                         rate=judge["provider"].get("requests_per_minute")) if live else judging.JudgePreviewTransport())
+        return ChatClient(transport, BudgetScope(self._ledger(workspace) if live else workspace.preview_ledger, scope_id, cap_usd), profile=profile,
+                          max_tokens=limits["reply_tokens"], call_seconds=limits["call_seconds"])
 
     def _ledger(self, workspace):
         identifier = workspace.project()["id"]
@@ -839,6 +845,40 @@ class Engine:
             raise ValueError("This workflow has a built-in check")
         from .taskrun import try_check
         return try_check(workspace, self._check_for(workspace, draft, check))
+
+    def try_judges(self, identifier, judges=None, *, spend=None):
+        """Judge saved answers with the spec's judges, or with draft criteria laid over them, and say what changes; changes no spec.
+
+        Only a person can spend: `spend` is {"cap_usd", "notice_accepted", "contributor_accepted"}. Without it, only
+        verdicts already kept count, and any other answer is left not judged, so an agent's try costs nothing."""
+        from .taskrun import _NoCalls, try_judges
+        workspace = self.workspace(identifier)
+        draft = workspace.spec(workspace.project()["spec_version"])
+        if not draft.get("task"):
+            raise ValueError("This workflow has a built-in check")
+        judge = self._judge(draft["task"], draft, judges, False) if judges is not None else draft.get("judge")
+        if not judge:
+            raise ValueError("This spec has no judges; give some to try")
+        if not judge.get("entry"):
+            raise ValueError("Choose a model for the judges first")
+        live = draft["mode"] == "live"
+        spec = {**draft, "judge": judge}
+        if spend is None or not live:
+            client = _NoCalls() if live else self._judge_client(workspace, spec, "judge-try-"+uuid.uuid4().hex[:12], 1)
+        else:
+            cap = judging.check_cap(spend.get("cap_usd"))
+            if cap < self.judge_call_usd(spec):
+                raise ValueError(f"A cap of ${cap:.2f} is less than one judge call holds while it runs (${self.judge_call_usd(spec):.4f})")
+            host = urlsplit(judge["provider"]["base_url"]).netloc
+            if host not in self._notice_hosts(identifier):
+                if spend.get("notice_accepted") is not True:
+                    raise ValueError(f"Accept that the judge at {host} receives the saved answers, their expected answers"+(" and the requests" if judge["sees_request"] else ""))
+                self.store.save("notice", {"id":identifier,"hosts":sorted(set(self._notice_hosts(identifier))|{host})})
+            if judge["entry"] == DEFAULT_ROLE_ENTRY and spend.get("contributor_accepted") is not True:
+                raise ValueError("Accept that Spark Contributor may use what it judges for training")
+            client = self._judge_client(workspace, spec, "judge-try-"+uuid.uuid4().hex[:12], cap)
+        found = judging.Judge(judge, client, workspace.home/"judge-cache", live=live, timeout=max(120, self.limits_of(spec)["call_seconds"]))
+        return try_judges(workspace, found, reasons=spend is not None)
 
     def ready(self, identifier):
         """Whether the current spec could run live on the samples as they are now. No model and no network:
