@@ -27,17 +27,17 @@ sys.path.insert(0, str(HERE.parent))
 import build_inventory_mix
 from receiving_audit.build import compose
 
-ROOT = Path(".lx/inventory-update-local")
+ROOT = Path(".lx/inventory-update-json")
 WORK = ROOT / "review"
 PLANS = [
     {"name": "add-cups", "item": "cup", "before": {"cup": 4, "bottle": 6, "bowl": 8},
      "prices": {"cup": 2.50, "bottle": 4.00, "bowl": 6.00}, "balance": 50.00,
      "counts": [2, 3], "sign": 1, "distractors": ["bottle", "bowl"], "voice": "af_sarah",
-     "note": "Please update the inventory and cash account on the sheet in photo three. We purchased all the cups in photos one and two at the listed unit price and paid for them from this account. Add those cups to stock and record the payment. These are two separate groups of objects. Leave the other stock and all unit prices unchanged."},
+     "note": "Please update the inventory and cash account supplied in the JSON input. We purchased all the cups in photos one and two at the listed unit price and paid for them from this account. Add those cups to stock and record the payment. These are two separate groups of objects. Leave the other stock and all unit prices unchanged."},
     {"name": "remove-bottles", "item": "bottle", "before": {"cup": 7, "bottle": 10, "bowl": 5},
      "prices": {"cup": 2.00, "bottle": 3.25, "bowl": 5.00}, "balance": 25.00,
      "counts": [1, 2], "sign": -1, "distractors": ["cup", "bowl"], "voice": "am_adam", "avoid": [88783],
-     "note": "Please update the inventory and cash account on the sheet in photo three. We sold all the bottles in photos one and two at the listed unit price and received the money in this account. Remove those bottles from stock and record the cash received. These are two separate groups of objects. Leave the other stock and all unit prices unchanged."},
+     "note": "Please update the inventory and cash account supplied in the JSON input. We sold all the bottles in photos one and two at the listed unit price and received the money in this account. Remove those bottles from stock and record the cash received. These are two separate groups of objects. Leave the other stock and all unit prices unchanged."},
 ]
 
 
@@ -56,19 +56,6 @@ def load_check():
 def starting(plan):
     return {"inventory": {k: {"quantity": v, "unit_price": plan["prices"][k]} for k, v in plan["before"].items()},
             "account": {"currency": "USD", "balance": plan["balance"]}}
-
-
-def sheet(plan):
-    image = Image.new("RGB", (1024, 768), (248, 246, 239))
-    draw = ImageDraw.Draw(image)
-    draw.text((55, 60), "Starting inventory and cash", fill="#203040", font=ImageFont.load_default(size=38))
-    draw.text((55, 125), "Unit prices in USD / before this transaction", fill="#536070", font=ImageFont.load_default(size=25))
-    lines = ['{', '  "inventory": {']
-    for index, (kind, qty) in enumerate(plan["before"].items()):
-        lines.append(f'    "{kind}": {{"quantity": {qty}, "unit_price": {plan["prices"][kind]:.2f}}}' + (',' if index < len(plan["before"]) - 1 else ''))
-    lines += ['  },', f'  "account": {{"currency": "USD", "balance": {plan["balance"]:.2f}}}', '}']
-    draw.multiline_text((55, 205), '\n'.join(lines), fill="#152333", font=ImageFont.load_default(size=25), spacing=19)
-    return image
 
 
 def build():
@@ -110,8 +97,7 @@ def build():
                     evidence.append({"photo": photo, "box": box})
                 sources.append({"sample": name, "photo": photo, **{k: c[k] for k in ("ann_id", "image_id", "file_name", "kind", "license", "flickr_url", "coco_url")}})
             layout.append(entries)
-        sheet(plan).save(folder / "photos/3.jpg", quality=95)
-        save(folder / "inventory.json", starting(plan))
+        save(folder / "input.json", starting(plan))
         truth = {"before": plan["before"], "prices": plan["prices"], "balance": plan["balance"], "item": plan["item"], "change": plan["sign"] * sum(plan["counts"]), "evidence": evidence}
         load_check().example_answer(truth)
         save(folder / "truth.json", truth)
@@ -124,7 +110,7 @@ def build():
     shutil.copyfile(HERE / "check.py", ROOT / "eval/check.py")
     shutil.copyfile(HERE / "task.json", ROOT / "task.json")
     shutil.copyfile(HERE / "README.md", ROOT / "README.md")
-    print("Built two samples, six photos, starting inventories and controller truth.")
+    print("Built two samples, four photos, direct JSON inputs and controller truth.")
 
 
 def voice():
@@ -144,12 +130,12 @@ def review():
     scripts = json.loads((WORK / "controller_truth/scripts.json").read_text())
     overview = Image.new("RGB", (1200, 660), "#e9edf2")
     out = ['<!doctype html><meta charset="utf-8"><title>Inventory update review</title>',
-           '<style>body{font:18px system-ui;margin:32px;background:#eef2f6;color:#17283a}section{background:white;padding:24px;margin:24px 0;border-radius:16px}.photos{display:flex;gap:12px}img{width:32%;object-fit:contain}pre{white-space:pre-wrap}audio{width:100%}</style>',
-           '<h1>Two inventory updates</h1><p>Reviewer material: includes answers. Worker receives only photos and audio; truth is controller-only. Synthetic composites, existing licensed COCO objects, offline Kokoro speech. Baseline difficulty and actual tool use are unmeasured.</p>']
+           '<style>body{font:18px system-ui;margin:32px;background:#eef2f6;color:#17283a}section{background:white;padding:24px;margin:24px 0;border-radius:16px}.photos{display:flex;gap:12px;align-items:start}.photos img{width:32%;object-fit:contain}.photos pre{width:32%;font-size:14px;overflow-wrap:anywhere}pre{white-space:pre-wrap}audio{width:100%}</style>',
+           '<h1>Two inventory and cash updates / direct JSON</h1><p>Reviewer material: includes answers. Worker receives two object photos, audio and input.json as text data; truth is controller-only. Synthetic composites, existing licensed COCO objects, offline Kokoro speech. Baseline difficulty and actual tool use are unmeasured.</p>']
     for row, (name, layout) in enumerate(layouts.items()):
         folder = ROOT / "samples" / name
         out.append(f'<section><h2>{html.escape(name + " / " + layout["name"])}</h2><div class="photos">')
-        for photo in (1, 2, 3):
+        for photo in (1, 2):
             image = Image.open(folder / "photos" / f"{photo}.jpg").convert("RGB")
             overview.paste(image.resize((384, 288)), (12 + (photo - 1) * 400, 35 + row * 330))
             ImageDraw.Draw(overview).text((12 + (photo - 1) * 400, 12 + row * 330), f"{name} / photo {photo}", fill="#17283a", font=ImageFont.load_default(size=17))
@@ -163,7 +149,12 @@ def review():
             buf = io.BytesIO()
             image.save(buf, "JPEG", quality=90)
             out.append('<img alt="Photo ' + str(photo) + '" src="data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode() + '">')
-        out.append('</div><p>' + html.escape(scripts[name]["text"]) + '</p>')
+        input_text = (folder / "input.json").read_text(encoding="utf-8")
+        out.append('<pre><strong>input.json / direct worker data</strong>\n' + html.escape(input_text) + '</pre></div>')
+        draw = ImageDraw.Draw(overview)
+        draw.text((812, 12 + row * 330), name + ' / input.json (text)', fill="#17283a", font=ImageFont.load_default(size=17))
+        draw.multiline_text((812, 40 + row * 330), json.dumps(json.loads(input_text), indent=1), fill="#17283a", font=ImageFont.load_default(size=11), spacing=0)
+        out.append('<p>' + html.escape(scripts[name]["text"]) + '</p>')
         clip = base64.b64encode((folder / "request.wav").read_bytes()).decode()
         out.append('<audio controls src="data:audio/wav;base64,' + clip + '"></audio>')
         truth = json.loads((folder / "truth.json").read_text())
@@ -224,7 +215,8 @@ def verify():
             cases += 1
         reversed_boxes = changed("evidence", list(reversed(answer["evidence"])))
         assert all(flags(reversed_boxes))
-        assert json.loads((folder / "inventory.json").read_text()) == starting(truth)
+        assert json.loads((folder / "input.json").read_text()) == starting(truth)
+        assert sorted(p.name for p in folder.joinpath("photos").iterdir()) == ["1.jpg", "2.jpg"]
         expected_evidence = [{"photo": photo, "box": entry["box"]}
                              for photo, entries in enumerate(layouts[folder.name]["photos"], 1)
                              for entry in entries if entry["target"]]
@@ -242,7 +234,7 @@ def verify():
             import array
             pcm = array.array("h", wav.readframes(wav.getnframes()))
             assert sum(abs(v) for v in pcm) / len(pcm) > 100
-        summary[folder.name] = {"audio_seconds": round(seconds, 2), "photos": 3, "objects_changed": abs(truth["change"])}
+        summary[folder.name] = {"audio_seconds": round(seconds, 2), "photos": 2, "direct_json": True, "objects_changed": abs(truth["change"])}
     hashes = {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sample_files()}
     save(ROOT / "validation.json", {"samples": summary, "negative_cases": cases, "good_and_reordered_evidence_pass": True,
          "blank_scores_zero": True, "sha256": hashes, "live_calls": 0, "baseline_measured": False})
@@ -261,7 +253,7 @@ def pack():
 
 def sample_files():
     return [ROOT / "samples" / name / filename for name in ("sample-01", "sample-02")
-            for filename in ("photos/1.jpg", "photos/2.jpg", "photos/3.jpg", "request.wav", "inventory.json", "truth.json")]
+            for filename in ("photos/1.jpg", "photos/2.jpg", "request.wav", "input.json", "truth.json")]
 
 
 if __name__ == "__main__":

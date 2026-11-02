@@ -1,7 +1,7 @@
 # Inventory and cash updates: two samples
 
 Two small photo/audio transactions for the local LFM3-VL-2B worker. A stock
-clerk receives an inventory with unit prices and a cash balance, two photos of
+clerk receives an inventory with unit prices and a cash balance as direct JSON, two photos of
 distinct objects, and a spoken transaction request. The answer updates stock
 and cash, preserves unrelated stock and prices, and gives a box per changed
 object. These are constructed test scenes, not photographs of real transactions.
@@ -16,9 +16,10 @@ has one unrelated object. All objects are separate and there is no overlap
 between photos. Unit prices are both purchase/sale transaction prices here;
 there is no margin calculation, tax, fee, discount or other cash movement.
 
-Photo 3 renders the starting inventory and account as legible JSON. The same
-data is in `inventory.json`; LX currently gives photo workers images and audio,
-not arbitrary JSON files, so the sheet is the operative input.
+`input.json` contains the starting inventory and account. LX supplies this
+object directly as `input` in the worker's user message. There are exactly two
+object photos, with no inventory-sheet photo and no visual text-reading step.
+The expected updated answer is separate in controller-only `truth.json`.
 
 Transcribe provides the request and SAM provides instance boxes. A vision
 model could count without SAM: the output check tests localization, not which
@@ -37,14 +38,14 @@ python scripts/inventory_update/build.py verify
 python scripts/inventory_update/build.py pack
 ```
 
-The default output is `.lx/inventory-update-local/`. `--root` chooses another
+The default output is `.lx/inventory-update-json/`. `--root` chooses another
 fresh folder. Build refuses to overwrite samples. The existing COCO downloads,
 Pillow, local Kokoro model/voices and `.lx/tts-venv` are prerequisites. No
 downloads or provider calls occur. Speech is synthesized offline with Kokoro
 and phonemizer; its temporary files stay under the generated review folder.
 
-`samples/sample-*/` holds `photos/1.jpg` to `3.jpg`, `request.wav`,
-`inventory.json` and controller-only `truth.json`. The root has `task.json`,
+`samples/sample-*/` holds `photos/1.jpg` and `2.jpg`, `request.wav`,
+`input.json` and controller-only `truth.json`. The root has `task.json`,
 `eval/check.py`, `attribution.json`, `validation.json`, `overview.jpg` and an
 annotated `review.html` with audio controls and answers. `review/` holds voice
 scripts and source layouts, outside worker inputs. Keep truth and reviewer
@@ -57,7 +58,8 @@ checks, and blank answers score zero. Evidence order does not matter.
 
 Both samples belong to the learning stream; there is no independent held-out
 set and no generalization claim. The saved workspace draft selects the existing
-Unsloth worker and Spark improver, with SAM and Transcribe enabled. It is
+Unsloth worker and Spark improver, with SAM and Transcribe enabled. It retains
+the user's concise-small-worker improver hint and worker identity note. It is
 unapproved; existing default budgets and limits remain. `ready` means the files
 can run, not that the model server is currently reachable or capable.
 
