@@ -233,7 +233,7 @@ class InventoryAdapter(ImagesAdapter):
         return render_trace(record["trace"], record["final_text"], obs_trunc=obs_trunc)
 
 
-def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None, on_grading=None):
+def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None, on_grading=None, scored=True):
     """E-A: Harness² k=1 (sequential mode) over the stream, then controller-side grading per sample."""
     from harness2.core import tree
     from harness2.core.schedule import Namespace, run_domain
@@ -251,11 +251,11 @@ def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None,
                         reflector_prop=reflector)
     if on_grading:
         on_grading()
-    return grade_stream(adapter, output, stream, result)
+    return grade_stream(adapter, output, stream, result, scored=scored)
 
 
-def grade_stream(adapter, output, stream, result):
-    """Score a finished stream from its saved runs; makes no model calls."""
+def grade_stream(adapter, output, stream, result, *, scored=True):
+    """Score a finished stream from its saved runs; makes no model calls. With no check it only gathers what each sample left."""
     from harness2.core import tree
     from harness2.core.schedule import Namespace
 
@@ -276,6 +276,8 @@ def grade_stream(adapter, output, stream, result):
             adapter.spec.runs_root, task)/"harnesses"/selection.get("chosen_label", "")
         chosen_run = adapter.spec.runs_root/selection["chosen_run_dir"] if selection.get("chosen_run_dir") else base_run
         def graded(run):
+            if not scored:
+                return None
             answer = json.loads(adapter.deliverable_text(run))
             result_ = adapter.verify(task, answer)
             return {"score": result_.score, "passed": result_.n_passed, "checks": result_.n_criteria}
@@ -290,8 +292,8 @@ def grade_stream(adapter, output, stream, result):
     if not rows:
         raise ValueError("No sample produced a reference run to compare")
     report = {"experiment": "E-A", "k": 1, "mode": "seq", "stream": stream, "run": result, "skipped": skipped,
-              "per_sample": rows, "means": {"base": mean("base"), "harness2": mean("harness2")},
-              "grading": "controller-side checklist after the run; never shown to the improver",
+              "per_sample": rows, "scored": scored, "means": {"base": mean("base"), "harness2": mean("harness2")} if scored else None,
+              "grading": "controller-side checklist after the run; never shown to the improver" if scored else "not scored: this run had no check",
               "executions_this_invocation": adapter.executions}
     (output/"ea_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return report

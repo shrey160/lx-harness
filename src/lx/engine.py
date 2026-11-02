@@ -1123,6 +1123,8 @@ class Engine:
         job = workspace.run(job_id)
         if job["status"] != "failed" or not job["spec"].get("task") or job.get("kind") == "trial":
             raise ValueError("Only a failed task run can be graded again")
+        if not job["spec"].get("check"):
+            raise ValueError("This run has no check, so there is nothing to grade")
         try:
             result = regrade(self, workspace, job, live=job["spec"].get("mode") == "live")
         except (OSError, KeyError):

@@ -68,9 +68,10 @@ def limitations(spec, report, chosen, live, approved_by="person"):
     """What a reader of this package must not assume; written from the run itself."""
     rows, skipped = report["per_sample"], report["skipped"]
     worker = spec["providers"]["worker"].get("model_id") or spec["roles"]["worker"]
+    measured = [f"- Measured on {len(rows)} sample(s), one run per harness, so a single unlucky reply can move a score.",
+                "- No held-out samples: every score here comes from samples the loop adapted on, so it reads high."]
     lines = ["# Limitations", "",
-             f"- Measured on {len(rows)} sample(s), one run per harness, so a single unlucky reply can move a score.",
-             "- No held-out samples: every score here comes from samples the loop adapted on, so it reads high.",
+             *(measured if report.get("scored", True) else ["- Never scored: this run had no check, so nothing here says whether this harness is better or worse. Read its replies and edits before using it."]),
              (f"- This harness was adopted on {chosen}, the last sample in this run's order. Scores played no part in that, "
               "and another run's order would give another harness." if chosen else "- The last sample in this run's order kept the base harness, so this is the base harness."),
              f"- Learned with {worker} as the agent. A harness can fail on another model; retest it after a swap.",
@@ -104,7 +105,7 @@ def learned(base, final, report, chosen):
     """What the loop changed, for a person or an outside agent to read. `base` and `final` map file names to contents."""
     means = report["means"]
     scores = (f"Mean score, each sample with its own harness: {means['base']:.2f} before, {means['harness2']:.2f} after. "
-              "One run cannot separate a gain from noise, and scores chose nothing here.")
+              "One run cannot separate a gain from noise, and scores chose nothing here.") if means else "Not scored: this run had no check."
     if chosen is None:
         return f"# What was learned\n\nThe last sample in this run's order kept the base harness, so this package is the base harness.\n\n{scores}\n"
     lines = ["# What was learned", "", f"This package is the harness adopted on {chosen}, the last sample in this run's order.", "", scores, "",
@@ -225,20 +226,23 @@ def _package(adapter, report, output, spec, *, live, check, approved_by="person"
     chosen = last if final != base else None
     (package/"learned.md").write_text(learned(base, final, report, chosen), encoding="utf-8")
     (package/"spec.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
-    (package/"check.py").write_text(check, encoding="utf-8", newline="")
+    if check is not None:
+        (package/"check.py").write_text(check, encoding="utf-8", newline="")
     (package/"limitations.md").write_text(limitations(spec, report, chosen, live, approved_by), encoding="utf-8")
     return last, chosen
 
 
 def summarize_report(task, report, last, chosen, live, folders):
-    rows = report["per_sample"]
-    return {"task": task["name"], "live": live, "stream_order": [folders.get(sample) or sample for sample in report["stream"]], "simulated_usage": not live,
-            "package_sample": last, "package_is_base": chosen is None, "means": report["means"], "skipped": report["skipped"],
-            "checks": {"base": {t: r["base"]["score"] == 1.0 for t, r in rows.items()},
-                       "harness2": {t: r["harness2"]["score"] == 1.0 for t, r in rows.items()}},
+    rows, scored = report["per_sample"], report.get("scored", True)
+    summary = {"task": task["name"], "live": live, "stream_order": [folders.get(sample) or sample for sample in report["stream"]], "simulated_usage": not live,
+               "package_sample": last, "package_is_base": chosen is None, "means": report["means"], "skipped": report["skipped"], "scored": scored, "samples": list(rows),
+               "files_added": {t: r["files_added"] for t, r in rows.items()}}
+    if not scored:
+        return {**summary, "grading": "not scored: this run had no check"}
+    return {**summary, "checks": {"base": {t: r["base"]["score"] == 1.0 for t, r in rows.items()},
+                                  "harness2": {t: r["harness2"]["score"] == 1.0 for t, r in rows.items()}},
             "scores": {"base": {t: r["base"]["score"] for t, r in rows.items()},
                        "harness2": {t: r["harness2"]["score"] for t, r in rows.items()}},
-            "files_added": {t: r["files_added"] for t, r in rows.items()},
             "grading": "controller-side check file after the run; never shown to the improver, and never used to choose a harness"}
 
 
@@ -273,7 +277,7 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
         if mcp:
             mcp.check()
         report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health,
-                            on_grading=lambda: workspace.update_run(identifier, phase="grading"))
+                            on_grading=lambda: workspace.update_run(identifier, phase="grading"), scored=check is not None)
     finally:
         if mcp:
             mcp.close()
@@ -322,7 +326,8 @@ def _tried_harness(workspace, job, folder):
     """What a reader must know about a trial of a package: which harness ran, and whether its run saw this sample."""
     source = job["from_run"]
     folders = _folders(workspace.run_dir(source))
-    seen = folder in {folders.get(sample, sample) for sample in workspace.run(source)["result"]["scores"]["base"]}
+    result = workspace.run(source)["result"]
+    seen = folder in {folders.get(sample, sample) for sample in result.get("samples") or result["scores"]["base"]}
     return {"harness": {"from_run": source, "sha256": harness_sha256(workspace.run_dir(job["id"])/"harness"), "sample_seen": seen},
             "note": (f"One sample on the package of run {source}, which saw this sample, so this reads high: a smoke test, not a measure." if seen else
                      f"One sample on the package of run {source}, which never saw this sample. One sample is still a smoke test, not a measure.")}

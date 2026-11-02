@@ -37,13 +37,19 @@ def execute(engine, workspace, identifier, snapshot):
     health = RunHealth(workspace.run_dir(identifier)/"health.json",stop_after=limits["stop_after_empty_runs"])
     if trial:
         return engine.finish_trial(workspace,job,run_trial(engine,workspace,job,snapshot,clients["worker"],
-                                                           check=workspace.check_source(job["spec"]["check"]),health=health))
+                                                           check=_check(workspace,job),health=health))
     if job["spec"].get("task"):
-        result = run_task(engine,workspace,job,snapshot,clients,live=live,check=workspace.check_source(job["spec"]["check"]),health=health)
+        result = run_task(engine,workspace,job,snapshot,clients,live=live,check=_check(workspace,job),health=health)
     else:
         result = optimize_images(snapshot,output,clients["improver"],engine.demo.controller_truth,job["spec"],live=live,
                                   worker_client=clients["worker"],limits=limits,health=health)
     return engine.finish_run(workspace,job,result)
+
+
+def _check(workspace,job):
+    """The run's check, or None for a run with no check."""
+    reference = job["spec"].get("check")
+    return workspace.check_source(reference) if reference else None
 
 
 def main():

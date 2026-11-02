@@ -1,5 +1,6 @@
 """The orchestrator's actions (D-024): a scripted caller reaches a finished preview, and what stays with a person is refused."""
 from pathlib import Path
+import re
 import shutil
 import unittest
 from unittest.mock import patch
@@ -306,6 +307,50 @@ class WholeFlow(Actions):
         run = self.lx.run_status(self.path)["runs"][0]
         self.assertEqual((run["status"], run["approved_by"], run["mode"]), ("completed", "preview", "controlled_preview"))
         self.assertNotIn("spec", self.lx.results(self.path, run_id))
+
+    def preview(self, workspace):
+        run_id = self.lx.preview(self.path)["run_id"]
+        execute(self.app, workspace, run_id, workspace.run_dir(run_id)/"snapshot")
+        return run_id
+
+    def test_a_run_with_no_check_finishes_unscored(self):
+        project = self.begin()
+        workspace = self.app.workspace(project["id"])
+        self.lx.spec_draft(self.path, no_check=True)
+        run_id = self.preview(workspace)
+        run = self.lx.run_status(self.path)["runs"][0]
+        self.assertEqual(run["status"], "completed", run)
+        result = self.lx.results(self.path, run_id)
+        self.assertEqual((result["scored"], result["means"], len(result["samples"])), (False, None, 6))
+        self.assertNotIn("scores", result)
+        self.assertIn("Not scored", result["learned"])
+        package = workspace.package_dir(run_id)
+        self.assertFalse((package/"check.py").exists())
+        self.assertIn("Never scored", (package/"limitations.md").read_text(encoding="utf-8"))
+        self.assertTrue((package/"harness"/"systemprompt.md").is_file())
+
+    def improver_input(self, workspace, run_id):
+        """Every file of what the improver read and wrote, with what differs between any two runs taken out."""
+        audit = workspace.run_dir(run_id)/"outputs"/"proposer_audit"
+        folder = str(workspace.run_dir(run_id))
+        clean = lambda text: re.sub(r'"\w+": [\d.e-]+,(\s+"cost_usd")', r"\1", text.replace(folder, "").replace(folder.replace("\\", "\\\\"), "").replace(run_id, ""))
+        return {path.relative_to(audit).as_posix(): clean(path.read_text(encoding="utf-8", errors="replace")) for path in sorted(audit.rglob("*")) if path.is_file()}
+
+    def test_a_check_changes_nothing_the_loop_sees_or_learns(self):
+        project = self.begin()
+        workspace = self.app.workspace(project["id"])
+        order = lambda stream, identifier: sorted(stream)
+        with patch("lx.taskrun.run_order", order):
+            checked = self.preview(workspace)
+            self.lx.spec_draft(self.path, no_check=True)
+            unchecked = self.preview(workspace)
+        files = [{path.relative_to(root).as_posix(): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
+                 for root in (workspace.package_dir(run)/"harness" for run in (checked, unchecked))]
+        self.assertEqual(files[0], files[1])
+        first, second = self.improver_input(workspace, checked), self.improver_input(workspace, unchecked)
+        self.assertTrue(first)
+        self.assertEqual(sorted(first), sorted(second))
+        self.assertEqual([name for name in first if first[name] != second[name]], [])
 
     def test_saved_answers_show_what_a_draft_check_would_change(self):
         project = self.begin()
