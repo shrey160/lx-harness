@@ -140,6 +140,45 @@ class ReachesOnlyTheImprover(test_trial.Trials):
         messages = adapter.domain.messages(sample, "prompt", [(100, 100)]*len(sample["photos"]))
         self.assertNotIn(NOTE, json.dumps(messages))
 
+    def test_the_worker_note_is_off_by_default_and_reaches_only_the_improver(self):
+        self.assertFalse(self.lx.spec_show(self.path)["tell_improver_worker"])
+        with self.assertRaisesRegex(ValueError, "true or false"):
+            self.lx.spec_draft(self.path, tell_improver_worker="yes")
+        self.lx.spec_draft(self.path, tell_improver_worker=True)
+        self.lx.spec_draft(self.path, tell_improver_worker=False)
+        self.assertNotIn("tell_improver_worker", self.app.project(self.id)["draft"])
+        self.lx.spec_draft(self.path, tell_improver_worker=True)
+        self.lx.spec_draft(self.path, goal="Count what the request asks for.")
+        self.assertTrue(self.lx.spec_show(self.path)["tell_improver_worker"])
+        self.approve_it()
+        job = self.app.start(self.id, launch=False)
+        run_dir, spec = self.workspace.run_dir(job["id"]), job["spec"]
+        stream, truth, _ = tasks.build_dataset(run_dir/"snapshot", run_dir/"dataset", spec["task"], preview=False)
+        adapter = _adapter(spec["task"], run_dir, run_dir/"outputs", None, truth, self.workspace.check_source(spec["check"]),
+                           live=True, limits=self.app.limits_of(spec), tools=tasks.spec_tools(spec))
+        hints.stage_worker(adapter, spec["providers"]["worker"], stream)
+        text = (Path(adapter.task_files(stream[0]))/"worker.md").read_text(encoding="utf-8")
+        name = spec["providers"]["worker"]["name"]
+        self.assertIn(name, text)
+        self.assertNotRegex(text.lower(), "should|keep it|avoid|prefer")  # facts, never advice
+        from harness2.core import context
+        with tempfile.TemporaryDirectory() as folder:
+            context.build(Path(folder)/"context", adapter, stream[0])
+            self.assertTrue((Path(folder)/"context"/"source"/"worker.md").is_file())
+        sample = adapter.by_id[stream[0]]
+        messages = adapter.domain.messages(sample, "prompt", [(100, 100)]*len(sample["photos"]))
+        self.assertNotIn("# The worker", json.dumps(messages))
+        self.assertIn("which model the worker is", next(item for item in self.app.project(self.id)["notice"] if item["who"] == "improver")["gets"])
+
+    def test_a_check_file_no_spec_ever_named_does_not_block_the_next_draft(self):
+        version = self.lx.spec_show(self.path)["version"]+1
+        orphan = self.workspace.home/"checks"/f"v{version}"/"check.py"
+        orphan.parent.mkdir(parents=True, exist_ok=True)
+        orphan.write_text("left behind", encoding="utf-8")
+        text = "def score(truth, answer):\n    return answer == truth\n"
+        self.assertEqual(self.lx.spec_draft(self.path, check=text)["version"], version)
+        self.assertEqual(self.lx.spec_show(self.path)["check"], text)
+
     def test_a_run_without_hints_stages_nothing(self):
         self.approve_it()
         job = self.app.start(self.id, launch=False)

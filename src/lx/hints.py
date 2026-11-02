@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+from urllib.parse import urlsplit
 
 FILE = "improver_hints.md"
 MAX_CHARS = 8000
@@ -129,6 +130,31 @@ def stage(adapter, hints, folders, samples):
             (target/"hints.md").write_text(text, encoding="utf-8")
             wrote.append(sample)
     return wrote
+
+
+def worker_note(provider):
+    """Facts about the worker's model for the improver, when a person asks for it. Not part of the Harness² method,
+    whose improver prompts never name the executor: this states facts and gives no instruction, so how to edit stays with the loop."""
+    host = urlsplit(provider.get("base_url") or "").hostname or ""
+    local = host in {"localhost", "127.0.0.1", "::1"}
+    facts = [f"Its context window is {provider['context_limit']:,} tokens" if provider.get("context_limit") else None,
+             f"it {'accepts' if provider.get('accepts_images') else 'does not accept'} images",
+             f"it {'supports' if provider.get('supports_tools') else 'does not support'} tool calls",
+             {"on": "its thinking is switched on", "off": "its thinking is switched off"}.get(provider.get("thinking"))]
+    return ("# The worker\n\nA fact about this setup, given because the person who set up this task chose to share it: the trajectories "
+            f"you read come from {provider['name']} (`{provider.get('model_id') or provider['id']}`)"
+            + (", running on the person's own machine" if local else "") + ". "
+            + "; ".join(fact for fact in facts if fact) + ".\n")
+
+
+def stage_worker(adapter, provider, samples):
+    """Write the worker note beside each adapted sample's source notes."""
+    text = worker_note(provider)
+    for sample in samples:
+        target = Path(adapter.task_files(sample))
+        target.mkdir(parents=True, exist_ok=True)
+        (target/"worker.md").write_text(text, encoding="utf-8")
+    return list(samples)
 
 
 def summary(hints):

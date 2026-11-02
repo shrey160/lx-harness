@@ -9,9 +9,10 @@ export function SpecTab({state,project,ui,setTab}){
   const [goal,setGoal]=useState(draft.goal),[mode,setMode]=useState(draft.mode||'controlled_preview'),[roles,setRoles]=useState(draft.roles);
   const [budget,setBudget]=useState(String(draft.budget_usd)),[workspaceBudget,setWorkspaceBudget]=useState(String(project.budget.cap_usd));
   const [limits,setLimits]=useState(draft.limits),[tools,setTools]=useState(draft.tools),[mcpTools,setMcpTools]=useState((draft.mcp_tools||[]).map(entry=>`${entry.server}/${entry.tool}`)),[reviewing,setReviewing]=useState(false),[checkResult,setCheckResult]=useState(null),[readyResult,setReadyResult]=useState(null);
+  const [tellWorker,setTellWorker]=useState(Boolean(draft.tell_improver_worker));
   const [hintAll,setHintAll]=useState((draft.hints&&draft.hints.all)||''),[hintSamples,setHintSamples]=useState((draft.hints&&draft.hints.samples)||{});
   const folders=[...new Set((project.inventory.inventory||[]).map(item=>item.path.split('/')[0]).filter(name=>/^sample-/.test(name)))].sort();
-  const hintsDirty=hintAll!==((draft.hints&&draft.hints.all)||'')||JSON.stringify(hintSamples)!==JSON.stringify((draft.hints&&draft.hints.samples)||{});
+  const hintsDirty=hintAll!==((draft.hints&&draft.hints.all)||'')||JSON.stringify(hintSamples)!==JSON.stringify((draft.hints&&draft.hints.samples)||{})||tellWorker!==Boolean(draft.tell_improver_worker);
   const specDirty=goal!==draft.goal||mode!==(draft.mode||'controlled_preview')||JSON.stringify(roles)!==JSON.stringify(draft.roles)||JSON.stringify(limits)!==JSON.stringify(draft.limits)||JSON.stringify(mcpTools)!==JSON.stringify((draft.mcp_tools||[]).map(entry=>`${entry.server}/${entry.tool}`))||JSON.stringify(tools)!==JSON.stringify(draft.tools)||Number(budget)!==Number(draft.budget_usd)||hintsDirty;
   const [trialCap,setTrialCap]=useState(String(project.trial_cap_usd));
   const trialDirty=Number(trialCap)!==project.trial_cap_usd;
@@ -20,7 +21,7 @@ export function SpecTab({state,project,ui,setTab}){
   const save=()=>ui.act(async()=>{
     if(Number(workspaceBudget)!==project.budget.cap_usd)await api(`projects/${project.id}/budget`,{cap_usd:Number(workspaceBudget)});
     if(trialDirty)await api(`projects/${project.id}/trial-cap`,{cap_usd:Number(trialCap)});
-    if(specDirty)await api(`projects/${project.id}/spec`,{goal,budget_usd:Number(budget),mode,roles,limits:ownLimits(),...(tools?{tools}:{}),...(draft.task?{mcp_tools:mcpTools,hints:{all:hintAll,samples:hintSamples}}:{})});
+    if(specDirty)await api(`projects/${project.id}/spec`,{goal,budget_usd:Number(budget),mode,roles,limits:ownLimits(),...(tools?{tools}:{}),...(draft.task?{mcp_tools:mcpTools,hints:{all:hintAll,samples:hintSamples},tell_improver_worker:tellWorker}:{})});
     ui.notify(specDirty?'Saved as a new version.':'Budget saved.');
   });
   const testCheck=()=>ui.act(async()=>{setCheckResult(null);setCheckResult(await api(`projects/${project.id}/check-test`,{}));});
@@ -65,6 +66,7 @@ export function SpecTab({state,project,ui,setTab}){
       <p className="muted">Notes on how this kind of task is done: the order of work, which source wins over which, what to watch for. Only the improver reads them; the worker and the check never do. Do not write answers, counts, totals or boxes.</p>
       {project.hint_drift&&project.hint_drift.length>0&&<div className="callout warn" role="status"><p>{project.hint_drift.join('. ')}. Approval waits until they match.</p><button className="button" disabled={ui.busy} onClick={()=>ui.act(async()=>{await api(`projects/${project.id}/spec`,{goal:draft.goal,budget_usd:Number(draft.budget_usd),take_hint_files:true,limits:draft.limits_set||{}});ui.notify('Took the hint files.');})}>Use the hint files</button></div>}
       <label className="field">For every sample<textarea rows="5" aria-label="Hints for every sample" maxLength="8000" value={hintAll} onChange={e=>setHintAll(e.target.value)}/></label>
+      <label className="check"><input type="checkbox" checked={tellWorker} onChange={e=>setTellWorker(e.target.checked)}/><span>Tell the improver which model the worker is <span className="muted">(an experiment: the Harness² method never does this. The improver gets the model's name and facts, never advice, and the package says so)</span></span></label>
       {folders.length>0&&<details><summary className="muted">Hints for one sample</summary>{folders.map(folder=><label className="field" key={folder}>{folder}<textarea rows="3" aria-label={'Hints for '+folder} maxLength="8000" value={hintSamples[folder]||''} onChange={e=>setHintSamples({...hintSamples,[folder]:e.target.value})}/></label>)}</details>}
     </>}
 

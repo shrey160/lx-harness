@@ -130,6 +130,9 @@ def limitations(spec, report, chosen, live, approved_by="person"):
     if given:
         lines.append(f"- The improver also read the person's hints ({given}) about how this kind of task is done. They can shape what it learned; the worker never saw them, and the check never read them."
                      + (" A connected agent may have written them, with no person reviewing them." if spec["roles"]["orchestrator"] == EXTERNAL else ""))
+    if spec.get("tell_improver_worker"):
+        lines.append("- The improver was told which model the worker is, at the person's choice. The Harness² method never tells it, so what it "
+                     "learned may suit this model more and travel less well to another.")
     if approved_by == "grant":
         lines.append("- Started by a connected agent under a person's grant. No person reviewed this spec or check.")
     if approved_by == "agent":
@@ -325,6 +328,8 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, judge=No
                        perception=perception, health=health, mcp=mcp)
     base = clean_base(adapter)
     hint_notes.stage(adapter, spec.get("hints"), _folders(run_dir), stream)
+    if spec.get("tell_improver_worker"):
+        hint_notes.stage_worker(adapter, spec["providers"]["worker"], stream)
     try:
         if mcp:
             mcp.check()

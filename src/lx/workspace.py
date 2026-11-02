@@ -185,6 +185,8 @@ class Workspace:
     def add_check(self, version, source):
         target = self.home/"checks"/f"v{int(version)}"/"check.py"
         target.parent.mkdir(parents=True, exist_ok=True)
+        if target.is_file() and not (self.home/"spec"/f"v{int(version)}.json").exists():
+            target.unlink()  # left by a draft refused before LX wrote checks last; no spec ever named it
         with target.open("x", encoding="utf-8", newline="\n") as output:
             output.write(source)
 

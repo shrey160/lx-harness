@@ -103,6 +103,15 @@ limitations. Hints are not in the Harness² paper, which keeps scores and answer
 the improver; they are an extension, so treat what the loop learns from them as a
 hypothesis to check on samples it has not seen.
 
+**Telling the improver which model the worker is (optional, off by default).**
+`tell_improver_worker` (`lx spec draft --improver-knows-worker on`, or the switch under
+Hints in the Spec tab) gives the improver `source/worker.md`: the worker's model name and
+facts from its provider entry (context window, images, tool calls, thinking), with no
+advice on how to edit. The paper's improver prompts never name the executor, and a
+harness is meant to carry over to other models, so this is an experiment: a small local
+worker may need shorter edits than the loop writes for it. The package says when it was
+used, and what is learned may suit that model and travel less well to another.
+
 ## The scoring check
 
 A check compares an answer with the sample's `truth.json`. The score is the fraction of

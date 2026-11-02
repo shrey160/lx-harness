@@ -96,10 +96,12 @@ class Orchestration:
                 "budget_usd": draft["budget_usd"], "limits": draft["limits"], "task": draft.get("task"), "check": check, "blocked": project["blocked"],
                 "approved": {"by": approved.get("by", "person")} if approved and approved["version"] == draft["version"] else None,
                 "workspace_budget": project["budget"], "trial_cap_usd": project["trial_cap_usd"], "grant": project["grant"], "notice": project["notice"], "external_orchestrator": project["external_orchestrator"],
-                "hints": draft.get("hints"), "hint_drift": project["hint_drift"], "eval_drift": project["eval_drift"], "judges": judging.written(draft.get("judge"))}
+                "hints": draft.get("hints"), "hint_drift": project["hint_drift"], "eval_drift": project["eval_drift"], "judges": judging.written(draft.get("judge")),
+                "tell_improver_worker": draft.get("tell_improver_worker", False)}
 
     def spec_draft(self, workspace, *, goal=None, task=None, check=None, tools=None, limits=None, mode=None, worker=None, improver=None, mcp_tools=None,
-                   hints=None, sample_hints=None, use_hint_files=False, use_eval_file=False, no_check=False, judges=None, use_judge_file=False, no_judges=False):
+                   hints=None, sample_hints=None, use_hint_files=False, use_eval_file=False, no_check=False, judges=None, use_judge_file=False, no_judges=False,
+                   tell_improver_worker=None):
         """A new spec version, which clears any approval. `task` holds only the fields that change."""
         identifier = self._id(workspace)
         check = self._check_text(identifier, check, use_eval_file)
@@ -112,7 +114,7 @@ class Orchestration:
         project = self.engine.draft_spec(identifier, goal=goal, mode=mode, roles=self._roles(current, worker, improver), task=task,
                                          check=check, limits=limits, tools=tools, mcp_tools=mcp_tools,
                                          hints=self._hints(identifier, hints, sample_hints), take_hint_files=use_hint_files, no_check=no_check,
-                                         judge=judges, no_judge=no_judges)
+                                         judge=judges, no_judge=no_judges, tell_improver_worker=tell_improver_worker)
         live = {"note": "A live run or trial needs a person's approval, or a grant that covers it"} if project["draft"]["mode"] == "live" else {}
         return {"version": project["draft"]["version"], "blocked": project["blocked"], **live}
 

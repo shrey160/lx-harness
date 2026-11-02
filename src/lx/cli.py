@@ -111,7 +111,8 @@ def spec_draft(engine, lx, args):
                          mcp_tools=[item for item in args.mcp_tools.split(",") if item] if args.mcp_tools is not None else None,
                          task=json.loads(read(args.task)) if args.task else None, check=read(args.check) if args.check else None,
                          limits=json.loads(read(args.limits)) if args.limits else None, use_eval_file=args.eval_file, no_check=args.no_check,
-                         judges=json.loads(read(args.judges)) if args.judges else None, use_judge_file=args.judge_file, no_judges=args.no_judges)
+                         judges=json.loads(read(args.judges)) if args.judges else None, use_judge_file=args.judge_file, no_judges=args.no_judges,
+                         tell_improver_worker={"on": True, "off": False}.get(args.improver_knows_worker))
 
 
 def parser():
@@ -157,6 +158,7 @@ def parser():
     item.add_argument("--judges", help="a JSON file of model judges: criteria, and optionally sees_request")
     item.add_argument("--judge-file", action="store_true", help="take the judges from eval/judges.json")
     item.add_argument("--no-judges", action="store_true", help="remove the model judges")
+    item.add_argument("--improver-knows-worker", choices=("on", "off"), help="tell the improver which model the worker is; not part of the Harness² method")
     item.add_argument("--limits", metavar="FILE", help="JSON of run limits")
 
     check = commands.add_parser("check", help="test the check").add_subparsers(dest="check", required=True)

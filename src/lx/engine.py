@@ -244,7 +244,8 @@ class Engine:
         host = lambda url: urlsplit(url).netloc
         task = draft.get("task")
         gets = {"orchestrator":"your goal, messages, file names, sizes and hashes, and the sample input text it reads",
-                "improver":"run traces and answers, including text from the samples"+(", and the hints you wrote" if draft.get("hints") else ""),
+                "improver":"run traces and answers, including text from the samples"+(", and the hints you wrote" if draft.get("hints") else "")
+                           +(", and which model the worker is" if draft.get("tell_improver_worker") else ""),
                 "worker":"the sample requests" if tasks.is_text(task) else "the sample photos and transcribed requests" if task else "the sample images and transcripts"}
         notice = [{"who":role,"host":host(draft["providers"][role]["base_url"]),"gets":gets[role]} for role in ROLES if draft["roles"][role] != EXTERNAL]
         notice += [{"who":"orchestrator","host":"your connected agent","gets":"whatever it reads in this folder, on its own provider and account"}
@@ -610,7 +611,7 @@ class Engine:
             return None
 
     def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None,
-               hints=None, take_hint_files=False, no_check=False, judge=None, no_judge=False):
+               hints=None, take_hint_files=False, no_check=False, judge=None, no_judge=False, tell_improver_worker=None):
         """Write the next spec version; any new version clears approval.
 
         `limits` is the user's own values, replacing any earlier ones. Everything
@@ -634,11 +635,10 @@ class Engine:
             raise ValueError("Enter a goal of at most 4000 characters")
         versions = workspace.spec_versions()
         version = (versions[-1] if versions else 0)+1
-        reference = None if no_check else previous.get("check")
+        reference, source = (None if no_check else previous.get("check")), None
         if task is not None and check is not None:
             tasks.validate_task(task)
             source = tasks.validate_check_source(check)
-            workspace.add_check(version, source)
             reference = {"version":version,"sha256":tasks.source_hash(source)}
         spec = {"version": version, "goal": goal.strip(), "budget_usd": budget,
                 "roles": {r:roles[r] for r in ROLES}, "providers": providers,
@@ -659,11 +659,20 @@ class Engine:
         judged = self._judge(task, previous, judge, no_judge)
         if judged:
             spec["judge"] = judged
+        told = previous.get("tell_improver_worker", False) if tell_improver_worker is None else tell_improver_worker
+        if type(told) is not bool:
+            raise ValueError("tell_improver_worker is true or false")
+        if told and task is None:
+            raise ValueError("Only a task can tell the improver about the worker")
+        if told:
+            spec["tell_improver_worker"] = True  # left out when off, so older specs and approvals still match
         spec.update({"task":task,"check":reference} if task is not None else {
                 "domain": "images-and-supplied-transcripts", "output": {"objects": [{"label":"color_shape", "box":["x1","y1","x2","y2"]}], "text":"exact supplied transcript"},
                 "box_edge_tolerance_px": 1})
         spec["estimated_cost_usd"] = ({"basis":"Live cost reserved before each call under the workspace budget; actual cost from reported usage at the entry's prices, unknown until reported"}
             if mode == "live" else {"orchestrator":0.00002,"improver":0.0003,"worker":0.0003,"basis":"Approximate controlled preview only; live cost unknown"})
+        if source is not None:
+            workspace.add_check(version, source)  # only once nothing above can refuse, so a refused draft leaves no file to block the next
         workspace.add_spec(spec)
         record.update(goal=goal.strip(), spec_version=spec["version"])
         workspace.write_project(record)
@@ -739,7 +748,7 @@ class Engine:
         return self._view(workspace)
 
     def draft_spec(self, identifier, *, goal=None, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None,
-                   hints=None, take_hint_files=False, no_check=False, judge=None, no_judge=False):
+                   hints=None, take_hint_files=False, no_check=False, judge=None, no_judge=False, tell_improver_worker=None):
         """An orchestrator's changes, as a new spec version. The run budget stays what a person set."""
         workspace = self.workspace(identifier)
         self._jobs(workspace)
@@ -759,7 +768,8 @@ class Engine:
                 elif draft.get("check") and not no_check:
                     check = workspace.check_source(draft["check"])
             self._draft(workspace, record, goal, draft["budget_usd"], mode, roles, task=task, check=check, limits=limits, tools=tools, mcp_tools=mcp_tools,
-                        hints=hints, take_hint_files=take_hint_files, no_check=no_check, judge=judge, no_judge=no_judge)
+                        hints=hints, take_hint_files=take_hint_files, no_check=no_check, judge=judge, no_judge=no_judge,
+                        tell_improver_worker=tell_improver_worker)
         return self._view(workspace)
 
     def eval_drift(self, workspace, draft):
@@ -943,7 +953,7 @@ class Engine:
             self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"), data.get("roles"),
                         limits=data.get("limits"), tools=data.get("tools"), mcp_tools=data.get("mcp_tools"),
                         hints=data.get("hints"), take_hint_files=data.get("take_hint_files") is True, no_check=data.get("no_check") is True,
-                        judge=data.get("judge"), no_judge=data.get("no_judge") is True)
+                        judge=data.get("judge"), no_judge=data.get("no_judge") is True, tell_improver_worker=data.get("tell_improver_worker"))
         return self._view(workspace)
 
     def approve(self, identifier, data, by="person", grant=None):
