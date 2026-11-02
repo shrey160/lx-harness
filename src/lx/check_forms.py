@@ -82,6 +82,14 @@ def check_rules(text):
     return written
 
 
+def starting_rules(shape):
+    """Rules to start from, given what truth_shape says of the answers: one `equals` per field. Field names only, never values."""
+    if type(shape) is not dict or not shape:
+        raise ValueError("Rules read named fields, and these answers have none; write def score(truth, answer) instead")
+    lines = ",\n".join("    "+json.dumps({"field": field, "rule": "equals"}) for field in shape)
+    return '{\n  "rules": [\n'+lines+'\n  ]\n}\n'
+
+
 def saved_form(text):
     """The check file to save for this text; a file already in its saved form stays as it is."""
     if MARKER in text:

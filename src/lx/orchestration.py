@@ -13,7 +13,7 @@ from .engine import EXTERNAL
 from .guides import guide_list, read_guide
 from .limits import field_list
 
-ACTIONS = ("status", "guide", "environment", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "check_test", "check_try", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
+ACTIONS = ("status", "guide", "environment", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "eval_init", "check_test", "check_try", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
@@ -121,6 +121,9 @@ class Orchestration:
         held = self.engine.project(identifier)["draft"].get("hints") or {"all": None, "samples": {}}
         samples = {**held["samples"], **(per_sample or {})}
         return {"all": held["all"] if everyone is None else everyone, "samples": samples}
+
+    def eval_init(self, workspace):
+        return {**self.engine.eval_init(self._id(workspace)), "next": "Change the rules to suit the task, try them with check_test and use_eval_file, then save them with spec_draft and use_eval_file."}
 
     def check_test(self, workspace, check=None, use_eval_file=False):
         identifier = self._id(workspace)

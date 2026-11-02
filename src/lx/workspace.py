@@ -141,6 +141,12 @@ class Workspace:
     def inspect_samples(self, max_bytes=None):
         return inspect_folder(self.samples_path, skip_root=NOT_SAMPLES, max_bytes=max_bytes)
 
+    def write_eval_rules(self, text):
+        target = self.folder/EVAL_DIRECTORY/EVAL_FILES[0]
+        target.parent.mkdir(exist_ok=True)
+        target.write_text(text, encoding="utf-8", newline="\n")
+        return f"{EVAL_DIRECTORY}/{EVAL_FILES[0]}"
+
     def eval_file(self):
         """(name, text) of the check kept in eval/, or None. It takes effect only when a spec takes it."""
         found = [self.folder/EVAL_DIRECTORY/name for name in EVAL_FILES]

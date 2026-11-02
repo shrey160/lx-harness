@@ -679,6 +679,21 @@ class Engine:
             return [str(exc)]
         return [f"eval/{found[0]} differs from the spec's check"]
 
+    def draft_rules(self, identifier):
+        """Rules to start from, drawn from the shape of this workspace's answers; saves nothing."""
+        workspace = self.workspace(identifier)
+        draft = workspace.spec(workspace.project()["spec_version"])
+        if not draft.get("task"):
+            raise ValueError("This workflow has a built-in check")
+        return check_forms.starting_rules(tasks.truth_shape(tasks.sample_truths(workspace.samples_path, draft["task"]))["shape"])
+
+    def eval_init(self, identifier):
+        """Write the starting rules to eval/rules.json. They take effect only when a spec takes them, and a file is never overwritten."""
+        workspace = self.workspace(identifier)
+        if workspace.eval_file():
+            raise ValueError("There is already a check in eval/")
+        return {"file": workspace.write_eval_rules(self.draft_rules(identifier))}
+
     def eval_check(self, identifier):
         """The text of the check kept in eval/."""
         found = self.workspace(identifier).eval_file()

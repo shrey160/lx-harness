@@ -93,6 +93,11 @@ def server_for(engine):
         return lx.spec_draft(workspace, goal=goal, task=task, check=check, tools=tools, limits=limits, mode=mode, worker=worker, improver=improver, mcp_tools=mcp_tools,
                              hints=hints, sample_hints=sample_hints, use_hint_files=use_hint_files, use_eval_file=use_eval_file)
 
+    @tool(CHANGES)
+    def eval_init(workspace: str) -> dict[str, Any]:
+        """Write eval/rules.json in the workspace folder, with one `equals` rule per field of the answers, to edit from there. Never overwrites a check, and changes no spec."""
+        return lx.eval_init(workspace)
+
     @tool(READ)
     def check_test(workspace: str, check: str | None = None, use_eval_file: bool = False) -> dict[str, Any]:
         """Self-test the check on the samples: how a correct, a blank and a wrong answer score, and any weaknesses.

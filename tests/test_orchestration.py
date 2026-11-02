@@ -4,7 +4,7 @@ import shutil
 import unittest
 from unittest.mock import patch
 
-from lx import sandbox, tasks
+from lx import check_forms, sandbox, tasks
 from lx.engine import EXTERNAL
 from lx.inventory import write_synthetic
 from lx.inventory_data import _tone
@@ -158,6 +158,17 @@ class WhatItMayDo(Actions):
             self.lx.check_test(self.path, use_eval_file=True)
         with self.assertRaisesRegex(ValueError, "not both"):
             self.lx.check_test(self.path, "x", use_eval_file=True)
+
+    def test_eval_init_writes_rules_to_start_from_and_never_overwrites(self):
+        self.begin()
+        before = self.lx.spec_show(self.path)
+        self.assertEqual(self.lx.eval_init(self.path)["file"], "eval/rules.json")
+        written = (Path(self.path)/"eval"/"rules.json").read_text(encoding="utf-8")
+        self.assertEqual(self.lx.spec_show(self.path)["version"], before["version"])
+        self.assertTrue(check_forms.check_rules(written)["rules"])
+        self.assertTrue(self.lx.check_test(self.path, use_eval_file=True)["samples"])
+        with self.assertRaisesRegex(ValueError, "already a check"):
+            self.lx.eval_init(self.path)
 
     def test_a_new_task_is_read_by_its_own_rules_not_the_old_drafts(self):
         self.begin()

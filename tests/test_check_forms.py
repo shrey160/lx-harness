@@ -85,6 +85,14 @@ RECORD = {"order_id": "A-1", "customer": "Ada Byron", "date": "2026-01-02", "cur
 
 
 class RulesAreRead(unittest.TestCase):
+    def test_starting_rules_name_each_field_and_no_value(self):
+        text = check_forms.starting_rules({"order_id": "text", "total": "number"})
+        self.assertEqual([rule["field"] for rule in check_forms.check_rules(text)["rules"]], ["order_id", "total"])
+
+    def test_answers_without_fields_get_no_starting_rules(self):
+        with self.assertRaisesRegex(ValueError, "def score"):
+            check_forms.starting_rules(["text"])
+
     def test_rules_come_back_exactly_as_written(self):
         text = '{"rules": [\n  {"field": "total", "rule": "equals"}\n]}\n'
         self.assertEqual(check_forms.author_text(check_forms.saved_form(text)), text)

@@ -163,6 +163,9 @@ def parser():
     item.add_argument("--eval-file", action="store_true", help="try the check in eval/ without saving it")
     action(check, "shape", "truth_shape", "field names and types of the answers, never their values")
 
+    action(commands.add_parser("eval", help="the check kept in eval/").add_subparsers(dest="eval", required=True),
+           "init", "eval_init", "write eval/rules.json from the shape of the answers")
+
     action(commands, "ready", "ready", "whether this spec could run live on the samples as they are now; no calls")
     action(commands, "preview", "preview", "run on doubles: no calls, no spending")
     item = command(commands, "approve", approve, help="accept the current spec, as a person")
