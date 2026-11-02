@@ -24,8 +24,9 @@ text as well: `spec_draft` refuses text that repeats them.
 
 1. `status`, to see whether LX can run. `environment`, to see what this install offers.
 2. `init` on a folder that holds `samples/`, with a template.
-3. `spec_draft`: goal, task text, check, tools, limits, mode.
-4. `check_test`: how a correct, a blank and a wrong answer score.
+3. `spec_draft`: goal, task text, tools, limits, mode. `eval_init` starts a check to edit.
+4. `check_test`: how a correct, a blank and a wrong answer score. `check_try`: what a
+   changed check does to answers already saved.
 5. `ready`: whether this could run on these samples. Free, with no calls.
 6. `preview`: the whole flow on doubles. It works only on LX's synthetic samples.
 7. `approve`, then `trial_start` for one real sample, then `run_start`. These spend
@@ -104,21 +105,78 @@ hypothesis to check on samples it has not seen.
 
 ## The scoring check
 
-A check is one Python file, standard library only, run in the sandbox. It reads one
-JSON object on stdin and prints one on stdout:
+A check compares an answer with the sample's `truth.json`. The score is the fraction of
+named checks passed; each check is pass or fail. Write it in the simplest form that fits.
+All three run in the sandbox with the standard library, and any form can be written in
+the Spec tab, kept in `eval/`, or passed to `spec_draft` as `check`.
+
+**Rules.** No code. Each rule is one named check:
+
+```json
+{
+  "rules": [
+    {"field": "order_id", "rule": "equals"},
+    {"field": "status", "rule": "one_of", "values": ["open", "closed"]},
+    {"field": "phone", "rule": "matches", "pattern": "\\+[1-9][0-9]{7,14}"},
+    {"field": "lines.0.total", "rule": "near", "within": 0.01},
+    {"field": "tags", "rule": "same_items"}
+  ],
+  "extra_fields": false
+}
+```
+
+| Rule | Passes when |
+|---|---|
+| `equals` | The answer's field equals the truth's |
+| `one_of` | It is one of `values`; the truth is not read |
+| `matches` | It is text that wholly matches `pattern`; the truth is not read |
+| `near` | It is a number within `within` of the truth's |
+| `same_items` | It holds the truth's list, in any order |
+
+A dotted field reads inside objects and lists. `"extra_fields": false` adds a check that
+the answer has no other top-level fields. The correct answer for the self-test is the
+truth itself, so a `one_of` or `matches` field must appear in the truth and pass.
+
+**Function.** For anything rules cannot say:
+
+```python
+def score(truth, answer):
+    lines = answer["lines"]
+    return {"count": len(lines) == len(truth["lines"]),
+            "total": sum(line["total"] for line in lines) == truth["total"]}
+```
+
+Return a dict of check names to true or false, or one true or false. An answer the
+function cannot read, such as a reply that was not JSON, scores 0, so there is no need to
+guard against junk. If a correct answer is not simply the truth, add
+`def example(truth):` returning one.
+
+**Full check.** Reads one JSON object on stdin and prints one on stdout:
 
 - `{"items": [{"truth": ..., "answer": ...}, ...]}` prints
   `{"results": [{"checks": [{"name": str, "passed": bool, "error": str or null}, ...]}, ...]}`
 - `{"examples": [truth, ...]}` prints `{"answers": [a correct answer per truth, ...]}`
 
-The score is the fraction of named checks passed. Make names depend only on the truth,
-so that junk gets the same list.
+Make names depend only on the truth, so that junk gets the same list. A file that reads
+stdin is treated as a full check and saved as it is.
 
-`check_test` proves the check: a correct answer must score 1.0, junk must be graded
-without a crash, and grading must repeat exactly. Another sample's answer passing is a
-weakness, so the check waits for a person, who may accept it when one answer can suit
-several samples. Give `check_test` a `check` to test a draft: it makes no new version
-and keeps any approval.
+**Editing without resending.** `eval_init` (`lx eval init`) writes `eval/rules.json`
+beside the samples, with one `equals` per field, to edit from there. It needs a valid
+spec first: set `stream_samples` to fit your samples. Keep one of `eval/rules.json` or
+`eval/check.py`. A file takes effect only when saved with `spec_draft` and
+`use_eval_file`, and a file that differs from the spec blocks approval, so what runs is
+never in doubt. Saving a check in the Spec tab counts as differing: change or remove the
+file, or load it into the editor.
+
+**Testing.** `check_test` proves a check: a correct answer must score 1.0, junk must be
+graded without a crash, and grading must repeat exactly. Another sample's answer passing
+is a weakness, so the check waits for a person, who may accept it when one answer can
+suit several samples. Give it a `check`, or `use_eval_file`, to test a draft: it makes no
+new version and keeps any approval.
+
+`check_try` scores the answers saved by earlier trials and runs, for free, and lists the
+scores and named checks that would change. It takes a draft the same way, saves nothing,
+and shows scores and check names, never answers. A trial that failed saved no answer.
 
 **Rules that catch people out**
 

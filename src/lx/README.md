@@ -32,6 +32,8 @@ separate `worker.py` process, so credentials load there and never in task worker
 | `text_task.py` | The `text-request` template: its samples, dataset, adapter and preview double |
 | `records_check.py` | The order-records check: a standalone file, standard library only |
 | `checks.py` | Runs a check in the sandbox and self-tests it before approval |
+| `check_forms.py` | Turns rules or a `score` function into one saved check file |
+| `check_kit.py` | Runs in the sandbox after that text: reads the rules or calls `score` |
 | `inventory_check.py` | The inventory check: a standalone file, standard library only |
 | `sandbox.py` | Throwaway sandbox for checks and helper scripts: Docker or Linux `unshare` |
 

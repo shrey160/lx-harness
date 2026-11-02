@@ -263,7 +263,11 @@ is a new spec version that you still approve.
 
 A check is one Python file, treated as untrusted code, so it runs only in the
 sandbox: no network, a 60-second limit per batch and at most 20,000 characters of
-source. It reads one JSON object on stdin and prints one on stdout:
+source. You can also write it as JSON rules or a `def score(truth, answer):` function,
+in the Spec tab or in `eval/`, and LX saves that as such a file: see
+[docs/tasks.md](docs/tasks.md). `check_test` tests a draft and `check_try` shows what it
+changes on saved answers, and neither saves anything. A full check reads one JSON
+object on stdin and prints one on stdout:
 
 - `{"items": [{"truth": ..., "answer": ...}]}` prints
   `{"results": [{"checks": [{"name": str, "passed": bool, "error": str or null}]}]}`
