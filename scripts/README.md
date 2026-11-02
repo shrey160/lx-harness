@@ -14,6 +14,7 @@ Run these from `main_LX`.
 | `synthesize_voicecount.py` | Voices typed requests offline with Kokoro; also used for inventory requests |
 | `receiving_audit/` | The goods receiving audit task: `task.json` and its scoring check `check.py`, an ordinary spec and check for `spec_draft`; `build.py` makes its samples, voices and review page; `rejects.json` lists cutouts rejected by eye |
 | `records_hard/` | Messier order records for small models: `task.json` holds the contract for `spec_draft`, and `build.py` makes the samples. The check is the ordinary order-records check |
+| `inventory_update/` | Two small inventory and cash transactions: reproducible photos, offline spoken requests, starting JSON, exact answers, check and review page for the Unsloth worker |
 
 None of these spends money or calls a provider. The dataset scripts need local
 downloads that are gitignored under `.lx/`.

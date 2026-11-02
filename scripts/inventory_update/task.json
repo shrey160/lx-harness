@@ -1,0 +1,13 @@
+{
+  "template": "photo-request",
+  "name": "lx_inventory_update",
+  "truth_schema": "free",
+  "stream_samples": 2,
+  "base_prompt": "Update inventory and cash from the spoken transaction request and return JSON.",
+  "contract": "There are three photos and an audio-only transaction request. Photos 1 and 2 show distinct physical objects, with no duplicates between photos. Photo 3 shows the starting inventory (quantity and unit_price per item) and cash account as JSON. The request identifies the item purchased or sold; other kinds in the photos are unrelated. Unit prices are transaction prices in the account currency; there are no taxes, fees, discounts or other cash movements. Purchases add stock and spend cash; sales remove stock and receive cash. Return one JSON object with exactly six fields: item (the changed item's exact inventory key), change (signed integer quantity change, positive for additions, negative for removals), inventory (the complete updated inventory object, preserving all keys and unit prices and all unrelated quantities), cash_change (signed money amount, positive for cash received, negative for cash paid), account (exactly currency and updated balance), and evidence (one entry per changed physical object, each exactly {\"photo\": 1 or 2, \"box\": [x1, y1, x2, y2]} in inclusive pixel coordinates of its photo). Monetary values are JSON numbers exact to cents. SAM supplies instance boxes for visual evidence; Transcribe supplies the spoken request. No extra fields, markdown or prose.",
+  "work": "update stock quantities and cash from a starting inventory, object photos and a spoken transaction request",
+  "domain_word": "inventory update",
+  "yardstick": "The answer identifies the item and signed quantity change, updates its stock, preserves other stock and every unit price, reports the signed cash movement and correct ending account, and supplies one box per changed object.",
+  "deliverable_word": "updated inventory JSON",
+  "selection_checks": "Assess whether the answer reflects the spoken request, the inventory sheet and the visible objects, with localization evidence and the specified JSON fields."
+}
