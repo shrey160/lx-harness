@@ -147,6 +147,15 @@ class Workspace:
         target.write_text(text, encoding="utf-8", newline="\n")
         return f"{EVAL_DIRECTORY}/{EVAL_FILES[0]}"
 
+    def eval_judges(self):
+        """The text of eval/judges.json, or None. It takes effect only when a spec takes it."""
+        path = self.folder/EVAL_DIRECTORY/"judges.json"
+        if not path.is_file() or path.is_symlink():
+            return None
+        if path.stat().st_size > MAX_EVAL_BYTES:
+            raise ValueError(f"{EVAL_DIRECTORY}/judges.json is too long")
+        return path.read_text(encoding="utf-8")
+
     def eval_file(self):
         """(name, text) of the check kept in eval/, or None. It takes effect only when a spec takes it."""
         found = [self.folder/EVAL_DIRECTORY/name for name in EVAL_FILES]

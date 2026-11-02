@@ -37,7 +37,7 @@ from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
 from .health import read_health
 from .home import home
-from . import check_forms, checks, hints as hint_notes, launcher, limits as run_limits, sandbox, tasks, text_task
+from . import check_forms, checks, hints as hint_notes, judging, launcher, limits as run_limits, sandbox, tasks, text_task
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveChatTransport
@@ -553,7 +553,7 @@ class Engine:
             return None
 
     def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None,
-               hints=None, take_hint_files=False, no_check=False):
+               hints=None, take_hint_files=False, no_check=False, judge=None, no_judge=False):
         """Write the next spec version; any new version clears approval.
 
         `limits` is the user's own values, replacing any earlier ones. Everything
@@ -599,6 +599,9 @@ class Engine:
         kept = self._hints(workspace, task, previous, hints, take_hint_files)
         if kept:
             spec["hints"] = kept
+        judged = self._judge(task, previous, judge, no_judge)
+        if judged:
+            spec["judge"] = judged
         spec.update({"task":task,"check":reference} if task is not None else {
                 "domain": "images-and-supplied-transcripts", "output": {"objects": [{"label":"color_shape", "box":["x1","y1","x2","y2"]}], "text":"exact supplied transcript"},
                 "box_edge_tolerance_px": 1})
@@ -632,6 +635,23 @@ class Engine:
                 raise ValueError("A hint repeats answers from the samples. Hints describe how the task is done, never the answers")
         return hints
 
+    @staticmethod
+    def _judge(task, previous, given, remove):
+        """The spec's judge: what was given, laid over what it had, or none when removed."""
+        if remove:
+            if given is not None:
+                raise ValueError("Give judges or remove them, not both")
+            return None
+        if given is None:
+            return previous.get("judge") if task is not None else None
+        if task is None:
+            raise ValueError("Only a task can have model judges")
+        if type(given) is not dict:
+            raise ValueError("Judges are an object with criteria")
+        held = previous.get("judge") or {}
+        written = judging.check_written({**(judging.written(held) or {}), **given}, text_task=tasks.is_text(task))
+        return {**held, **written}
+
     def hint_drift(self, workspace, draft):
         """Where a hint file differs from the spec's hints; approval waits until this is settled."""
         return hint_notes.drift(draft.get("hints"), hint_notes.from_files(workspace.samples_path)) if draft.get("task") else []
@@ -651,7 +671,7 @@ class Engine:
         return self._view(workspace)
 
     def draft_spec(self, identifier, *, goal=None, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None,
-                   hints=None, take_hint_files=False, no_check=False):
+                   hints=None, take_hint_files=False, no_check=False, judge=None, no_judge=False):
         """An orchestrator's changes, as a new spec version. The run budget stays what a person set."""
         workspace = self.workspace(identifier)
         self._jobs(workspace)
@@ -671,13 +691,34 @@ class Engine:
                 elif draft.get("check") and not no_check:
                     check = workspace.check_source(draft["check"])
             self._draft(workspace, record, goal, draft["budget_usd"], mode, roles, task=task, check=check, limits=limits, tools=tools, mcp_tools=mcp_tools,
-                        hints=hints, take_hint_files=take_hint_files, no_check=no_check)
+                        hints=hints, take_hint_files=take_hint_files, no_check=no_check, judge=judge, no_judge=no_judge)
         return self._view(workspace)
 
     def eval_drift(self, workspace, draft):
-        """Where the check in eval/ differs from the spec's; approval waits until this is settled, so the file is never mistaken for what runs."""
+        """Where the check or judges in eval/ differ from the spec's; approval waits until this is settled, so a file is never mistaken for what runs."""
         if not draft.get("task"):
             return []
+        return self._check_drift(workspace, draft)+self._judge_drift(workspace, draft)
+
+    @staticmethod
+    def _judge_drift(workspace, draft):
+        try:
+            text = workspace.eval_judges()
+            if text is None or judging.read_written(text, text_task=tasks.is_text(draft["task"])) == judging.written(draft.get("judge")):
+                return []
+        except ValueError as exc:
+            return [str(exc)]
+        return ["eval/judges.json differs from the spec's judges" if draft.get("judge") else "eval/judges.json is not in use, because this spec has no judges"]
+
+    def eval_judges(self, identifier):
+        """The judges kept in eval/judges.json."""
+        workspace = self.workspace(identifier)
+        text = workspace.eval_judges()
+        if text is None:
+            raise ValueError("There are no judges in eval/: add eval/judges.json")
+        return judging.read_written(text, text_task=tasks.is_text(workspace.spec(workspace.project()["spec_version"]).get("task")))
+
+    def _check_drift(self, workspace, draft):
         try:
             found = workspace.eval_file()
             if found is None:
@@ -799,7 +840,8 @@ class Engine:
                 raise ValueError("Stop the active run before editing its spec")
             self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"), data.get("roles"),
                         limits=data.get("limits"), tools=data.get("tools"), mcp_tools=data.get("mcp_tools"),
-                        hints=data.get("hints"), take_hint_files=data.get("take_hint_files") is True, no_check=data.get("no_check") is True)
+                        hints=data.get("hints"), take_hint_files=data.get("take_hint_files") is True, no_check=data.get("no_check") is True,
+                        judge=data.get("judge"), no_judge=data.get("no_judge") is True)
         return self._view(workspace)
 
     def approve(self, identifier, data, by="person", grant=None):

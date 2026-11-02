@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
-from . import check_forms, sandbox, tasks
+from . import check_forms, judging, sandbox, tasks
 from .engine import EXTERNAL
 from .guides import guide_list, read_guide
 from .limits import field_list
@@ -96,19 +96,23 @@ class Orchestration:
                 "budget_usd": draft["budget_usd"], "limits": draft["limits"], "task": draft.get("task"), "check": check, "blocked": project["blocked"],
                 "approved": {"by": approved.get("by", "person")} if approved and approved["version"] == draft["version"] else None,
                 "workspace_budget": project["budget"], "trial_cap_usd": project["trial_cap_usd"], "grant": project["grant"], "notice": project["notice"], "external_orchestrator": project["external_orchestrator"],
-                "hints": draft.get("hints"), "hint_drift": project["hint_drift"], "eval_drift": project["eval_drift"]}
+                "hints": draft.get("hints"), "hint_drift": project["hint_drift"], "eval_drift": project["eval_drift"], "judges": judging.written(draft.get("judge"))}
 
     def spec_draft(self, workspace, *, goal=None, task=None, check=None, tools=None, limits=None, mode=None, worker=None, improver=None, mcp_tools=None,
-                   hints=None, sample_hints=None, use_hint_files=False, use_eval_file=False, no_check=False):
+                   hints=None, sample_hints=None, use_hint_files=False, use_eval_file=False, no_check=False, judges=None, use_judge_file=False, no_judges=False):
         """A new spec version, which clears any approval. `task` holds only the fields that change."""
         identifier = self._id(workspace)
         check = self._check_text(identifier, check, use_eval_file)
+        if use_judge_file and judges is not None:
+            raise ValueError("Give judges or use the judges file, not both")
+        judges = self.engine.eval_judges(identifier) if use_judge_file else judges
         current = self.engine.project(identifier)["draft"]["roles"]
         if task and tasks.quotes_answers(" ".join(str(value) for value in task.values()), self._truths(identifier, task, need_truth=False)):
             raise ValueError("The task text repeats answers from the samples; describe the work without them")
         project = self.engine.draft_spec(identifier, goal=goal, mode=mode, roles=self._roles(current, worker, improver), task=task,
                                          check=check, limits=limits, tools=tools, mcp_tools=mcp_tools,
-                                         hints=self._hints(identifier, hints, sample_hints), take_hint_files=use_hint_files, no_check=no_check)
+                                         hints=self._hints(identifier, hints, sample_hints), take_hint_files=use_hint_files, no_check=no_check,
+                                         judge=judges, no_judge=no_judges)
         live = {"note": "A live run or trial needs a person's approval, or a grant that covers it"} if project["draft"]["mode"] == "live" else {}
         return {"version": project["draft"]["version"], "blocked": project["blocked"], **live}
 
