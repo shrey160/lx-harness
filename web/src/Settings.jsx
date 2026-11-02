@@ -72,6 +72,19 @@ function ConnectAgent({setup}){
     <h3>Connect an agent</h3>
     <p className="muted">An agent can set up tasks here with its own model and account. It needs no keys, because workers, the improver and tools run through LX. It can run previews, and it can approve and start live runs, which spend your money and send your samples to your providers, up to the budgets you set. Connect only agents you trust with that.</p>
     {!setup.installed&&<p className="callout warn">The MCP extra is not installed. Run your <code>uv sync</code> command again with <code>--extra mcp</code>, then connect.</p>}
+    <h4>Codex / ChatGPT desktop</h4>
+    <ol className="steps-plain">
+      <li>Open <code>~/.codex/config.toml</code> (on Windows, <code>%USERPROFILE%\.codex\config.toml</code>) and add the entry below, keeping your other settings. If <code>[mcp_servers.lx]</code> already exists, replace that entry instead of adding it twice. For only one trusted project, use <code>.codex/config.toml</code> in that project's folder.<pre className="setup"><code>{setup.codex_config}</code></pre></li>
+      <li>Restart the client or its MCP connection, then open a new chat in your project. Ask: <q>Call the lx status tool and tell me what is ready. Do not approve or start a live run.</q></li>
+      <li>In the Codex CLI, <code>codex mcp list</code> lists configured servers and <code>/mcp</code> shows the active connections. A successful <code>lx status</code> call confirms the connection.</li>
+    </ol>
+    <details><summary>Set up with the Codex CLI instead</summary>
+      <p>This adds LX to your user configuration. If LX is already listed, use the configuration above to update it.</p>
+      <pre className="setup"><code>{setup.codex}</code></pre>
+    </details>
+    <p className="muted">Desktop MCP settings can also add a server named <code>lx</code> with transport <code>STDIO</code>, using the command and arguments above. The desktop app, CLI and IDE extension share configuration on the same host. <a href="https://learn.chatgpt.com/docs/extend/mcp" target="_blank" rel="noreferrer">OpenAI setup guide</a></p>
+    <h4>ChatGPT web</h4>
+    <p className="muted">ChatGPT in a browser does not read your local Codex configuration. It uses remote MCP tools through plugins. LX currently offers a local stdio server, so use Codex or ChatGPT desktop on this machine. The LX app's browser address is not an MCP endpoint.</p>
     <h4>Claude Code</h4>
     <ol className="steps-plain">
       <li>Open a terminal in the folder you will work in and run:<pre className="setup"><code>{setup.claude}</code></pre></li>
@@ -97,6 +110,7 @@ function ConnectAgent({setup}){
         <li>On Windows with Muse Code, the <code>env</code> block above is missing or lacks <code>USERPROFILE</code> or <code>SYSTEMROOT</code>.</li>
         <li>LX was moved or reinstalled, so the Python path in the setup changed: copy the setup again from here.</li>
         <li>The client was already open when you changed its settings: start a new session.</li>
+        <li>Codex project settings apply only to a trusted project on the same host as LX. Check <code>/mcp</code> for startup errors; a listed configuration alone does not prove the server connected.</li>
       </ul>
     </details>
   </>;

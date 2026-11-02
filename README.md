@@ -454,8 +454,8 @@ otherwise it answers pending.
 
 ## Let an agent run it
 
-Set up keys, models and tools in the app first. An agent such as Claude Code or Muse
-Code can then act as the orchestrator with its own model: it needs no keys, because
+Set up keys, models and tools in the app first. An agent such as Codex, ChatGPT desktop,
+Claude Code or Muse Code can then act as the orchestrator with its own model: it needs no keys, because
 workers, the improver and tools run through LX.
 
 ### Connect an agent
@@ -464,17 +464,29 @@ workers, the improver and tools run through LX.
    access says Started.
 2. Settings, Connectivity, Connect an agent gives the setup with this install's own paths and
    no keys. The server speaks MCP over stdio, and your agent client launches it when it needs it.
-3. **Claude Code.** In the folder you will work in, run the `claude mcp add` command from
+3. **Codex / ChatGPT desktop.** Merge the TOML from Connectivity into
+   `~/.codex/config.toml` (Windows `%USERPROFILE%\.codex\config.toml`), keeping other
+   settings and replacing an existing `[mcp_servers.lx]` entry rather than duplicating it.
+   For one trusted project, use its `.codex/config.toml` instead. Restart the client or MCP
+   connection, open a new chat, and ask it to call `lx status` without approving or running.
+   Connectivity also offers a `codex mcp add` command for user-level setup. `codex mcp list`
+   shows configuration; `/mcp` shows active connections. A successful status call proves
+   the connection. Desktop MCP settings can use the same command and arguments with
+   STDIO. See [OpenAI's MCP guide](https://learn.chatgpt.com/docs/extend/mcp).
+   **ChatGPT web** uses remote tools through plugins and does not read this local
+   configuration. LX's stdio server works with local clients; its web app URL is not an
+   MCP endpoint.
+4. **Claude Code.** In the folder you will work in, run the `claude mcp add` command from
    Connectivity, start `claude` there, and ask it to call the `lx` status tool.
    `claude mcp list` should show `lx` as connected.
-4. **Muse Code.** Merge the JSON from Connectivity into `~/.config/muse/settings.json` (on
+5. **Muse Code.** Merge the JSON from Connectivity into `~/.config/muse/settings.json` (on
    Windows `%USERPROFILE%\.config\muse\settings.json`), keeping what is already there. Keep
    its `env` block: Muse Code starts a server with only the variables it is given, and on
    Windows the server cannot find your profile folder, or start at all, without them. In the
    folder you will work in, run `muse` and ask it to call the `lx` status tool. A one-shot
    check is `muse exec "Call the lx status tool and say what it listed"`. After editing the
    settings file, start a new session.
-5. Put your samples in a folder, one `sample-*` folder each, in the folder the agent works
+6. Put your samples in a folder, one `sample-*` folder each, in the folder the agent works
    in. Every lx tool takes a workspace's full folder path, and the agent sets one up with
    `init`. A preview or run returns at once for the agent to poll, and a run keeps going
    after the agent closes. Say in your first message whether it may approve and run.

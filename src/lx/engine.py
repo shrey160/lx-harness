@@ -24,6 +24,7 @@ import math
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -1464,8 +1465,15 @@ class Engine:
         # Muse Code starts a server with only the variables listed here, and Python on Windows needs these to find the profile folder.
         env = {name:os.environ[name] for name in ("USERPROFILE","HOMEDRIVE","HOMEPATH","APPDATA","LOCALAPPDATA","SYSTEMROOT","TEMP","TMP") if os.environ.get(name)} if os.name == "nt" else {}
         muse = {"schema_version":1,"mcp_servers":{"lx":{"transport":"stdio","command":sys.executable,"args":args,**({"env":env} if env else {}),"mode":"optional"}}}
+        # JSON strings and arrays are also TOML basic strings and arrays. Escape Windows paths rather than interpolating them.
+        toml = "\n".join(["[mcp_servers.lx]", "command = "+json.dumps(sys.executable, ensure_ascii=False),
+                          "args = "+json.dumps(args, ensure_ascii=False),
+                          *(["env_vars = "+json.dumps(list(env))] if env else [])])
+        quote = subprocess.list2cmdline if os.name == "nt" else shlex.join
         return {"installed":find_spec("mcp") is not None,
                 "claude":subprocess.list2cmdline(["claude","mcp","add","--transport","stdio","--scope","local","lx","--",sys.executable,*args]),
+                "codex":quote(["codex","mcp","add","lx","--",sys.executable,*args]),
+                "codex_config":toml,
                 "muse":json.dumps(muse,indent=2)}
 
     # Packages

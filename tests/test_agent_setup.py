@@ -1,6 +1,7 @@
 """Connect an agent: Settings gives ready setup, with this install's paths and no keys."""
 import json
 import sys
+import tomllib
 import unittest
 from unittest.mock import patch
 
@@ -22,6 +23,30 @@ class Access(Base):
 
 
 class Setup(Base):
+    def test_codex_config_starts_the_same_server_and_private_state_as_muse(self):
+        setup = self.app.agent_setup()
+        codex = tomllib.loads(setup["codex_config"])["mcp_servers"]["lx"]
+        muse = json.loads(setup["muse"])["mcp_servers"]["lx"]
+        self.assertEqual(codex["command"], muse["command"])
+        self.assertEqual(codex["args"], muse["args"])
+        self.assertIn(str(self.app.root), codex["args"])
+
+    def test_codex_config_escapes_paths_and_forwards_only_windows_profile_variables(self):
+        with patch("os.name", "nt"), patch("lx.engine.sys.executable", 'C:\\Program Files\\LX "test"\\python.exe'), patch.dict("os.environ", {"USERPROFILE": "C:/Users/someone", "SYSTEMROOT": "C:/Windows", "SECRET_TOKEN": "private"}):
+            setup = self.app.agent_setup()
+            codex = tomllib.loads(setup["codex_config"])["mcp_servers"]["lx"]
+            self.assertEqual(codex["command"], sys.executable)
+        self.assertIn("USERPROFILE", codex["env_vars"])
+        self.assertIn("SYSTEMROOT", codex["env_vars"])
+        self.assertNotIn("SECRET_TOKEN", codex["env_vars"])
+        self.assertNotIn("private", setup["codex_config"])
+
+    def test_codex_cli_command_uses_this_install_and_root(self):
+        command = self.app.agent_setup()["codex"]
+        self.assertTrue(command.startswith("codex mcp add lx -- "))
+        self.assertIn("-m lx.mcp_server", command)
+        self.assertIn("--root", command)
+
     def test_muse_code_gets_an_optional_stdio_entry(self):
         entry = json.loads(self.app.system()["agent_setup"]["muse"])
         self.assertEqual(entry["schema_version"], 1)
