@@ -1,9 +1,11 @@
 """The forms a check can be written in, on the real sandbox where one is needed."""
 import json
 from pathlib import Path
+import shutil
+import tempfile
 import unittest
 
-from lx import check_forms, checks, sandbox, tasks
+from lx import check_forms, checks, intake, sandbox, tasks, workspace
 
 FUNCTION = '''def score(truth, answer):
     return {"value": answer["value"] == truth["value"], "note": "note" in answer}
@@ -155,3 +157,18 @@ class RulesForm(unittest.TestCase):
         pairs = [(RECORD, answer) for answer in answers]
         rules = checks.run_checks(check_forms.saved_form(RECORD_RULES), pairs)
         self.assertEqual([(r.score, r.n_passed, r.n_criteria) for r in rules], [(r.score, r.n_passed, r.n_criteria) for r in checks.run_checks(full, pairs)])
+
+
+class EvalFolderIsNotSamples(unittest.TestCase):
+    def test_a_samples_folder_at_the_workspace_root_leaves_eval_out(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root/"sample-01").mkdir()
+            (root/"sample-01"/"truth.json").write_text("{}", encoding="utf-8")
+            (root/"eval").mkdir()
+            (root/"eval"/"rules.json").write_text("{}", encoding="utf-8")
+            listed = intake.inspect_folder(root, skip_root=workspace.NOT_SAMPLES)
+            copied = intake.snapshot_folder(root, root.parent/(root.name+"-copy"), skip_root=workspace.NOT_SAMPLES)
+            self.addCleanup(shutil.rmtree, root.parent/(root.name+"-copy"), True)
+            for result in (listed, copied):
+                self.assertEqual([item["path"] for item in result["inventory"]], ["sample-01/truth.json"])

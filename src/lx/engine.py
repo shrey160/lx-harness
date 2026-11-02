@@ -54,7 +54,7 @@ from .components import COMPONENT_TOOLS, LOAD_SKILL, task_tools
 from .inventory_workflow import InventoryPreviewTransport
 from .workflow import ImagesAdapter, PreviewTransport, samples_from, sample_path
 from .text_task import TextPreviewTransport
-from .workspace import Workspace, native_path, write_json
+from .workspace import NOT_SAMPLES, Workspace, native_path, write_json
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ROOT = home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
@@ -457,7 +457,7 @@ class Engine:
                                           if not p["priced"] or (p["pricing"] and not any(float(price) for price in p["pricing"].values()))}),
                 "spec_versions": workspace.spec_versions(), "approved": self._approval(record["id"]),
                 "notice": self.data_notice(draft),
-                "hint_drift": self.hint_drift(workspace, draft),
+                "hint_drift": self.hint_drift(workspace, draft), "eval_drift": self.eval_drift(workspace, draft),
                 "external_orchestrator": draft["roles"]["orchestrator"] == EXTERNAL,
                 "notice_accepted": self._notice_hosts(record["id"]),
                 "blocked": self._blocked(draft),
@@ -506,7 +506,7 @@ class Engine:
             raise ValueError("Choose demo data, this folder, or data.zip")
         location = folder if samples == "." else folder.joinpath(*PurePosixPath(samples).parts)
         try:
-            inventory = inspect_folder(location, skip_root=(".lx",), max_bytes=tasks.MAX_SAMPLE_BYTES if task else MAX_BYTES)
+            inventory = inspect_folder(location, skip_root=NOT_SAMPLES, max_bytes=tasks.MAX_SAMPLE_BYTES if task else MAX_BYTES)
         except IntakeError as exc:
             raise ValueError(f"{exc}. Put your samples in a '{SAMPLES}' folder inside the workspace") from exc
         workspace = Workspace.create(folder, name=str(data.get("name") or folder.name or "Workspace")[:120],
@@ -667,6 +667,25 @@ class Engine:
                         hints=hints, take_hint_files=take_hint_files)
         return self._view(workspace)
 
+    def eval_drift(self, workspace, draft):
+        """Where the check in eval/ differs from the spec's; approval waits until this is settled, so the file is never mistaken for what runs."""
+        if not draft.get("task"):
+            return []
+        try:
+            found = workspace.eval_file()
+            if found is None or found[1].strip() == check_forms.author_text(workspace.check_source(draft["check"])).strip():
+                return []
+        except ValueError as exc:
+            return [str(exc)]
+        return [f"eval/{found[0]} differs from the spec's check"]
+
+    def eval_check(self, identifier):
+        """The text of the check kept in eval/."""
+        found = self.workspace(identifier).eval_file()
+        if found is None:
+            raise ValueError("There is no check in eval/: add eval/rules.json or eval/check.py")
+        return found[1]
+
     def test_check(self, identifier, check=None):
         """Self-test the current check, or a draft's text, on the samples as they are now; changes nothing."""
         workspace = self.workspace(identifier)
@@ -685,6 +704,7 @@ class Engine:
             raise ValueError("This workflow has a built-in task and check")
         problems, check, blocked = tasks.sample_problems(workspace.samples_path, draft["task"]), None, None
         problems += [{"sample":None,"problem":text+"; save the spec with the hint files to take them, or change the file"} for text in self.hint_drift(workspace, draft)]
+        problems += [{"sample":None,"problem":text+"; save the spec with the eval file to take it, or change the file"} for text in self.eval_drift(workspace, draft)]
         if not problems:
             try:
                 with tempfile.TemporaryDirectory() as folder:
@@ -753,6 +773,9 @@ class Engine:
             drifted = self.hint_drift(workspace, draft)
             if drifted:
                 raise ValueError("Settle the hints before approving: "+"; ".join(drifted))
+            drifted = self.eval_drift(workspace, draft)
+            if drifted:
+                raise ValueError("Settle the check before approving: "+"; ".join(drifted))
             if draft["mode"] == "live":
                 if draft["budget_usd"] > self._workspace_budget(identifier):
                     raise ValueError("This run's budget is more than the workspace budget")
@@ -766,7 +789,7 @@ class Engine:
                 raise ValueError("This first workflow requires the constructed demo manifest and images; other inputs can be inventoried and discussed")
             self._drop_approval(workspace, identifier)
             name = uuid.uuid4().hex
-            captured = snapshot_folder(workspace.samples_path, workspace.snapshot_dir(name), skip_root=(".lx",), max_bytes=limit)
+            captured = snapshot_folder(workspace.samples_path, workspace.snapshot_dir(name), skip_root=NOT_SAMPLES, max_bytes=limit)
             try:
                 tested = self._prove_task(workspace, draft, workspace.snapshot_dir(name)) if task else None
             except ValueError:

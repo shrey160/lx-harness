@@ -96,12 +96,13 @@ class Orchestration:
                 "budget_usd": draft["budget_usd"], "limits": draft["limits"], "task": draft.get("task"), "check": check, "blocked": project["blocked"],
                 "approved": {"by": approved.get("by", "person")} if approved and approved["version"] == draft["version"] else None,
                 "workspace_budget": project["budget"], "trial_cap_usd": project["trial_cap_usd"], "grant": project["grant"], "notice": project["notice"], "external_orchestrator": project["external_orchestrator"],
-                "hints": draft.get("hints"), "hint_drift": project["hint_drift"]}
+                "hints": draft.get("hints"), "hint_drift": project["hint_drift"], "eval_drift": project["eval_drift"]}
 
     def spec_draft(self, workspace, *, goal=None, task=None, check=None, tools=None, limits=None, mode=None, worker=None, improver=None, mcp_tools=None,
-                   hints=None, sample_hints=None, use_hint_files=False):
+                   hints=None, sample_hints=None, use_hint_files=False, use_eval_file=False):
         """A new spec version, which clears any approval. `task` holds only the fields that change."""
         identifier = self._id(workspace)
+        check = self._check_text(identifier, check, use_eval_file)
         current = self.engine.project(identifier)["draft"]["roles"]
         if task and tasks.quotes_answers(" ".join(str(value) for value in task.values()), self._truths(identifier, task)):
             raise ValueError("The task text repeats answers from the samples; describe the work without them")
@@ -121,8 +122,14 @@ class Orchestration:
         samples = {**held["samples"], **(per_sample or {})}
         return {"all": held["all"] if everyone is None else everyone, "samples": samples}
 
-    def check_test(self, workspace, check=None):
-        return self.engine.test_check(self._id(workspace), check)
+    def check_test(self, workspace, check=None, use_eval_file=False):
+        identifier = self._id(workspace)
+        return self.engine.test_check(identifier, self._check_text(identifier, check, use_eval_file))
+
+    def _check_text(self, identifier, check, use_eval_file):
+        if use_eval_file and check is not None:
+            raise ValueError("Give a check or use the eval file, not both")
+        return self.engine.eval_check(identifier) if use_eval_file else check
 
     def ready(self, workspace):
         return self.engine.ready(self._id(workspace))

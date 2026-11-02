@@ -124,6 +124,41 @@ class WhatItMayDo(Actions):
         self.lx.spec_draft(self.path, goal="Count what the request asks for.")
         self.assertEqual(self.lx.spec_show(self.path)["check"], text)
 
+    def write_eval(self, name, text):
+        folder = Path(self.path)/"eval"
+        folder.mkdir(exist_ok=True)
+        (folder/name).write_text(text, encoding="utf-8")
+
+    def test_an_eval_file_is_tested_then_taken_without_resending_it(self):
+        self.begin()
+        before = self.lx.spec_show(self.path)
+        text = "def score(truth, answer):\n    return answer == truth\n"
+        self.write_eval("check.py", text)
+        self.assertEqual(self.lx.check_test(self.path, use_eval_file=True)["samples"], 6)
+        self.assertEqual(self.lx.spec_show(self.path)["version"], before["version"])
+        self.lx.spec_draft(self.path, use_eval_file=True)
+        after = self.lx.spec_show(self.path)
+        self.assertEqual((after["version"], after["check"], after["eval_drift"]), (before["version"]+1, text, []))
+
+    def test_an_eval_file_that_differs_from_the_spec_blocks_approval(self):
+        project = self.begin()
+        self.write_eval("rules.json", '{"rules": [{"field": "answer", "rule": "equals"}]}')
+        self.assertEqual(self.lx.spec_show(self.path)["eval_drift"], ["eval/rules.json differs from the spec's check"])
+        self.assertIn("eval file", " ".join(item["problem"] for item in self.lx.ready(self.path)["problems"]))
+        with self.assertRaisesRegex(ValueError, "Settle the check"):
+            self.app.approve_preview(project["id"])
+
+    def test_two_eval_files_and_none_are_refused(self):
+        self.begin()
+        with self.assertRaisesRegex(ValueError, "no check in eval/"):
+            self.lx.spec_draft(self.path, use_eval_file=True)
+        self.write_eval("check.py", "x")
+        self.write_eval("rules.json", "{}")
+        with self.assertRaisesRegex(ValueError, "Keep one check"):
+            self.lx.check_test(self.path, use_eval_file=True)
+        with self.assertRaisesRegex(ValueError, "not both"):
+            self.lx.check_test(self.path, "x", use_eval_file=True)
+
     def test_a_new_task_is_read_by_its_own_rules_not_the_old_drafts(self):
         self.begin()
         samples = Path(self.path)/"samples"

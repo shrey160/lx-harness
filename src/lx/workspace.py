@@ -24,6 +24,11 @@ from .budget import BudgetLedger
 from .intake import _is_link_mode, inspect_folder, windows_to_wsl
 
 DIRECTORY = ".lx"
+EVAL_DIRECTORY = "eval"
+EVAL_FILES = ("rules.json", "check.py")
+# Never part of the samples: LX's own folder and the check kept beside them.
+NOT_SAMPLES = (DIRECTORY, EVAL_DIRECTORY)
+MAX_EVAL_BYTES = 100_000
 SCHEMA = 1
 _DRIVE_PATH = re.compile(r"^[A-Za-z]:[\\/]")
 _RUN_ID = re.compile(r"[a-f0-9]{12}")
@@ -134,7 +139,19 @@ class Workspace:
         return self.folder.joinpath(*PurePosixPath(self.project()["samples_dir"]).parts)
 
     def inspect_samples(self, max_bytes=None):
-        return inspect_folder(self.samples_path, skip_root=(DIRECTORY,), max_bytes=max_bytes)
+        return inspect_folder(self.samples_path, skip_root=NOT_SAMPLES, max_bytes=max_bytes)
+
+    def eval_file(self):
+        """(name, text) of the check kept in eval/, or None. It takes effect only when a spec takes it."""
+        found = [self.folder/EVAL_DIRECTORY/name for name in EVAL_FILES]
+        found = [path for path in found if path.is_file() and not path.is_symlink()]
+        if len(found) > 1:
+            raise ValueError(f"Keep one check in {EVAL_DIRECTORY}/: {' or '.join(EVAL_FILES)}")
+        if not found:
+            return None
+        if found[0].stat().st_size > MAX_EVAL_BYTES:
+            raise ValueError(f"{EVAL_DIRECTORY}/{found[0].name} is too long")
+        return found[0].name, found[0].read_text(encoding="utf-8")
 
     def spec_versions(self):
         names = (_SPEC_FILE.fullmatch(p.name) for p in (self.home/"spec").iterdir())
