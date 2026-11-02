@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {api, money} from './api.js';
+import {api, money, plural} from './api.js';
+import {Verdicts} from './RunsTab.jsx';
 
 const ROLES=['orchestrator','improver','worker'];
 
@@ -31,8 +32,8 @@ export function SpecTab({state,project,ui,setTab}){
 
     <h2>Task</h2>
     {draft.task?<>
-      <p className="capital-first">{draft.task.name.replace(/^lx_/,'').replaceAll('_',' ')} · {draft.task.stream_samples} samples in the loop · {draft.check?<>check <code>{draft.check.sha256.slice(0,12)}</code></>:'no check'}</p>
-      <TaskText project={project} ui={ui}/>
+      <p className="capital-first">{draft.task.name.replace(/^lx_/,'').replaceAll('_',' ')} · {draft.task.stream_samples} samples in the loop · {draft.check?<>check <code>{draft.check.sha256.slice(0,12)}</code></>:'no check'}{draft.judge?` · ${draft.judge.criteria.length} judged ${draft.judge.criteria.length===1?'criterion':'criteria'}`:''}</p>
+      <TaskText project={project} models={state.models} ui={ui}/>
       <div className="actions"><button className="button" disabled={ui.busy||!draft.check} onClick={testCheck}>Test the check</button><button className="button" disabled={ui.busy} onClick={checkReady}>Check these samples</button></div>
       {checkResult&&<CheckScores result={checkResult}/>}
       {readyResult&&<Ready result={readyResult}/>}
@@ -88,11 +89,12 @@ export function SpecTab({state,project,ui,setTab}){
 
 const TASK_TEXT=[['contract','Task text and reply format'],['yardstick','What a good result is'],['selection_checks','Checks before an answer is final']];
 
-function TaskText({project,ui}){
+function TaskText({project,models,ui}){
   const {task}=project.draft;
   return <div className="task-text">
     {TASK_TEXT.filter(([field])=>task[field]).map(([field,label])=><details key={field} open={field==='contract'}><summary>{label}</summary><pre className="setup"><code>{task[field]}</code></pre></details>)}
     <CheckEditor key={project.draft.version} project={project} ui={ui}/>
+    <JudgeEditor key={'judge'+project.draft.version} project={project} models={models} ui={ui}/>
     <p className="muted">To change the task text, ask a connected agent or use Discuss. Each change is a new version and needs a new approval.</p>
   </div>;
 }
@@ -109,7 +111,7 @@ function CheckEditor({project,ui}){
   const drift=project.eval_drift||[];
   return <details onToggle={e=>load(e.currentTarget.open)}><summary>Scoring check</summary>
     {problem?<p className="callout bad">{problem}</p>:saved===null?<p className="muted">Loading…</p>:<>
-      {!draft.check&&<p className="callout warn" role="status">This spec has no check, so its runs are not scored and samples need no truth.json. Save a check here to score again.</p>}
+      {!draft.check&&<p className="callout warn" role="status">{draft.judge?'This spec has no check, so only its model judges score runs, and samples need no truth.json.':'This spec has no check, so its runs are not scored and samples need no truth.json.'} Save a check here to score with it again.</p>}
       <p className="muted">Write rules as JSON, a Python <code>def score(truth, answer):</code>, or a full check. The guide has each form. Test and Try save nothing.</p>
       {drift.length>0&&<div className="callout warn" role="status"><p>{drift.join('. ')}. Approval waits until they match.</p><button className="button" disabled={ui.busy} onClick={()=>fill('check-file')}>Load the eval file</button></div>}
       <textarea className="check-editor" rows="16" spellCheck="false" aria-label="Scoring check" value={text} onChange={e=>edit(e.target.value)}/>
@@ -128,6 +130,61 @@ function CheckEditor({project,ui}){
       {tried&&<TriedAnswers result={tried}/>}
     </>}
   </details>;
+}
+
+const BLANK={name:'',question:''};
+
+function JudgeEditor({project,models,ui}){
+  const {draft}=project,held=draft.judge,text=draft.task.template==='text-request';
+  const [criteria,setCriteria]=useState(held?held.criteria:[{...BLANK}]),[sees,setSees]=useState(Boolean(held?.sees_request));
+  const [entry,setEntry]=useState(held?.entry||''),[cap,setCap]=useState(held?.cap_usd==null?'':String(held.cap_usd));
+  const [tried,setTried]=useState(null),[sending,setSending]=useState(false);
+  const live=draft.mode==='live',model=models.find(m=>m.id===entry);
+  const written={criteria:criteria.map(item=>({name:item.name.trim(),question:item.question.trim()})),sees_request:sees};
+  const judge={...written,entry:entry||null,cap_usd:cap===''?null:Number(cap)};
+  const dirty=JSON.stringify(judge)!==JSON.stringify(held?{criteria:held.criteria,sees_request:held.sees_request,entry:held.entry||null,cap_usd:held.cap_usd??null}:null);
+  const complete=written.criteria.length>0&&written.criteria.every(item=>item.name&&item.question);
+  const set=(index,field,value)=>{setCriteria(criteria.map((item,i)=>i===index?{...item,[field]:value}:item));setTried(null);};
+  const base={goal:draft.goal,budget_usd:Number(draft.budget_usd),limits:draft.limits_set||{}};
+  const save=()=>ui.act(async()=>{await api(`projects/${project.id}/spec`,{...base,judge});ui.notify('Saved as a new version.');});
+  const remove=()=>ui.act(async()=>{await api(`projects/${project.id}/spec`,{...base,no_judge:true});ui.notify('Saved as a new version with no judges.');});
+  const load=()=>ui.act(async()=>{const found=await api(`projects/${project.id}/judge-file`,{});setCriteria(found.criteria);setSees(found.sees_request);setTried(null);});
+  const spend=live?{cap_usd:Number(cap),notice_accepted:sending,contributor_accepted:sending&&entry==='spark-contributor'}:null;
+  const tryIt=()=>ui.act(async()=>{setTried(null);setTried(await api(`projects/${project.id}/judge-try`,{judges:{...written,entry},spend}));});
+  const drift=(project.eval_drift||[]).filter(line=>line.includes('judges.json'));
+  return <details open={Boolean(held)}><summary>Model judges <span className="muted">(optional)</span></summary>
+    <p className="muted">Yes-or-no questions a model answers about each answer, for what no rule can check, such as whether a reply answers the request. They count as checks beside the scoring check, or alone. The judge runs after the loop, so the loop never sees it. A model can be wrong, so only a person can approve a judged run.</p>
+    {drift.length>0&&<div className="callout warn" role="status"><p>{drift.join('. ')}. Approval waits until they match.</p><button className="button" disabled={ui.busy} onClick={load}>Load eval/judges.json</button></div>}
+    {criteria.map((item,index)=><div className="criterion" key={index}>
+      <label className="field">Name<input aria-label={'Criterion '+(index+1)+' name'} maxLength="80" value={item.name} onChange={e=>set(index,'name',e.target.value)}/></label>
+      <label className="field">Question<textarea rows="2" aria-label={'Criterion '+(index+1)+' question'} maxLength="1000" value={item.question} onChange={e=>set(index,'question',e.target.value)}/></label>
+      <button className="button" disabled={criteria.length===1} onClick={()=>{setCriteria(criteria.filter((_,i)=>i!==index));setTried(null);}}>Remove</button>
+    </div>)}
+    <div className="actions"><button className="button" disabled={criteria.length>=50} onClick={()=>setCriteria([...criteria,{...BLANK}])}>Add a question</button></div>
+    {text&&<label className="check"><input type="checkbox" checked={sees} onChange={e=>{setSees(e.target.checked);setTried(null);}}/>Let the judge read each sample's request</label>}
+    <div className="three two-up">
+      <label className="field">Judge model<select aria-label="Judge model" value={entry} onChange={e=>{setEntry(e.target.value);setTried(null);}}><option value="">Choose a model</option>{models.filter(m=>m.role_ready).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select>{model&&<small className="muted">{new URL(model.base_url).host}</small>}</label>
+      <label className="field">Most the judges may spend on one run (USD)<input type="number" min="0.01" max="20" step="0.01" value={cap} onChange={e=>setCap(e.target.value)}/>{project.judge&&!dirty&&<small className="muted">Each call holds {money(project.judge.call_holds_usd)} while it runs, so the cap must cover at least that.</small>}</label>
+    </div>
+    {entry&&entry===draft.roles.worker&&<p className="muted">The judge is the worker's own model, which may judge its own answers kindly.</p>}
+    {live&&entry&&<label className="check"><input type="checkbox" checked={sending} onChange={e=>setSending(e.target.checked)}/>Trying sends saved answers{sees?', requests':''} and expected answers to {model?new URL(model.base_url).host:'the judge'}, and spends up to the cap above{entry==='spark-contributor'?'. Spark Contributor may use them for training':''}.</label>}
+    <div className="actions">
+      <button className="button" disabled={ui.busy||!complete||!entry||(live&&(!sending||cap===''))} onClick={tryIt}>{live?'Try on saved answers (spends)':'Try on saved answers'}</button>
+      <button className="button" disabled={ui.busy||!complete||!dirty} onClick={save}>Save judges</button>
+      {held&&<button className="button" disabled={ui.busy} onClick={remove}>Remove judges</button>}
+    </div>
+    {dirty&&<p className="muted" role="status">Saving makes a new version and clears any approval.</p>}
+    {tried&&<TriedJudges result={tried}/>}
+  </details>;
+}
+
+function TriedJudges({result}){
+  const score=value=>value==null?'none':value.toFixed(2),missed=result.results.filter(item=>item.not_judged);
+  if(!result.answers)return <p className="muted" role="status">No saved answers yet. Run a trial to get one.</p>;
+  return <div role="status">
+    <p className="muted">Judged {result.judged} of {result.answers} saved answers: {result.changed?`${result.changed} differ from their run's own verdicts.`:'none differ from their run\'s own verdicts.'}{missed.length?` ${missed.length} not judged: ${missed[0].not_judged}.`:''}{result.runs_left_out?` ${result.runs_left_out} older runs left out.`:''}</p>
+    {result.results.filter(item=>!item.not_judged).map(item=><details key={item.run+item.where}><summary><strong>{item.sample}</strong> {score(item.old)} to {score(item.new)} <span className="muted">{item.run} {item.where}</span></summary><Verdicts found={item.verdicts}/></details>)}
+  </div>;
 }
 
 function TriedAnswers({result}){
@@ -207,7 +264,7 @@ function Review({project,jobs,limitFields,ui,close,done}){
   const {draft}=project,dialog=useRef(null),[check,setCheck]=useState(null),[checkError,setCheckError]=useState('');
   useEffect(()=>{dialog.current.showModal();},[]);
   useEffect(()=>{if(draft.task&&draft.check)api(`projects/${project.id}/check-test`,{}).then(setCheck,error=>setCheckError(error.message));},[draft.version]);
-  const usesSpark=Object.values(draft.roles).includes('spark-contributor');
+  const usesSpark=Object.values(draft.roles).includes('spark-contributor')||draft.judge?.entry==='spark-contributor';
   const live=draft.mode==='live';
   const newHosts=live&&project.notice.some(entry=>!project.notice_accepted.includes(entry.host));
   const approve=()=>ui.act(async()=>{await api(`projects/${project.id}/approve`,{version:draft.version,data_approved:true,contributor_accepted:usesSpark,notice_accepted:newHosts});close();done();});
@@ -218,9 +275,13 @@ function Review({project,jobs,limitFields,ui,close,done}){
       <dt>Samples</dt><dd>{project.inventory.inventory.length} files, frozen now</dd>
       <dt>Budget</dt><dd>${draft.budget_usd} for this run, ${project.budget.cap_usd} for the workspace</dd>
       {['orchestrator','improver','worker'].map(role=><React.Fragment key={role}><dt className="capital">{role}</dt><dd>{draft.providers[role].name}</dd></React.Fragment>)}
+      {project.judge&&<><dt>Judge</dt><dd>{project.judge.model}, up to {money(project.judge.cap_usd)} a run</dd></>}
     </dl>
+    {project.judge&&<><h3>Model judge</h3>
+      <p className="muted">{draft.judge.criteria.length} {draft.judge.criteria.length===1?'question':'questions'} on each answer: about {plural(project.judge.calls_per_run)} a full run, 1 a trial. Each call holds {money(project.judge.call_holds_usd)} while it runs. {project.judge.note}</p>
+      <p className="callout warn" role="status">Scored partly by a model, whose verdicts can vary and may be wrong. Read its reasons on the run page before trusting a judged score.{project.judge.same_as_worker?' The judge is the worker\'s own model, which may judge its own answers kindly.':''}</p></>}
     {live&&<Spending project={project} jobs={jobs} limitFields={limitFields}/>}
-    {draft.task&&!draft.check&&<p className="callout warn" role="status">This run has no check, so it will not be scored. Nothing will say whether the harness got better or worse.</p>}
+    {draft.task&&!draft.check&&!draft.judge&&<p className="callout warn" role="status">This run has no check, so it will not be scored. Nothing will say whether the harness got better or worse.</p>}
     {draft.task&&draft.check&&<><h3>How the check scores</h3>{check?<CheckScores result={check}/>:checkError?<p className="callout bad" role="alert">{checkError}</p>:<p className="muted" role="status">Testing the check…</p>}</>}
     {project.external_orchestrator&&<p className="muted">A connected agent is the orchestrator. It uses its own model and account, so the costs shown here leave it out.</p>}
     {live&&<><h3>Who receives what</h3><ul className="plain">{project.notice.map(entry=><li key={entry.who}><strong>{entry.who}</strong> ({entry.host}): {entry.gets}</li>)}</ul></>}

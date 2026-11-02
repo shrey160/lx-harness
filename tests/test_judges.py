@@ -268,6 +268,8 @@ class JudgedRuns(Actions):
         package = workspace.package_dir(run_id)
         self.assertEqual(json.loads((package/"judges.json").read_text(encoding="utf-8"))["criteria"], CRITERIA["criteria"])
         self.assertIn("Partly judged by", (package/"limitations.md").read_text(encoding="utf-8"))
+        replies = self.app.run_replies(project["id"], run_id)["samples"]
+        self.assertEqual(replies[0]["judged"]["before"][0]["name"], "counts the asked kind")
         rows = usage_rows(workspace.preview_ledger, run_id+"/judge/")
         self.assertEqual({row["role"] for row in rows}, {"judge"})
         self.assertEqual({row["phase"] for row in rows}, {"grading"})

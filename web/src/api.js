@@ -14,7 +14,9 @@ export const money=n=>{
   return `$${value.toFixed(value<1?4:2)}`;
 };
 // A task reports base and after-the-loop means; the demo's are per candidate, so it has none to show.
-export const scores=result=>typeof result?.means?.harness2==='number'?result.means:null;
+export const scores=result=>result?.means&&['base','harness2'].some(key=>typeof result.means[key]==='number')?result.means:null;
+// A score the judge could not give is left out, never shown as zero.
+export const two=value=>typeof value==='number'?value.toFixed(2):'not judged';
 export const plural=(n,word='call')=>`${n} ${word}${n===1?'':'s'}`;
 export const when=seconds=>new Date(seconds*1000).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 export const active=job=>['queued','running'].includes(job?.status);

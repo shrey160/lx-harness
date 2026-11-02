@@ -1504,7 +1504,13 @@ class Engine:
         def text(relative):
             answer = json.loads((run_dir/"outputs"/"runs"/relative/"answer.json").read_text(encoding="utf-8"))
             return (answer if isinstance(answer, str) else json.dumps(answer, indent=2, ensure_ascii=False))[:MAX_REPLY]
-        return {"samples":[{"sample":folders.get(sample, sample),"before":text(pair["base"]),"after":text(pair["after"]),"same":pair["base"] == pair["after"]}
+        judged_file = run_dir/"outputs"/"judged.json"
+        kept = json.loads(judged_file.read_text(encoding="utf-8")) if judged_file.is_file() else None
+        # A run written on Windows keeps its reply paths with backslashes; verdicts are keyed with forward slashes.
+        verdicts = lambda relative: kept.get(relative.replace("\\", "/"))
+        judged = lambda pair: {"before": verdicts(pair["base"]), "after": verdicts(pair["after"])}
+        return {"samples":[{"sample":folders.get(sample, sample),"before":text(pair["base"]),"after":text(pair["after"]),"same":pair["base"] == pair["after"],
+                            **({"judged": judged(pair)} if kept is not None else {})}
                            for sample, pair in files.items()]}
 
     def run_trajectories(self, identifier, job_id):

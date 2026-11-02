@@ -16,6 +16,7 @@ TRIAL = {"kind": "trial", "task": "lx_x", "live": True, "sample": "sample-01", "
 UNSCORED = {"task": "lx_x", "means": None, "scored": False, "samples": ["s"], "stream_order": ["s"], "base_sha256": "0"*64}
 FULL = {"task": "lx_x", "means": {"base": 0.0, "harness2": 0.7}, "checks": {"base": {"s": False}, "harness2": {"s": False}}, "stream_order": ["s"], "base_sha256": "0"*64,
         "scores": {"base": {"s": 0.0}, "harness2": {"s": 0.7}}}
+NOT_JUDGED = {**FULL, "means": {"base": None, "harness2": 0.5}, "not_graded": 1, "scores": {"base": {"s": None}, "harness2": {"s": 0.5}}}
 
 
 @unittest.skipUnless(shutil.which("node") and (WEB/"node_modules"/"esbuild").is_dir(), "needs Node and the web packages")
@@ -38,10 +39,21 @@ class Pages(Base):
         state["jobs"] += [{**run, "id": "trial", "kind": "trial", "status": "completed", "result": TRIAL}, {**run, "id": "full", "status": "completed", "result": FULL},
                            {**run, "id": "unscored", "status": "completed", "result": UNSCORED},
                            {**run, "id": "unscored-trial", "kind": "trial", "status": "completed", "result": {**TRIAL, "scored": False, "score": None, "checks": []}},
+                           {**run, "id": "not-judged", "status": "completed", "result": NOT_JUDGED},
+                           {**run, "id": "not-judged-trial", "kind": "trial", "status": "completed", "result": {**TRIAL, "score": None, "checks": [], "not_judged": "The judge's reply was not JSON"}},
                            {**run, "id": "older", "status": "completed", "result": {key: value for key, value in FULL.items() if key != "scores"}}]
         done = self.render(state)
         self.assertEqual(done.returncode, 0, done.stdout+done.stderr)
         self.assertIn("pages rendered", done.stdout)
+
+    def test_the_spec_page_opens_with_judges(self):
+        path = self.folder()
+        write_synthetic(Path(path)/"samples", 6)
+        lx = Orchestration(self.app, launch=False)
+        lx.init(path, "photo-request")
+        lx.spec_draft(path, judges={"criteria": [{"name": "tidy", "question": "Is it tidy?"}], "entry": "spark-contributor", "cap_usd": 0.5})
+        done = self.render(self.app.state())
+        self.assertEqual(done.returncode, 0, done.stdout+done.stderr)
 
     def test_a_page_that_throws_is_reported(self):
         path = self.folder()
