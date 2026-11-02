@@ -234,6 +234,10 @@ class Engine:
         notice = [{"who":role,"host":host(draft["providers"][role]["base_url"]),"gets":gets[role]} for role in ROLES if draft["roles"][role] != EXTERNAL]
         notice += [{"who":"orchestrator","host":"your connected agent","gets":"whatever it reads in this folder, on its own provider and account"}
                    ] if draft["roles"]["orchestrator"] == EXTERNAL else []
+        judge = draft.get("judge") or {}
+        notice += [{"who":"judge","host":host(judge["provider"]["base_url"]),
+                    "gets":"each answer, its expected answer where the sample has one"+(", and the sample's request" if judge["sees_request"] else "")}
+                   ] if judge.get("provider") else []
         tools = tasks.spec_tools(draft)
         notice += [{"who":"SAM 3.1","host":host(META_API),"gets":"the sample photos"}] if tasks.SEGMENTATION in tools else []
         notice += [{"who":"Muse Voice Transcribe","host":host(META_API),"gets":"the sample audio"}] if tasks.TRANSCRIPTION in tools else []
@@ -258,7 +262,8 @@ class Engine:
 
     def _check_providers(self, spec):
         current = {role:self._provider(spec["roles"][role]) for role in ROLES}
-        if spec.get("providers") != current:
+        judge = (spec.get("judge") or {}).get("entry")
+        if spec.get("providers") != current or (judge and spec["judge"].get("provider") != self._provider(judge)):
             raise ValueError("A provider changed since approval; approve again")
         blocked = self._blocked(spec)
         if blocked:
@@ -276,15 +281,25 @@ class Engine:
         stale = self._stale_mcp(spec)
         if stale:
             return stale
+        unset = judging.missing(spec.get("judge"))
+        if unset:
+            return unset
         if spec.get("mode") != "live" or self._live_transport_factory is not None:
             return None  # previews need no key
-        meta_models = [models[entry]["name"] for entry in sorted(set(spec["roles"].values()))
+        entries = self._entries(spec)
+        meta_models = [models[entry]["name"] for entry in sorted(entries)
                        if entry in models and entry != DEFAULT_ROLE_ENTRY and models[entry]["credential_source"] == "shared Meta key"]
-        users = (["Spark"] if DEFAULT_ROLE_ENTRY in spec["roles"].values() else []) + meta_models + [SHORT_NAMES[tool] for tool in tools]
+        users = (["Spark"] if DEFAULT_ROLE_ENTRY in entries else []) + meta_models + [SHORT_NAMES[tool] for tool in tools]
         if not users or self.registry.meta_key_source():
             return None
         who = ", ".join(users[:-1])+" and "+users[-1] if len(users) > 1 else users[0]
         return f"A live run needs a Meta key for {who}. Add it in Settings, under Tools."
+
+    @staticmethod
+    def _entries(spec):
+        """Every provider entry a spec sends data to: its roles and its judge."""
+        judge = (spec.get("judge") or {}).get("entry")
+        return set(spec["roles"].values())|({judge} if judge else set())
 
     def _stale_mcp(self, spec):
         """Why a spec's MCP tools no longer match what a person connected and marked read-only."""
@@ -635,8 +650,7 @@ class Engine:
                 raise ValueError("A hint repeats answers from the samples. Hints describe how the task is done, never the answers")
         return hints
 
-    @staticmethod
-    def _judge(task, previous, given, remove):
+    def _judge(self, task, previous, given, remove):
         """The spec's judge: what was given, laid over what it had, or none when removed."""
         if remove:
             if given is not None:
@@ -649,8 +663,20 @@ class Engine:
         if type(given) is not dict:
             raise ValueError("Judges are an object with criteria")
         held = previous.get("judge") or {}
-        written = judging.check_written({**(judging.written(held) or {}), **given}, text_task=tasks.is_text(task))
-        return {**held, **written}
+        unknown = set(given)-set(judging.FIELDS)
+        if unknown:
+            raise ValueError("Judges take criteria, sees_request, entry and cap_usd")
+        judge = {**held, **judging.check_written({**(judging.written(held) or {}), **{k: v for k, v in given.items() if k in judging.WRITTEN}},
+                                                 text_task=tasks.is_text(task))}
+        if "cap_usd" in given:
+            judge["cap_usd"] = None if given["cap_usd"] is None else judging.check_cap(given["cap_usd"])
+        if "entry" in given:
+            judge["entry"] = given["entry"]
+        if judge.get("entry"):
+            judge["provider"] = self._provider(judge["entry"])  # bound by approval, as each role's is
+        else:
+            judge.pop("provider", None)
+        return judge
 
     def hint_drift(self, workspace, draft):
         """Where a hint file differs from the spec's hints; approval waits until this is settled."""
@@ -852,7 +878,7 @@ class Engine:
             draft = workspace.spec(record["spec_version"])
             if data.get("version") != draft["version"] or data.get("data_approved") is not True:
                 raise ValueError("Approve the current spec and its data snapshot")
-            if DEFAULT_ROLE_ENTRY in draft["roles"].values() and data.get("contributor_accepted") is not True:
+            if DEFAULT_ROLE_ENTRY in self._entries(draft) and data.get("contributor_accepted") is not True:
                 raise ValueError("Accept the Contributor disclosure for Spark")
             self._check_providers(draft)
             drifted = self.hint_drift(workspace, draft)
@@ -918,7 +944,7 @@ class Engine:
         cap, days, runs = data.get("cap_usd"), data.get("days",GRANT_DAYS), data.get("runs",GRANT_RUNS)
         if data.get("data_approved") is not True:
             raise ValueError("Approve the data snapshot first")
-        if DEFAULT_ROLE_ENTRY in draft["roles"].values() and data.get("contributor_accepted") is not True:
+        if DEFAULT_ROLE_ENTRY in self._entries(draft) and data.get("contributor_accepted") is not True:
             raise ValueError("Accept the Contributor disclosure for Spark")
         room = self._ledger(workspace).summary()["remaining_usd"]
         if isinstance(cap,bool) or not isinstance(cap,(int,float)) or not math.isfinite(cap) or not 0.11 <= cap <= room:

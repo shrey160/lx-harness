@@ -8,6 +8,7 @@ all in the spec, so an approval binds them.
 from __future__ import annotations
 
 import json
+import math
 
 MAX_CRITERIA = 50
 MAX_NAME = 80
@@ -55,6 +56,24 @@ def read_written(text, *, text_task):
     except ValueError as error:
         raise ValueError(f"The judges are not valid JSON: {error}") from None
     return check_written(written, text_task=text_task)
+
+
+def check_cap(cap):
+    """The most a run may spend on judging, which the person sets."""
+    if isinstance(cap, bool) or not isinstance(cap, (int, float)) or not math.isfinite(cap) or not 0 < cap <= 20:
+        raise ValueError("A judge's cap must be more than $0 and at most $20")
+    return cap
+
+
+def missing(judge):
+    """What a judge still needs before it can run, or None."""
+    if not judge:
+        return None
+    if not judge.get("entry"):
+        return "Choose a model for the judges."
+    if judge.get("cap_usd") is None:
+        return "Set the most the judges may spend on one run."
+    return None
 
 
 def written(judge):

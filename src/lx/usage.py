@@ -16,7 +16,7 @@ def usage_rows(ledger, prefix=""):
 
 def summarize(rows):
     roles = {}
-    for role in ("orchestrator","improver","worker","tool"):
+    for role in ("orchestrator","improver","worker","tool","judge"):
         matching = [r for r in rows if r["role"]==role]
         roles[role] = {"input_tokens":sum(r["input_tokens"] or 0 for r in matching),
             "output_tokens":sum(r["output_tokens"] or 0 for r in matching),

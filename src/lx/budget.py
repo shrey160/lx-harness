@@ -19,7 +19,7 @@ class BudgetExceeded(BudgetError):
 
 
 # "tool" covers the fixed Meta services (SAM, Transcribe) the agent calls.
-_ROLES = frozenset({"orchestrator", "improver", "worker", "tool"})
+_ROLES = frozenset({"orchestrator", "improver", "worker", "tool", "judge"})
 _NANO = Decimal("1000000000")
 
 

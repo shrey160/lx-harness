@@ -83,5 +83,44 @@ class InTheSpec(Actions):
         self.assertNotIn("eval/judges.json", {item["path"] for item in self.lx.samples(self.path)["inventory"]})
 
 
+class ModelAndCap(Actions):
+    def test_a_judge_is_blocked_until_it_has_a_model_and_a_cap(self):
+        project = self.begin()
+        self.lx.spec_draft(self.path, judges=CRITERIA)
+        self.assertEqual(self.app.project(project["id"])["blocked"], "Choose a model for the judges.")
+        self.app.edit_spec(project["id"], {"judge": {"entry": "spark-contributor"}})
+        self.assertEqual(self.app.project(project["id"])["blocked"], "Set the most the judges may spend on one run.")
+        self.app.edit_spec(project["id"], {"judge": {"cap_usd": 0.05}})
+        project = self.app.project(project["id"])
+        self.assertIsNone(project["blocked"])
+        judge = project["draft"]["judge"]
+        self.assertEqual((judge["entry"], judge["cap_usd"], judge["provider"]["id"]), ("spark-contributor", 0.05, "spark-contributor"))
+        self.assertEqual(judge["criteria"], CRITERIA["criteria"])
+
+    def test_the_cap_and_fields_are_checked(self):
+        project = self.begin()
+        for given, message in (({**CRITERIA, "cap_usd": 0}, "more than"), ({**CRITERIA, "cap_usd": True}, "more than"),
+                               ({**CRITERIA, "cap_usd": 21}, "more than"), ({**CRITERIA, "model": "x"}, "take criteria"),
+                               ({**CRITERIA, "entry": "no-such-entry"}, "chat provider")):
+            with self.assertRaisesRegex(ValueError, message):
+                self.app.edit_spec(project["id"], {"judge": given})
+
+    def test_the_judge_is_named_in_the_data_notice(self):
+        project = self.begin()
+        self.app.edit_spec(project["id"], {"judge": {**CRITERIA, "entry": "spark-contributor", "cap_usd": 0.05}})
+        entry = next(item for item in self.app.project(project["id"])["notice"] if item["who"] == "judge")
+        self.assertIn("expected answer", entry["gets"])
+        self.assertNotIn("request", entry["gets"])
+
+    def test_a_changed_judge_provider_needs_a_new_approval(self):
+        project = self.begin()
+        self.app.edit_spec(project["id"], {"judge": {**CRITERIA, "entry": "spark-contributor", "cap_usd": 0.05}})
+        draft = self.app.project(project["id"])["draft"]
+        self.app._check_providers(draft)
+        moved = {**draft, "judge": {**draft["judge"], "provider": {**draft["judge"]["provider"], "base_url": "https://elsewhere.example/v1"}}}
+        with self.assertRaisesRegex(ValueError, "approve again"):
+            self.app._check_providers(moved)
+
+
 if __name__ == "__main__":
     unittest.main()
