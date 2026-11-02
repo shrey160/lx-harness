@@ -176,6 +176,14 @@ class Engine:
                                      else PreviewTransport(truth))
             clients[role] = ChatClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile,
                                         max_tokens=limits["reply_tokens"], call_seconds=limits["call_seconds"])
+        judge = spec.get("judge") or {}
+        if judge.get("entry") and judge.get("cap_usd"):
+            # Its own scope and cap, inside the run's, so a loop that spends its whole budget is still graded.
+            entry, profile = judge["entry"], self.registry.profile(judge["entry"])
+            transport = (judging.JudgePreviewTransport() if mode != "live" else transports.get(entry) or
+                         self._transport(entry, profile, call_limit, truth, limits=limits, contract=contract, rate=judge["provider"].get("requests_per_minute")))
+            clients["judge"] = ChatClient(transport, BudgetScope(ledger, f"{scope_id}/judge", judge["cap_usd"]), profile=profile,
+                                          max_tokens=limits["reply_tokens"], call_seconds=limits["call_seconds"])
         return clients
 
     def _ledger(self, workspace):

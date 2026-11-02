@@ -1,9 +1,12 @@
 """Model judges: criteria a chat model answers about each answer, beside the check or in place of one."""
 import json
 from pathlib import Path
+import tempfile
 import unittest
 
 from lx import judging
+from lx.budget import BudgetExceeded
+from lx.spark import ModelError
 from test_orchestration import Actions
 
 CRITERIA = {"criteria": [{"name": "counts the asked kind", "question": "Does the answer count only the kind of thing the request names?"}]}
@@ -120,6 +123,97 @@ class ModelAndCap(Actions):
         moved = {**draft, "judge": {**draft["judge"], "provider": {**draft["judge"]["provider"], "base_url": "https://elsewhere.example/v1"}}}
         with self.assertRaisesRegex(ValueError, "approve again"):
             self.app._check_providers(moved)
+
+
+JUDGE = {**CRITERIA, "sees_request": False, "entry": "spark-contributor", "cap_usd": 0.05,
+         "provider": {"model_id": "muse-spark", "base_url": "https://example.test/v1"}}
+
+
+class Client:
+    """Replies in turn from `replies`; an exception in the list is raised."""
+    def __init__(self, *replies):
+        self.replies, self.sent = list(replies), []
+
+    def chat(self, messages, **options):
+        self.sent.append((messages, options))
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return {"content": reply}, {}
+
+
+def verdict(passed=True, name="counts the asked kind"):
+    return json.dumps({"verdicts": [{"name": name, "passed": passed, "reason": "because"}]})
+
+
+class Judging(unittest.TestCase):
+    def setUp(self):
+        self.cache = tempfile.TemporaryDirectory()
+        self.addCleanup(self.cache.cleanup)
+
+    def judge(self, *replies, judge=JUDGE):
+        client = Client(*replies)
+        return judging.Judge(judge, client, self.cache.name, live=True), client
+
+    def test_a_verdict_is_read_and_kept_so_asking_again_is_free(self):
+        judge, client = self.judge(verdict(False))
+        found = judge.verdicts({"total": 3}, {"total": 4})
+        self.assertEqual(found, [{"name": "counts the asked kind", "passed": False, "reason": "because"}])
+        self.assertEqual(judge.verdicts({"total": 3}, {"total": 4}), found)
+        self.assertEqual(len(client.sent), 1)
+        self.assertEqual(client.sent[0][1]["role"], "judge")
+        self.assertEqual(judging.as_checks(found), [{"name": "judge: counts the asked kind", "passed": False, "error": "judge: counts the asked kind: not met"}])
+
+    def test_the_judge_sees_the_truth_only_when_there_is_one_and_the_request_only_when_allowed(self):
+        judge, client = self.judge(verdict(), verdict())
+        judge.verdicts(None, "an answer", "the request")
+        shown = json.loads(client.sent[0][0][1]["content"])
+        self.assertEqual(set(shown), {"criteria", "answer"})
+        judge.judge = {**JUDGE, "sees_request": True}
+        judge.verdicts({"total": 3}, "an answer", "the request")
+        self.assertEqual(json.loads(client.sent[1][0][1]["content"])["request"], "the request")
+
+    def test_a_fenced_reply_is_read(self):
+        judge, _ = self.judge("```json\n"+verdict()+"\n```")
+        self.assertTrue(judge.verdicts(1, 2)[0]["passed"])
+
+    def test_an_unreadable_reply_is_retried_once_then_not_judged(self):
+        judge, client = self.judge("no", verdict())
+        self.assertTrue(judge.verdicts(1, 2)[0]["passed"])
+        judge, client = self.judge("no", verdict(name="another"), verdict())
+        with self.assertRaisesRegex(judging.NotJudged, "criterion's name"):
+            judge.verdicts(1, 3)
+        self.assertEqual(len(client.sent), 2)
+
+    def test_a_failed_call_is_not_judged_and_a_spent_cap_stops_calling(self):
+        judge, _ = self.judge(ModelError("timed out"))
+        with self.assertRaisesRegex(judging.NotJudged, "call failed"):
+            judge.verdicts(1, 2)
+        judge, client = self.judge(BudgetExceeded("full"))
+        for answer in (2, 3):
+            with self.assertRaisesRegex(judging.NotJudged, "cap was reached"):
+                judge.verdicts(1, answer)
+        self.assertEqual(len(client.sent), 1)
+
+    def test_verdicts_must_cover_every_criterion(self):
+        two = [{"name": "a", "question": "?"}, {"name": "b", "question": "?"}]
+        with self.assertRaisesRegex(judging.NotJudged, "one verdict for each"):
+            judging.read_verdicts(json.dumps({"verdicts": [{"name": "a", "passed": True}]}), two)
+        for reply in ("[]", '{"verdicts": 1}', '{"verdicts": [{"name": "a", "passed": "yes"}]}'):
+            with self.assertRaises(judging.NotJudged):
+                judging.read_verdicts(reply, two)
+
+    def test_a_cached_verdict_depends_on_everything_the_judge_saw(self):
+        key = lambda **change: judging.cache_key({**JUDGE, **change.pop("judge", {})}, *[change.get(k, 1) for k in ("truth", "answer", "request")], live=change.get("live", True))
+        self.assertEqual(len({key(), key(truth=2), key(answer=2), key(request=2), key(live=False),
+                              key(judge={"criteria": [{"name": "x", "question": "?"}]})}), 6)
+
+    def test_the_preview_double_passes_answers_that_are_not_empty(self):
+        transport = judging.JudgePreviewTransport()
+        ask = lambda answer: json.loads(transport({"messages": [{"role": "developer", "content": judging.INSTRUCTIONS},
+            {"role": "user", "content": judging._question(CRITERIA["criteria"], None, answer, None)}]}, 1)["choices"][0]["message"]["content"])
+        self.assertTrue(ask({"total": 1})["verdicts"][0]["passed"])
+        self.assertFalse(ask({})["verdicts"][0]["passed"])
 
 
 if __name__ == "__main__":

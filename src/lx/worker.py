@@ -24,9 +24,13 @@ def execute(engine, workspace, identifier, snapshot):
     trial = job.get("kind") == "trial"
     clients = engine.build_clients(workspace, job["spec"], identifier, job["cap_usd"] if trial else job["spec"]["budget_usd"])
     if trial:
-        clients = {"worker": clients["worker"]}
-    # Once per provider entry: a bad key or endpoint stops the run before the loop starts.
-    for role in {job["spec"]["roles"][r]:r for r in reversed(ROLES) if r in clients}.values():
+        clients = {role: client for role, client in clients.items() if role in {"worker", "judge"}}
+    # Once per provider entry: a bad key or endpoint stops the run before the loop starts. A judge on its own entry is
+    # tried too, since it is called only after the loop has spent its money.
+    entries = {job["spec"]["roles"][r]:r for r in reversed(ROLES) if r in clients}
+    if "judge" in clients and job["spec"]["judge"]["entry"] not in entries:
+        entries[job["spec"]["judge"]["entry"]] = "judge"
+    for role in entries.values():
         message,_ = clients[role].chat([{"role":"developer","content":"LX_PREFLIGHT"},{"role":"user","content":"Reply PREFLIGHT_OK"}],
                                        role=role,phase="preflight",candidate=identifier,
                                        timeout=max(120,limits["call_seconds"]))
