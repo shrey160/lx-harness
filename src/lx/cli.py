@@ -11,7 +11,7 @@ from pathlib import Path
 import sys
 
 from . import mcp_client
-from .engine import DEFAULT_ROOT, DEFAULT_ROLE_ENTRY, GRANT_DAYS, GRANT_RUNS, Engine
+from .engine import DEFAULT_ROOT, DEFAULT_ROLE_ENTRY, GRANT_DAYS, GRANT_RUNS, NO_CHECK, Engine
 from .orchestration import TEMPLATES, Orchestration
 
 
@@ -41,7 +41,9 @@ def approve(engine, lx, args):
         return lx.approve(args.workspace)
     project = engine.open_workspace(args.workspace)
     summary = review(project)
-    if project["draft"].get("task"):
+    if project["draft"].get("task") and not project["draft"].get("check"):
+        summary += f"\n{NO_CHECK}"
+    elif project["draft"].get("task"):
         tested = lx.check_test(args.workspace)
         summary += f"\nCheck: a blank answer scores at most {tested['blank_score']}, another sample's answer at most {tested['wrong_score']}."
         summary += "".join("\n  "+text for text in tested["weaknesses"])

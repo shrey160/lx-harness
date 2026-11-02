@@ -59,6 +59,16 @@ class Approving(Base):
         self.assertRegex(result["reason"], "A blank")
         self.assertIsNone(self.lx.spec_show(self.path)["approved"])
 
+    def test_a_run_with_no_check_waits_for_a_person(self):
+        self.lx.spec_draft(self.path, no_check=True)
+        result = self.lx.approve(self.path)
+        self.assertEqual(result["status"], "pending")
+        self.assertRegex(result["reason"], "no check")
+        self.assertIsNone(self.lx.spec_show(self.path)["approved"])
+        version = self.lx.spec_show(self.path)["version"]
+        approved = self.app.approve(self.id, {"version": version, "data_approved": True, "contributor_accepted": True, "notice_accepted": True})["approved"]
+        self.assertEqual(approved["self_test"]["weaknesses"], ["This run has no check, so it will not be scored."])
+
     def test_a_preview_has_nothing_to_approve(self):
         self.lx.spec_draft(self.path, mode="controlled_preview")
         with self.assertRaisesRegex(ValueError, "preview"):

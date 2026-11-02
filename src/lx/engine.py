@@ -57,6 +57,7 @@ from .text_task import TextPreviewTransport
 from .workspace import NOT_SAMPLES, Workspace, native_path, write_json
 
 ROOT = Path(__file__).resolve().parents[2]
+NO_CHECK = "This run has no check, so it will not be scored."
 DEFAULT_ROOT = home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
 SAMPLES = "samples"
 SAMPLE_MEDIA = {".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".wav":"audio/wav"}
@@ -976,7 +977,7 @@ class Engine:
     def _prove_task(self, workspace, draft, snapshot):
         """At approval: the frozen samples fit the task and the check proves itself on them."""
         task = draft["task"]
-        truths = tasks.sample_truths(snapshot, task)
+        truths = tasks.sample_truths(snapshot, task, need_truth=tasks.needs_truth(draft))
         if tasks.is_text(task):
             if draft["mode"] != "live":
                 text_task.require_preview_samples(snapshot, len(truths))
@@ -984,6 +985,8 @@ class Engine:
             tasks.require_audio(snapshot)
         else:
             tasks.require_preview_samples(snapshot, len(truths))
+        if not draft.get("check"):
+            return {"no_check": True, "weaknesses": [NO_CHECK]}  # a weakness waits for a person, so no agent or grant starts this alone
         return checks.self_test(workspace.check_source(draft["check"]), truths)
 
     # Runs
