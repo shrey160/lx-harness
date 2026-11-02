@@ -268,7 +268,9 @@ in the Spec tab or in `eval/`, and LX saves that as such a file: see
 [docs/tasks.md](docs/tasks.md). `check_test` tests a draft and `check_try` shows what it
 changes on saved answers, and neither saves anything. A check is optional: a run with
 none learns the same way, because the loop never sees scores, but it is not scored and
-only a person can start it. A full check reads one JSON object on stdin and prints one
+only a person can start it. Model judges can score what no rule can: yes-or-no
+questions a chat model answers about each answer after the loop, beside the check or in
+place of one, under a cap a person sets. Only a person can approve a judged run. A full check reads one JSON object on stdin and prints one
 on stdout:
 
 - `{"items": [{"truth": ..., "answer": ...}]}` prints

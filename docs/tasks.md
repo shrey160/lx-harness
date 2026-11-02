@@ -209,6 +209,53 @@ without one: the check only reports on a run after it ends. Use `spec_draft` wit
   draft check. Saving a check turns scoring back on for later runs; a past run keeps its
   result.
 
+## Model judges
+
+Some things no rule can check: whether a reply answers what was asked, or whether a
+summary leaves out something that matters. A model judge answers yes-or-no questions
+about each answer. Its verdicts count as named checks beside the scoring check, or in
+place of one when the spec has no check. The judge runs after the loop, so the loop
+never sees it, the same as a check.
+
+```json
+{"criteria": [{"name": "answers the request",
+               "question": "Does the reply answer what the customer asked, without inventing an order?"}],
+ "sees_request": false}
+```
+
+- **Where to write them:** the Model judges section in the Spec tab, `spec_draft` with
+  `judges`, `lx spec draft --judges FILE`, or `eval/judges.json` taken with
+  `use_judge_file`. A judges file that differs from the spec blocks approval, as a check
+  file does.
+- **What the judge sees:** the criteria, the answer, and the expected answer when the
+  sample has one. On a text task, `sees_request` also lets it read the sample's request.
+  It sees no photos or audio.
+- **Model and cap:** a person picks the judge's model and the most it may spend on one
+  run. Approval binds both, and the data notice names the judge's host. Every call holds
+  its whole context and reply at the model's prices while it runs, so the cap must cover
+  at least one call; a lower cap blocks the spec and says the least it needs. Judge calls
+  show under role `judge` in a run's usage.
+- **One call per answer:** each call judges every criterion at once. A reply that cannot
+  be read is asked once more. An answer still without a verdict is *not judged*: it has
+  no score, never a zero, and the means leave it out and say how many.
+- **Kept verdicts:** each verdict is kept, keyed by everything the judge saw, so the same
+  answer is never paid for twice. A regrade uses kept verdicts only.
+- **Who sees what:** the run page shows each reply's verdicts with the judge's reasons,
+  for a person. Reasons can quote the expected answer, so agents get only criterion
+  names and whether they passed.
+- **Approval:** a judged spec always carries the weakness that a model's verdicts can
+  vary and may be wrong, so only a person can approve it. A connected agent or a grant
+  gets `pending`.
+- **Trying judges:** `judge_try` (`lx judge try`) shows what the judges, or draft
+  criteria, make of answers earlier runs saved, and what differs from each run's own
+  verdicts. On a live spec it never spends for an agent: only kept verdicts count. A
+  person can pay for new ones with Try on saved answers in the Spec tab, under a cap,
+  after accepting what the judge receives. On a preview spec, a double judges for free,
+  which shows the plumbing and nothing about a real judge.
+
+A judge is a model and can be wrong. Before trusting a judged score, read its reasons on
+a few answers, and try it on answers you know are right and wrong.
+
 ## Trying it
 
 `trial_start` runs one sample on the base harness, with no improver, within a small cap.
