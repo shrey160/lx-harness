@@ -60,6 +60,13 @@ def _private_host(host):
     return address.is_loopback or address.is_private or address.is_link_local
 
 
+def unmetered_local(profile):
+    """Only a free private/local chat endpoint may omit LX's output-token cap."""
+    host = urlsplit(profile.endpoint).hostname or ""
+    return (profile.kind == "chat" and _private_host(host)
+            and profile.input_price == profile.cached_price == profile.output_price == 0)
+
+
 def validate_endpoint(url):
     """HTTPS anywhere; plain HTTP only to loopback or private-network hosts."""
     if not isinstance(url, str) or len(url) > 500:

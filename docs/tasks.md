@@ -91,6 +91,13 @@ improver turns have no limit until a person sets one: no count is built in, and 
 value means none. A model that works in many small steps needs room; the call count, the
 run time and the budget still end a run.
 
+`limits.worker_reply_tokens` overrides reply length for the worker alone. Set
+it to `0` for no LX token cap on a free local model: the request omits the token
+limit, leaving the server/model's own limits and LX's time/cancellation bounds.
+The improver and judge retain `limits.reply_tokens` and finite cost reservations.
+Without an override, the worker inherits the existing reply length. In the GUI,
+this is **Worker reply tokens** under Advanced: run limits.
+
 **Improver hints (optional).** `hints` is text for the improver only, and `sample_hints`
 maps a sample folder to its own text (empty text removes it). Files named
 `improver_hints.md`, in the samples folder or in a sample folder, seed hints that are

@@ -15,7 +15,7 @@ import threading
 import time
 from decimal import ROUND_CEILING, Decimal
 
-from .providers import SPARK
+from .providers import SPARK, unmetered_local
 
 MODEL = SPARK.model
 INPUT_PRICE = SPARK.input_price
@@ -76,10 +76,12 @@ def usage_of(raw, profile=SPARK):
     return computed
 
 
-def normalize(raw: dict, *, max_tokens: int, profile=SPARK) -> tuple[dict, dict]:
+def normalize(raw: dict, *, max_tokens: int | None, profile=SPARK) -> tuple[dict, dict]:
     """Validate wire data and normalize function arguments before tool dispatch."""
     computed = usage_of(raw, profile)
-    if computed["input_tokens"] > profile.context_limit or computed["output_tokens"] > max_tokens:
+    if max_tokens is None and not unmetered_local(profile):
+        raise ModelError("No LX reply cap is supported only for free local models")
+    if computed["input_tokens"] > profile.context_limit or (max_tokens is not None and computed["output_tokens"] > max_tokens):
         raise ModelError("provider usage exceeded the declared request bounds")
     choices = raw.get("choices")
     if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
@@ -130,7 +132,10 @@ def normalize(raw: dict, *, max_tokens: int, profile=SPARK) -> tuple[dict, dict]
 
 class ChatClient:
     def __init__(self, transport, ledger, *, max_tokens=4096, retries=2, cancel=None, profile=SPARK, call_seconds=None):
-        if type(max_tokens) is not int or not 1 <= max_tokens <= 32768:
+        if max_tokens is None:
+            if not unmetered_local(profile):
+                raise ValueError("No LX reply cap is supported only for free local models")
+        elif type(max_tokens) is not int or not 1 <= max_tokens <= 32768:
             raise ValueError("max_tokens outside supported bounds")
         if profile.kind != "chat":
             raise ValueError("a chat client needs a chat provider profile")
@@ -143,7 +148,9 @@ class ChatClient:
 
     def chat(self, messages, *, tools=None, role="improver", phase="session", candidate="", timeout=120):
         profile = self.profile
-        body = {"model": profile.model, "messages": copy.deepcopy(messages), profile.token_param: self.max_tokens}
+        body = {"model": profile.model, "messages": copy.deepcopy(messages)}
+        if self.max_tokens is not None:
+            body[profile.token_param] = self.max_tokens
         if profile.reasoning_effort:
             body["reasoning_effort"] = profile.reasoning_effort
         if profile.enable_thinking is not None:
@@ -151,7 +158,7 @@ class ChatClient:
         if tools:
             body["tools"] = tools
         # Reserve the entire context ceiling instead of relying on a guessed tokenizer.
-        maximum = _nanodollars(profile.context_limit*profile.input_price + self.max_tokens*profile.output_price)
+        maximum = _nanodollars(profile.context_limit*profile.input_price + (self.max_tokens or 0)*profile.output_price)
         deadline = time.monotonic()+timeout
         for attempt in range(self.retries+1):
             if self.cancel.is_set() or time.monotonic() >= deadline:

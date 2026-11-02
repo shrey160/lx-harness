@@ -327,6 +327,7 @@ bound (`lx.limits`).
 | One model call with its retries | 90 seconds for Spark, 600 otherwise on a task, 300 on the demo |
 | Whole run | 4 hours on a task; 15 minutes on the demo with Spark, 1 hour otherwise |
 | Reply length | 4,096 tokens for Spark, 8,192 otherwise |
+| Worker reply tokens | Inherits reply length; 0 removes LX's cap for a free local worker |
 | Model calls per run | 1,400 on a task, 200 on the demo |
 | SAM calls and Transcribe calls per run (photo tasks only) | 600 and 60 |
 
@@ -336,6 +337,12 @@ time per call and reply length. The spec holds every value, so a change is a new
 version that needs approval. A run keeps the limits it was approved with, so a
 raised limit reaches a new run, not a resumed one. Spec versions saved before these
 limits existed need approving again, because the spec now binds them.
+
+For a free local worker, set **Worker reply tokens** to **0** to send no output
+token limit to its server. LX still records usage; server/model limits, the
+per-call timeout and the whole-run deadline still apply. Other roles keep the
+general reply-length limit and cost reservations. Paid/public endpoints require
+a finite reply limit. Existing specs retain their original reply length.
 
 Sandbox rules, check and script run times, the self-test, human approval, request
 size bounds and no-redirects are not settable.

@@ -115,7 +115,10 @@ class Engine:
 
     def limits_of(self, spec):
         """A spec's limits; anything it predates runs on the default."""
-        return {**self._limit_defaults(spec["providers"], spec.get("task")), **(spec.get("limits") or {})}
+        values = {**self._limit_defaults(spec["providers"], spec.get("task")), **(spec.get("limits") or {})}
+        if "worker_reply_tokens" not in (spec.get("limits") or {}):
+            values["worker_reply_tokens"] = values["reply_tokens"]
+        return values
 
     @staticmethod
     def _limit_defaults(providers, task):
@@ -176,8 +179,9 @@ class Engine:
                                      else TextPreviewTransport() if tasks.is_text(spec.get("task"))
                                      else InventoryPreviewTransport(segmentation=tasks.SEGMENTATION in tasks.spec_tools(spec)) if spec.get("task")
                                      else PreviewTransport(truth))
+            reply = limits["worker_reply_tokens"] if role == "worker" else limits["reply_tokens"]
             clients[role] = ChatClient(transports[entry], BudgetScope(ledger, scope_id, cap_usd), profile=profile,
-                                        max_tokens=limits["reply_tokens"], call_seconds=limits["call_seconds"])
+                                        max_tokens=None if reply == 0 else reply, call_seconds=limits["call_seconds"])
         judge = spec.get("judge") or {}
         if judge.get("entry") and judge.get("cap_usd"):
             # Its own scope and cap, inside the run's, so a loop that spends its whole budget is still graded.
@@ -298,6 +302,10 @@ class Engine:
         stale = self._stale_mcp(spec)
         if stale:
             return stale
+        if self.limits_of(spec)["worker_reply_tokens"] == 0:
+            from .providers import unmetered_local
+            if not unmetered_local(self.registry.profile(spec["roles"]["worker"])):
+                return "No LX worker reply cap is supported only for a free local model."
         unset = judging.missing(spec.get("judge")) or self._judge_cap_short(spec)
         if unset:
             return unset

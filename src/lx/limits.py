@@ -22,6 +22,7 @@ FIELDS = {
     "call_seconds": ("One model call with its retries, seconds", 10, 1800, None),
     "run_seconds": ("Whole run, seconds", 60, 6*HOUR, None),
     "reply_tokens": ("Reply length, tokens", 256, 32768, None),
+    "worker_reply_tokens": ("Worker reply tokens (0 = no LX cap on free local models)", 0, 32768, None),
     "chat_calls": ("Model calls per run", 1, 5000, None),
     "segment_calls": ("SAM calls per run", 1, 5000, None),
     "transcribe_calls": ("Transcribe calls per run", 1, 1000, None),
@@ -42,6 +43,7 @@ def preset(spark, task=False):
             "call_seconds": 90 if spark else 600 if task else 300,
             "run_seconds": 4*HOUR if task else 900 if spark else HOUR,
             "reply_tokens": 4096 if spark else 8192,
+            "worker_reply_tokens": 4096 if spark else 8192,
             # A task run: about 4 agent runs and 3-4 improver sessions per sample, as measured on the inventory stream.
             "chat_calls": 1400 if task else 200, "segment_calls": 600, "transcribe_calls": 60, "mcp_calls": 500}
 
@@ -71,7 +73,10 @@ def defaults(roles, *, task=False):
 def resolve(base, chosen):
     """(all limits, the user's own values). A value equal to its default is not the user's own."""
     own = {name: value for name, value in check(chosen).items() if value != base[name]}
-    return {**base, **own}, own
+    resolved = {**base, **own}
+    if "worker_reply_tokens" not in chosen:
+        resolved["worker_reply_tokens"] = resolved["reply_tokens"]
+    return resolved, own
 
 
 def field_list():
