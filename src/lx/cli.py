@@ -108,7 +108,7 @@ def spec_draft(engine, lx, args):
                          tools=args.tools.split(",") if args.tools is not None else None,
                          mcp_tools=[item for item in args.mcp_tools.split(",") if item] if args.mcp_tools is not None else None,
                          task=json.loads(read(args.task)) if args.task else None, check=read(args.check) if args.check else None,
-                         limits=json.loads(read(args.limits)) if args.limits else None, use_eval_file=args.eval_file)
+                         limits=json.loads(read(args.limits)) if args.limits else None, use_eval_file=args.eval_file, no_check=args.no_check)
 
 
 def parser():
@@ -150,6 +150,7 @@ def parser():
     item.add_argument("--task", metavar="FILE", help="JSON of the task fields to change")
     item.add_argument("--check", metavar="FILE", help="a new check.py")
     item.add_argument("--eval-file", action="store_true", help="take the check from eval/rules.json or eval/check.py")
+    item.add_argument("--no-check", action="store_true", help="run unscored; only a person can approve this")
     item.add_argument("--limits", metavar="FILE", help="JSON of run limits")
 
     check = commands.add_parser("check", help="test the check").add_subparsers(dest="check", required=True)

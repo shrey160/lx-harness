@@ -170,6 +170,29 @@ class WhatItMayDo(Actions):
         with self.assertRaisesRegex(ValueError, "already a check"):
             self.lx.eval_init(self.path)
 
+    def test_a_spec_can_drop_its_check_and_take_one_back(self):
+        self.begin()
+        text = "def score(truth, answer):\n    return answer == truth\n"
+        self.lx.spec_draft(self.path, no_check=True)
+        self.assertIsNone(self.lx.spec_show(self.path)["check"])
+        with self.assertRaisesRegex(ValueError, "no check"):
+            self.lx.check_test(self.path)
+        with self.assertRaisesRegex(ValueError, "no check"):
+            self.lx.check_try(self.path)
+        self.lx.spec_draft(self.path, goal="Still none.")
+        self.assertIsNone(self.lx.spec_show(self.path)["check"])
+        self.assertEqual(self.lx.check_test(self.path, text)["samples"], 6)
+        self.lx.spec_draft(self.path, check=text)
+        self.assertEqual(self.lx.spec_show(self.path)["check"], text)
+        with self.assertRaisesRegex(ValueError, "not both"):
+            self.lx.spec_draft(self.path, check=text, no_check=True)
+
+    def test_a_check_file_beside_a_spec_with_none_is_drift(self):
+        self.begin()
+        self.lx.spec_draft(self.path, no_check=True)
+        self.write_eval("check.py", "x")
+        self.assertEqual(self.lx.spec_show(self.path)["eval_drift"], ["eval/check.py is not in use, because this spec has no check"])
+
     def test_a_new_task_is_read_by_its_own_rules_not_the_old_drafts(self):
         self.begin()
         samples = Path(self.path)/"samples"

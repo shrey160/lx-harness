@@ -136,7 +136,7 @@ class InventoryAdapter(ImagesAdapter):
         super().__init__(snapshot, output, client, mode=mode, domain=domain or InventoryDomain(self.scripts_enabled),
                          truth=truth, limits=limits)
         if domain is not None:
-            self.verifier_identity = hashlib.sha256(domain.check.encode()).hexdigest()
+            self.verifier_identity = hashlib.sha256((domain.check or "").encode()).hexdigest()
         self.perception = perception
         self.tools = self._agent_tools(catalog)+(mcp.tools if mcp else [])
         self.segmentation = any(tool["function"]["name"] == "segment" for tool in self.tools)

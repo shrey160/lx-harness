@@ -551,7 +551,7 @@ class Engine:
             return None
 
     def _draft(self, workspace, record, goal=None, budget=1, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None,
-               hints=None, take_hint_files=False):
+               hints=None, take_hint_files=False, no_check=False):
         """Write the next spec version; any new version clears approval.
 
         `limits` is the user's own values, replacing any earlier ones. Everything
@@ -575,7 +575,7 @@ class Engine:
             raise ValueError("Enter a goal of at most 4000 characters")
         versions = workspace.spec_versions()
         version = (versions[-1] if versions else 0)+1
-        reference = previous.get("check")
+        reference = None if no_check else previous.get("check")
         if task is not None and check is not None:
             tasks.validate_task(task)
             source = tasks.validate_check_source(check)
@@ -649,7 +649,7 @@ class Engine:
         return self._view(workspace)
 
     def draft_spec(self, identifier, *, goal=None, mode=None, roles=None, task=None, check=None, limits=None, tools=None, mcp_tools=None,
-                   hints=None, take_hint_files=False):
+                   hints=None, take_hint_files=False, no_check=False):
         """An orchestrator's changes, as a new spec version. The run budget stays what a person set."""
         workspace = self.workspace(identifier)
         self._jobs(workspace)
@@ -658,13 +658,18 @@ class Engine:
                 raise ValueError("Stop the active run before editing its spec")
             record = workspace.project()
             draft = workspace.spec(record["spec_version"])
-            if (task is not None or check is not None) and not draft.get("task"):
+            if (task is not None or check is not None or no_check) and not draft.get("task"):
                 raise ValueError("This workflow has a built-in task and check")
+            if no_check and check is not None:
+                raise ValueError("Give a check or run with none, not both")
             if draft.get("task"):
                 task = tasks.validate_task({**draft["task"], **(task or {})})
-                check = workspace.check_source(draft["check"]) if check is None else tasks.validate_check_source(check)
+                if check is not None:
+                    check = tasks.validate_check_source(check)
+                elif draft.get("check") and not no_check:
+                    check = workspace.check_source(draft["check"])
             self._draft(workspace, record, goal, draft["budget_usd"], mode, roles, task=task, check=check, limits=limits, tools=tools, mcp_tools=mcp_tools,
-                        hints=hints, take_hint_files=take_hint_files)
+                        hints=hints, take_hint_files=take_hint_files, no_check=no_check)
         return self._view(workspace)
 
     def eval_drift(self, workspace, draft):
@@ -673,7 +678,11 @@ class Engine:
             return []
         try:
             found = workspace.eval_file()
-            if found is None or found[1].strip() == check_forms.author_text(workspace.check_source(draft["check"])).strip():
+            if found is None:
+                return []
+            if not draft.get("check"):
+                return [f"eval/{found[0]} is not in use, because this spec has no check"]
+            if found[1].strip() == check_forms.author_text(workspace.check_source(draft["check"])).strip():
                 return []
         except ValueError as exc:
             return [str(exc)]
@@ -707,8 +716,15 @@ class Engine:
         draft = workspace.spec(workspace.project()["spec_version"])
         if not draft.get("task"):
             raise ValueError("This workflow has a built-in check")
-        source = workspace.check_source(draft["check"]) if check is None else tasks.validate_check_source(check)
-        return checks.self_test(source, tasks.sample_truths(workspace.samples_path, draft["task"]))
+        return checks.self_test(self._check_for(workspace, draft, check), tasks.sample_truths(workspace.samples_path, draft["task"]))
+
+    def _check_for(self, workspace, draft, check):
+        """A draft's text, or the spec's own check."""
+        if check is not None:
+            return tasks.validate_check_source(check)
+        if not draft.get("check"):
+            raise ValueError("This spec has no check; give one to test")
+        return workspace.check_source(draft["check"])
 
     def try_check(self, identifier, check=None):
         """Score saved answers with the current check, or a draft's text, and say what changes; changes nothing."""
@@ -717,7 +733,7 @@ class Engine:
         if not draft.get("task"):
             raise ValueError("This workflow has a built-in check")
         from .taskrun import try_check
-        return try_check(workspace, workspace.check_source(draft["check"]) if check is None else tasks.validate_check_source(check))
+        return try_check(workspace, self._check_for(workspace, draft, check))
 
     def ready(self, identifier):
         """Whether the current spec could run live on the samples as they are now. No model and no network:
@@ -733,7 +749,7 @@ class Engine:
             try:
                 with tempfile.TemporaryDirectory() as folder:
                     tasks.build_dataset(workspace.samples_path, Path(folder)/"dataset", draft["task"], preview=False)
-                check = self.test_check(identifier)
+                check = self.test_check(identifier) if draft.get("check") else None
             except ValueError as exc:
                 problems.append({"sample":None,"problem":str(exc)})
         try:
@@ -780,7 +796,7 @@ class Engine:
                 raise ValueError("Stop the active run before editing its spec")
             self._draft(workspace, workspace.project(), data.get("goal"), data.get("budget_usd",1), data.get("mode"), data.get("roles"),
                         limits=data.get("limits"), tools=data.get("tools"), mcp_tools=data.get("mcp_tools"),
-                        hints=data.get("hints"), take_hint_files=data.get("take_hint_files") is True)
+                        hints=data.get("hints"), take_hint_files=data.get("take_hint_files") is True, no_check=data.get("no_check") is True)
         return self._view(workspace)
 
     def approve(self, identifier, data, by="person", grant=None):
@@ -1242,7 +1258,7 @@ class Engine:
         draft = workspace.spec(workspace.project()["spec_version"])
         if not draft.get("task"):
             raise ValueError("This workflow has a built-in check")
-        return check_forms.author_text(workspace.check_source(draft["check"]))
+        return check_forms.author_text(workspace.check_source(draft["check"])) if draft.get("check") else ""
 
     def runs(self, identifier):
         """A workspace's runs, newest first, reconciled with the core's job state."""
