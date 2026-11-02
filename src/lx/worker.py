@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import traceback
 
+from . import judging
 from .engine import ROLES, Engine
 from .health import RunHealth, StoppedEarly
 from .spark import ModelError
@@ -39,11 +40,12 @@ def execute(engine, workspace, identifier, snapshot):
     workspace.update_run(identifier,phase="trying" if trial else "improving")
     output = workspace.run_dir(identifier)/"outputs"
     health = RunHealth(workspace.run_dir(identifier)/"health.json",stop_after=limits["stop_after_empty_runs"])
+    judge = _judge(workspace,job,clients,live,limits)
     if trial:
         return engine.finish_trial(workspace,job,run_trial(engine,workspace,job,snapshot,clients["worker"],
-                                                           check=_check(workspace,job),health=health))
+                                                           check=_check(workspace,job),judge=judge,health=health))
     if job["spec"].get("task"):
-        result = run_task(engine,workspace,job,snapshot,clients,live=live,check=_check(workspace,job),health=health)
+        result = run_task(engine,workspace,job,snapshot,clients,live=live,check=_check(workspace,job),judge=judge,health=health)
     else:
         result = optimize_images(snapshot,output,clients["improver"],engine.demo.controller_truth,job["spec"],live=live,
                                   worker_client=clients["worker"],limits=limits,health=health)
@@ -54,6 +56,14 @@ def _check(workspace,job):
     """The run's check, or None for a run with no check."""
     reference = job["spec"].get("check")
     return workspace.check_source(reference) if reference else None
+
+
+def _judge(workspace,job,clients,live,limits):
+    """The run's model judge, or None. Verdicts are kept per workspace, so the same answer is never judged twice."""
+    spec = job["spec"].get("judge")
+    if not spec or "judge" not in clients:
+        return None
+    return judging.Judge(spec,clients["judge"],workspace.home/"judge-cache",live=live,timeout=max(120,limits["call_seconds"]))
 
 
 def main():

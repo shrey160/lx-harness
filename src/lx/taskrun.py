@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 from dataclasses import replace
 
-from . import hints as hint_notes
+from . import hints as hint_notes, judging
 from .checks import CheckError, named_checks, shown_checks
 from .inventory_workflow import InventoryAdapter, grade_stream, preview_transcription, run_stream
 from .tasks import EXTERNAL, SEGMENTATION, TaskDomain, build_dataset, is_text, needs_truth, preview_scenes, spec_mcp, spec_tools, tool_catalog
@@ -64,6 +64,50 @@ def _adapter(task, run_dir, output, client, truth, check, *, live, limits, tools
                             domain=_noted(TaskDomain(task, check, segmentation=SEGMENTATION in tools), mcp))
 
 
+class Grader:
+    """Grades one answer with the check, the judge, or both, and keeps the judge's verdicts for a person to read.
+    An answer the judge could not judge gets no score, which is not a zero."""
+    def __init__(self, adapter, check, judge, truth, run_dir):
+        self.adapter, self.check, self.judge, self.truth = adapter, check, judge, truth
+        self.requests = Path(run_dir)/"dataset"/"worker_inputs"/"requests"
+        self.verdicts = {}
+
+    def request(self, task):
+        path = self.requests/f"{task}.txt"
+        return path.read_text(encoding="utf-8") if path.is_file() else None
+
+    def named(self, task, answer, where):
+        """The named checks for this answer, check first, or raises judging.NotJudged."""
+        named = []
+        if self.check is not None:
+            named += [{"name": item["name"], "passed": item["passed"]} for item in named_checks(self.check, self.truth[task], answer)]
+        if self.judge is not None:
+            try:
+                found = self.judge.verdicts(self.truth.get(task), answer, self.request(task))
+            except judging.NotJudged as error:
+                self.verdicts[where] = {"not_judged": str(error)}
+                raise
+            self.verdicts[where] = found
+            named += [{"name": item["name"], "passed": item["passed"]} for item in judging.as_checks(found)]
+        return named
+
+    def __call__(self, task, answer, where):
+        try:
+            named = self.named(task, answer, where)
+        except judging.NotJudged as error:
+            return {"score": None, "passed": None, "checks": None, "not_judged": str(error)}
+        return {"score": _score(named), "passed": sum(item["passed"] for item in named), "checks": len(named)}
+
+    def save(self, output):
+        if self.judge is not None:
+            (Path(output)/"judged.json").write_text(json.dumps(self.verdicts, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _grader(adapter, check, judge, truth, run_dir):
+    """None when the check alone grades, as before judges, so those runs score exactly as they did."""
+    return Grader(adapter, check, judge, truth, run_dir) if judge is not None else None
+
+
 def limitations(spec, report, chosen, live, approved_by="person"):
     """What a reader of this package must not assume; written from the run itself."""
     rows, skipped = report["per_sample"], report["skipped"]
@@ -72,6 +116,9 @@ def limitations(spec, report, chosen, live, approved_by="person"):
                 "- No held-out samples: every score here comes from samples the loop adapted on, so it reads high."]
     lines = ["# Limitations", "",
              *(measured if report.get("scored", True) else ["- Never scored: this run had no check, so nothing here says whether this harness is better or worse. Read its replies and edits before using it."]),
+             *([f"- Partly judged by {(spec['judge']['provider'].get('model_id') or spec['judge']['entry'])}, a model. Its verdicts can vary between runs, "
+                "and it may be wrong; read its reasons on the run page before trusting a judged score."] if spec.get("judge") and report.get("scored", True) else []),
+             *([f"- {report['not_graded']} answer(s) were not judged, so the means leave them out."] if report.get("not_graded") else []),
              (f"- This harness was adopted on {chosen}, the last sample in this run's order. Scores played no part in that, "
               "and another run's order would give another harness." if chosen else "- The last sample in this run's order kept the base harness, so this is the base harness."),
              f"- Learned with {worker} as the agent. A harness can fail on another model; retest it after a swap.",
@@ -104,7 +151,8 @@ def _text(content):
 def learned(base, final, report, chosen):
     """What the loop changed, for a person or an outside agent to read. `base` and `final` map file names to contents."""
     means = report["means"]
-    scores = (f"Mean score, each sample with its own harness: {means['base']:.2f} before, {means['harness2']:.2f} after. "
+    shown = lambda value: "not judged" if value is None else f"{value:.2f}"
+    scores = (f"Mean score, each sample with its own harness: {shown(means['base'])} before, {shown(means['harness2'])} after. "
               "One run cannot separate a gain from noise, and scores chose nothing here.") if means else "Not scored: this run had no check."
     if chosen is None:
         return f"# What was learned\n\nThe last sample in this run's order kept the base harness, so this package is the base harness.\n\n{scores}\n"
@@ -228,6 +276,8 @@ def _package(adapter, report, output, spec, *, live, check, approved_by="person"
     (package/"spec.json").write_text(json.dumps(spec, indent=2), encoding="utf-8")
     if check is not None:
         (package/"check.py").write_text(check, encoding="utf-8", newline="")
+    if spec.get("judge"):
+        (package/judging.FILE).write_text(json.dumps(judging.written(spec["judge"]), indent=2), encoding="utf-8")
     (package/"limitations.md").write_text(limitations(spec, report, chosen, live, approved_by), encoding="utf-8")
     return last, chosen
 
@@ -239,14 +289,16 @@ def summarize_report(task, report, last, chosen, live, folders):
                "files_added": {t: r["files_added"] for t, r in rows.items()}, "reply_files": {t: r["reply_files"] for t, r in rows.items()}}
     if not scored:
         return {**summary, "grading": "not scored: this run had no check"}
+    judged = " and model judge" if report.get("judged") else ""
     return {**summary, "checks": {"base": {t: r["base"]["score"] == 1.0 for t, r in rows.items()},
                                   "harness2": {t: r["harness2"]["score"] == 1.0 for t, r in rows.items()}},
             "scores": {"base": {t: r["base"]["score"] for t, r in rows.items()},
                        "harness2": {t: r["harness2"]["score"] for t, r in rows.items()}},
-            "grading": "controller-side check file after the run; never shown to the improver, and never used to choose a harness"}
+            "not_graded": report.get("not_graded", 0),
+            "grading": f"controller-side check file{judged} after the run; never shown to the improver, and never used to choose a harness"}
 
 
-def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=None):
+def run_task(engine, workspace, job, snapshot, clients, *, live, check, judge=None, health=None):
     spec, identifier = job["spec"], job["id"]
     task = spec["task"]
     run_dir = workspace.run_dir(identifier)
@@ -276,16 +328,20 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     try:
         if mcp:
             mcp.check()
+        grader = _grader(adapter, check, judge, truth, run_dir)
         report = run_stream(adapter, output, clients["improver"], tasks=stream, limits=limits, health=health,
-                            on_grading=lambda: workspace.update_run(identifier, phase="grading"), scored=check is not None)
+                            on_grading=lambda: workspace.update_run(identifier, phase="grading"), scored=check is not None or judge is not None, grade=grader)
     finally:
         if mcp:
             mcp.close()
+    if grader is not None:
+        grader.save(output)
+        report["judged"] = True
     last, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
     return {**summarize_report(task, report, last, chosen, live, _folders(run_dir)), "base_sha256": base}
 
 
-def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
+def run_trial(engine, workspace, job, snapshot, client, *, check, judge=None, health=None):
     """One stream sample on the base harness, or a finished run's package when the job names one, graded by
     the check (D-025). No improver and no package of its own.
 
@@ -309,14 +365,21 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
         if mcp:
             mcp.close()
     workspace.update_run(identifier, phase="grading")
-    named = [] if check is None else named_checks(check, truth[sample], json.loads(adapter.deliverable_text(run)))
+    answer, not_judged = json.loads(adapter.deliverable_text(run)), None
+    grader = Grader(adapter, check, judge, truth, run_dir)
+    try:
+        named = grader.named(sample, answer, run.relative_to(adapter.spec.runs_root).as_posix()) if check is not None or judge is not None else []
+    except judging.NotJudged as error:
+        named, not_judged = [], str(error)
+    grader.save(output)
     steps = json.loads((run/"trace.json").read_text(encoding="utf-8"))["trace"]
     calls = {}
     for step in steps:
         if step["type"] == "tool":
             calls[step["name"]] = calls.get(step["name"], 0)+1
     folder = _folders(run_dir).get(sample, sample)
-    result = {"kind": "trial", "task": task["name"], "live": True, "sample": folder, "scored": check is not None, "score": _score(named) if named else None,
+    result = {"kind": "trial", "task": task["name"], "live": True, "sample": folder, "scored": check is not None or judge is not None, "score": _score(named) if named else None,
+              **({"not_judged": not_judged} if not_judged else {}),
               "base_sha256": base, "checks": named, "stopped": next((step["reason"] for step in steps if step["type"] == "stopped"), None), "tool_calls": calls,
               "note": "One sample on the base harness: a smoke test, not a measure of what the loop can reach."}
     return {**result, **_tried_harness(workspace, job, folder)} if job.get("from_run") else result
@@ -405,6 +468,13 @@ def try_check(workspace, source):
             "note": "Saved answers only, so this shows what an edit changes, not how a harness would do."}
 
 
+class _NoCalls:
+    """A regrade spends nothing: only verdicts already kept count, and any other answer is left not judged."""
+    def chat(self, *args, **kwargs):
+        from .spark import ModelError
+        raise ModelError("a regrade makes no judge calls, and this answer has no kept verdict")
+
+
 def regrade(engine, workspace, job, *, live):
     """Score a run from its saved answers with its check file; makes no model or tool calls."""
     spec, identifier = job["spec"], job["id"]
@@ -414,8 +484,13 @@ def regrade(engine, workspace, job, *, live):
     stream, truth, _ = build_dataset(run_dir/"snapshot", run_dir/"dataset", task, preview=not live)
     stream = run_order(stream, identifier)
     client = SimpleNamespace(profile=engine.registry.profile(spec["roles"]["worker"]))
-    check = workspace.check_source(spec["check"])
+    check = workspace.check_source(spec["check"]) if spec.get("check") else None
     adapter = _adapter(task, run_dir, output, client, truth, check, live=live, limits=engine.limits_of(spec), tools=spec_tools(spec))
-    report = grade_stream(adapter, output, stream, {"regraded": True})
+    judge = judging.Judge(spec["judge"], _NoCalls(), workspace.home/"judge-cache", live=live) if spec.get("judge") else None
+    grader = _grader(adapter, check, judge, truth, run_dir)
+    report = grade_stream(adapter, output, stream, {"regraded": True}, scored=check is not None or judge is not None, grade=grader)
+    if grader is not None:
+        grader.save(output)
+        report["judged"] = True
     last, chosen = _package(adapter, report, output, spec, live=live, check=check, approved_by=job.get("approved_by", "person"))
     return summarize_report(task, report, last, chosen, live, _folders(run_dir))

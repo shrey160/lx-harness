@@ -233,7 +233,7 @@ class InventoryAdapter(ImagesAdapter):
         return render_trace(record["trace"], record["final_text"], obs_trunc=obs_trunc)
 
 
-def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None, on_grading=None, scored=True):
+def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None, on_grading=None, scored=True, grade=None):
     """E-A: Harness² k=1 (sequential mode) over the stream, then controller-side grading per sample."""
     from harness2.core import tree
     from harness2.core.schedule import Namespace, run_domain
@@ -251,11 +251,14 @@ def run_stream(adapter, output, client, *, tasks=None, limits=None, health=None,
                         reflector_prop=reflector)
     if on_grading:
         on_grading()
-    return grade_stream(adapter, output, stream, result, scored=scored)
+    return grade_stream(adapter, output, stream, result, scored=scored, grade=grade)
 
 
-def grade_stream(adapter, output, stream, result, *, scored=True):
-    """Score a finished stream from its saved runs; makes no model calls. With no check it only gathers what each sample left."""
+def grade_stream(adapter, output, stream, result, *, scored=True, grade=None):
+    """Score a finished stream from its saved runs. With no check it only gathers what each sample left.
+
+    `grade(task, answer, where)` scores one answer when given; otherwise the adapter's check does, with no model
+    calls. A score of None means the answer could not be graded, which is not a zero, so the means leave it out."""
     from harness2.core import tree
     from harness2.core.schedule import Namespace
 
@@ -279,6 +282,8 @@ def grade_stream(adapter, output, stream, result, *, scored=True):
             if not scored:
                 return None
             answer = json.loads(adapter.deliverable_text(run))
+            if grade is not None:
+                return grade(task, answer, Path(run).relative_to(adapter.spec.runs_root).as_posix())
             result_ = adapter.verify(task, answer)
             return {"score": result_.score, "passed": result_.n_passed, "checks": result_.n_criteria}
         chosen_tree = tree.read_tree(surface, chosen_dir) if selection.get("chosen_label") and chosen_dir.is_dir() else base_tree
@@ -289,11 +294,14 @@ def grade_stream(adapter, output, stream, result, *, scored=True):
                                       if selection.get("chosen_label") and chosen_dir.is_dir() else None),
                       "reply_files": {"base": summary["base"][0]["run_dir"], "after": selection.get("chosen_run_dir") or summary["base"][0]["run_dir"]},
                       "status": summary.get("status")}
-    mean = lambda key: sum(r[key]["score"] for r in rows.values())/len(rows)
+    def mean(key):
+        values = [r[key]["score"] for r in rows.values() if r[key]["score"] is not None]
+        return sum(values)/len(values) if values else None
     if not rows:
         raise ValueError("No sample produced a reference run to compare")
     report = {"experiment": "E-A", "k": 1, "mode": "seq", "stream": stream, "run": result, "skipped": skipped,
               "per_sample": rows, "scored": scored, "means": {"base": mean("base"), "harness2": mean("harness2")} if scored else None,
+              "not_graded": sum(r[key]["score"] is None for r in rows.values() for key in ("base", "harness2")) if scored else 0,
               "grading": "controller-side checklist after the run; never shown to the improver" if scored else "not scored: this run had no check",
               "executions_this_invocation": adapter.executions}
     (output/"ea_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")

@@ -1,13 +1,22 @@
 """Model judges: criteria a chat model answers about each answer, beside the check or in place of one."""
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 
-from lx import judging
+from unittest.mock import patch
+
+from lx import judging, sandbox
 from lx.budget import BudgetExceeded
+from lx.checks import named_checks
+from lx.inventory_workflow import InventoryPreviewTransport
 from lx.spark import ModelError
-from test_orchestration import Actions
+from lx.spike import wire_reply
+from lx.usage import usage_rows
+from lx.worker import execute
+from test_orchestration import Actions, WholeFlow
+from test_trial import Trials
 
 CRITERIA = {"criteria": [{"name": "counts the asked kind", "question": "Does the answer count only the kind of thing the request names?"}]}
 
@@ -94,10 +103,12 @@ class ModelAndCap(Actions):
         self.app.edit_spec(project["id"], {"judge": {"entry": "spark-contributor"}})
         self.assertEqual(self.app.project(project["id"])["blocked"], "Set the most the judges may spend on one run.")
         self.app.edit_spec(project["id"], {"judge": {"cap_usd": 0.05}})
+        self.assertIn("Raise it to at least $0.11", self.app.project(project["id"])["blocked"])
+        self.app.edit_spec(project["id"], {"judge": {"cap_usd": 0.5}})
         project = self.app.project(project["id"])
         self.assertIsNone(project["blocked"])
         judge = project["draft"]["judge"]
-        self.assertEqual((judge["entry"], judge["cap_usd"], judge["provider"]["id"]), ("spark-contributor", 0.05, "spark-contributor"))
+        self.assertEqual((judge["entry"], judge["cap_usd"], judge["provider"]["id"]), ("spark-contributor", 0.5, "spark-contributor"))
         self.assertEqual(judge["criteria"], CRITERIA["criteria"])
 
     def test_the_cap_and_fields_are_checked(self):
@@ -110,14 +121,14 @@ class ModelAndCap(Actions):
 
     def test_the_judge_is_named_in_the_data_notice(self):
         project = self.begin()
-        self.app.edit_spec(project["id"], {"judge": {**CRITERIA, "entry": "spark-contributor", "cap_usd": 0.05}})
+        self.app.edit_spec(project["id"], {"judge": {**CRITERIA, "entry": "spark-contributor", "cap_usd": 0.5}})
         entry = next(item for item in self.app.project(project["id"])["notice"] if item["who"] == "judge")
         self.assertIn("expected answer", entry["gets"])
         self.assertNotIn("request", entry["gets"])
 
     def test_a_changed_judge_provider_needs_a_new_approval(self):
         project = self.begin()
-        self.app.edit_spec(project["id"], {"judge": {**CRITERIA, "entry": "spark-contributor", "cap_usd": 0.05}})
+        self.app.edit_spec(project["id"], {"judge": {**CRITERIA, "entry": "spark-contributor", "cap_usd": 0.5}})
         draft = self.app.project(project["id"])["draft"]
         self.app._check_providers(draft)
         moved = {**draft, "judge": {**draft["judge"], "provider": {**draft["judge"]["provider"], "base_url": "https://elsewhere.example/v1"}}}
@@ -214,6 +225,101 @@ class Judging(unittest.TestCase):
             {"role": "user", "content": judging._question(CRITERIA["criteria"], None, answer, None)}]}, 1)["choices"][0]["message"]["content"])
         self.assertTrue(ask({"total": 1})["verdicts"][0]["passed"])
         self.assertFalse(ask({})["verdicts"][0]["passed"])
+
+
+READY = {**CRITERIA, "entry": "spark-contributor", "cap_usd": 0.5}
+
+
+@unittest.skipUnless(sandbox.available(), "needs the script sandbox")
+class JudgedRuns(Actions):
+    preview, improver_input = WholeFlow.preview, WholeFlow.improver_input
+
+    def judged(self, **draft):
+        project = self.begin()
+        self.lx.spec_draft(self.path, judges=READY, **draft)
+        workspace = self.app.workspace(project["id"])
+        return project, workspace, self.preview(workspace)
+
+    def test_a_judged_run_counts_the_judge_beside_the_check(self):
+        project, workspace, run_id = self.judged()
+        result = self.lx.results(self.path, run_id)
+        self.assertEqual((result["scored"], result["not_graded"]), (True, 0))
+        self.assertIn("model judge", result["grading"])
+        self.assertIsNotNone(result["means"]["base"])
+        report = json.loads((workspace.run_dir(run_id)/"outputs"/"ea_report.json").read_text(encoding="utf-8"))
+        sample, row = next(iter(report["per_sample"].items()))
+        run_dir = workspace.run_dir(run_id)
+        answer = json.loads((run_dir/"outputs"/"runs"/row["reply_files"]["base"]/"answer.json").read_text(encoding="utf-8"))
+        truth = json.loads((run_dir/"dataset"/"controller_truth"/"ground_truth.json").read_text(encoding="utf-8"))[sample]
+        check = workspace.check_source(self.app.project(project["id"])["draft"]["check"])
+        self.assertEqual(row["base"]["checks"], len(named_checks(check, truth, answer))+1)
+        verdicts = json.loads((workspace.run_dir(run_id)/"outputs"/"judged.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(verdicts), 12)
+        self.assertEqual(next(iter(verdicts.values()))[0]["name"], "counts the asked kind")
+        package = workspace.package_dir(run_id)
+        self.assertEqual(json.loads((package/"judges.json").read_text(encoding="utf-8"))["criteria"], CRITERIA["criteria"])
+        self.assertIn("Partly judged by", (package/"limitations.md").read_text(encoding="utf-8"))
+        rows = usage_rows(workspace.preview_ledger, run_id+"/judge/")
+        self.assertEqual({row["role"] for row in rows}, {"judge"})
+        self.assertEqual({row["phase"] for row in rows}, {"grading"})
+
+    def test_judges_alone_score_a_run_with_no_check(self):
+        _, _, run_id = self.judged(no_check=True)
+        result = self.lx.results(self.path, run_id)
+        self.assertEqual((result["scored"], result["means"]), (True, {"base": 1.0, "harness2": 1.0}))
+
+    def test_judges_change_nothing_the_loop_sees_or_learns(self):
+        project = self.begin()
+        workspace = self.app.workspace(project["id"])
+        with patch("lx.taskrun.run_order", lambda stream, identifier: sorted(stream)):
+            plain = self.preview(workspace)
+            self.lx.spec_draft(self.path, judges=READY)
+            judged = self.preview(workspace)
+        files = [{path.relative_to(root).as_posix(): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
+                 for root in (workspace.package_dir(run)/"harness" for run in (plain, judged))]
+        self.assertEqual(files[0], files[1])
+        first, second = self.improver_input(workspace, plain), self.improver_input(workspace, judged)
+        self.assertTrue(first)
+        self.assertEqual(sorted(first), sorted(second))
+        self.assertEqual([name for name in first if first[name] != second[name]], [])
+        self.assertFalse(any("LX_JUDGE" in text or "counts the asked kind" in text for text in second.values()))
+
+    def test_answers_the_judge_could_not_judge_are_left_out_not_zeroed(self):
+        broken = lambda self, body, timeout: wire_reply("PREFLIGHT_OK" if body["messages"][0]["content"].startswith("LX_PREFLIGHT") else "I cannot say")
+        with patch.object(judging.JudgePreviewTransport, "__call__", broken):
+            _, workspace, run_id = self.judged()
+        result = self.lx.results(self.path, run_id)
+        self.assertEqual((result["means"], result["not_graded"]), ({"base": None, "harness2": None}, 12))
+        self.assertIn("not judged", result["learned"])
+        self.assertIn("12 answer(s) were not judged", (workspace.package_dir(run_id)/"limitations.md").read_text(encoding="utf-8"))
+        verdicts = json.loads((workspace.run_dir(run_id)/"outputs"/"judged.json").read_text(encoding="utf-8"))
+        self.assertIn("not JSON", next(iter(verdicts.values()))["not_judged"])
+
+    def test_a_regrade_reuses_kept_verdicts_and_makes_no_call(self):
+        project, workspace, run_id = self.judged()
+        before = self.lx.results(self.path, run_id)["means"]
+        workspace.update_run(run_id, status="failed")
+        with patch.object(judging.JudgePreviewTransport, "__call__", lambda *args: self.fail("a regrade called the judge")):
+            self.app.regrade(project["id"], run_id)
+        self.assertEqual(workspace.run(run_id)["result"]["means"], before)
+
+
+@unittest.skipUnless(sandbox.available(), "needs the script sandbox")
+class JudgedTrial(Trials):
+    def test_a_trial_counts_the_judge_and_says_when_it_could_not(self):
+        loop, judge = InventoryPreviewTransport(), judging.JudgePreviewTransport()
+        self.transport = lambda body, timeout: (judge if body["messages"][0]["content"].startswith(judging.MARKER) else loop)(body, timeout)
+        self.app._live_transport_factory = lambda hint=None: self.transport
+        self.lx.spec_draft(self.path, judges=READY)
+        _, result = self.trial()
+        self.assertTrue(result["scored"])
+        self.assertIn("judge: counts the asked kind", {item["name"] for item in result["checks"]})
+        self.assertEqual(set(result["checks"][0]), {"name", "passed"})
+        judge = lambda body, timeout: wire_reply("PREFLIGHT_OK" if body["messages"][0]["content"].startswith("LX_PREFLIGHT") else "nope")
+        shutil.rmtree(self.workspace.home/"judge-cache")
+        _, result = self.trial()
+        self.assertIsNone(result["score"])
+        self.assertIn("not JSON", result["not_judged"])
 
 
 if __name__ == "__main__":

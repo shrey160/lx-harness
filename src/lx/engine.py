@@ -289,7 +289,7 @@ class Engine:
         stale = self._stale_mcp(spec)
         if stale:
             return stale
-        unset = judging.missing(spec.get("judge"))
+        unset = judging.missing(spec.get("judge")) or self._judge_cap_short(spec)
         if unset:
             return unset
         if spec.get("mode") != "live" or self._live_transport_factory is not None:
@@ -302,6 +302,21 @@ class Engine:
             return None
         who = ", ".join(users[:-1])+" and "+users[-1] if len(users) > 1 else users[0]
         return f"A live run needs a Meta key for {who}. Add it in Settings, under Tools."
+
+    def judge_call_usd(self, spec):
+        """What one judge call holds while it runs: the whole context and reply at the entry's prices, as every call reserves."""
+        profile = self.registry.profile(spec["judge"]["entry"])
+        return float(profile.context_limit*profile.input_price + self.limits_of(spec)["reply_tokens"]*profile.output_price)
+
+    def _judge_cap_short(self, spec):
+        judge = spec.get("judge")
+        if not judge:
+            return None
+        needed = self.judge_call_usd(spec)
+        if judge["cap_usd"] < needed:
+            return (f"The judges' cap of ${judge['cap_usd']:.2f} is less than one judge call holds while it runs (${needed:.4f}), "
+                    f"so no answer could be judged. Raise it to at least ${math.ceil(needed*100)/100:.2f}.")
+        return None
 
     @staticmethod
     def _entries(spec):
@@ -1200,7 +1215,7 @@ class Engine:
         job = workspace.run(job_id)
         if job["status"] != "failed" or not job["spec"].get("task") or job.get("kind") == "trial":
             raise ValueError("Only a failed task run can be graded again")
-        if not job["spec"].get("check"):
+        if not job["spec"].get("check") and not job["spec"].get("judge"):
             raise ValueError("This run has no check, so there is nothing to grade")
         try:
             result = regrade(self, workspace, job, live=job["spec"].get("mode") == "live")
