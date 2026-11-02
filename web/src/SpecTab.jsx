@@ -31,9 +31,9 @@ export function SpecTab({state,project,ui,setTab}){
 
     <h2>Task</h2>
     {draft.task?<>
-      <p className="capital-first">{draft.task.name.replace(/^lx_/,'').replaceAll('_',' ')} · {draft.task.stream_samples} samples in the loop · check <code>{draft.check.sha256.slice(0,12)}</code></p>
+      <p className="capital-first">{draft.task.name.replace(/^lx_/,'').replaceAll('_',' ')} · {draft.task.stream_samples} samples in the loop · {draft.check?<>check <code>{draft.check.sha256.slice(0,12)}</code></>:'no check'}</p>
       <TaskText project={project} ui={ui}/>
-      <div className="actions"><button className="button" disabled={ui.busy} onClick={testCheck}>Test the check</button><button className="button" disabled={ui.busy} onClick={checkReady}>Check these samples</button></div>
+      <div className="actions"><button className="button" disabled={ui.busy||!draft.check} onClick={testCheck}>Test the check</button><button className="button" disabled={ui.busy} onClick={checkReady}>Check these samples</button></div>
       {checkResult&&<CheckScores result={checkResult}/>}
       {readyResult&&<Ready result={readyResult}/>}
     </>:<p className="muted">Image annotation demo. Answers need each object's label and box, within one pixel, and the exact transcript.</p>}
@@ -105,9 +105,11 @@ function CheckEditor({project,ui}){
   const test=()=>ui.act(async()=>{setTested(null);setTested(await api(`projects/${project.id}/check-test`,{check:text}));});
   const tryIt=()=>ui.act(async()=>{setTried(null);setTried(await api(`projects/${project.id}/check-try`,{check:text}));});
   const save=()=>ui.act(async()=>{await api(`projects/${project.id}/task`,{task:draft.task,check:text});ui.notify('Saved as a new version.');});
+  const drop=()=>ui.act(async()=>{await api(`projects/${project.id}/spec`,{goal:draft.goal,budget_usd:Number(draft.budget_usd),limits:draft.limits_set||{},no_check:true});ui.notify('Saved as a new version with no check.');});
   const drift=project.eval_drift||[];
   return <details onToggle={e=>load(e.currentTarget.open)}><summary>Scoring check</summary>
     {problem?<p className="callout bad">{problem}</p>:saved===null?<p className="muted">Loading…</p>:<>
+      {!draft.check&&<p className="callout warn" role="status">This spec has no check, so its runs are not scored and samples need no truth.json. Save a check here to score again.</p>}
       <p className="muted">Write rules as JSON, a Python <code>def score(truth, answer):</code>, or a full check. The guide has each form. Test and Try save nothing.</p>
       {drift.length>0&&<div className="callout warn" role="status"><p>{drift.join('. ')}. Approval waits until they match.</p><button className="button" disabled={ui.busy} onClick={()=>fill('check-file')}>Load the eval file</button></div>}
       <textarea className="check-editor" rows="16" spellCheck="false" aria-label="Scoring check" value={text} onChange={e=>edit(e.target.value)}/>
@@ -118,6 +120,10 @@ function CheckEditor({project,ui}){
         <button className="button" disabled={ui.busy||!text.trim()||text===saved} onClick={save}>Save check</button>
       </div>
       {text!==saved&&<p className="muted" role="status">Saving makes a new version and clears any approval.</p>}
+      {draft.check&&<details><summary className="muted">Run without a check</summary>
+        <p className="muted">The loop learns the same way, because it never sees scores. But nothing will say whether the harness got better or worse, so you judge it from the replies, and only a person can start the run.</p>
+        <div className="actions"><button className="button" disabled={ui.busy} onClick={drop}>Run without a check</button></div>
+      </details>}
       {tested&&<CheckScores result={tested}/>}
       {tried&&<TriedAnswers result={tried}/>}
     </>}
@@ -200,7 +206,7 @@ function Spending({project,jobs,limitFields}){
 function Review({project,jobs,limitFields,ui,close,done}){
   const {draft}=project,dialog=useRef(null),[check,setCheck]=useState(null),[checkError,setCheckError]=useState('');
   useEffect(()=>{dialog.current.showModal();},[]);
-  useEffect(()=>{if(draft.task)api(`projects/${project.id}/check-test`,{}).then(setCheck,error=>setCheckError(error.message));},[draft.version]);
+  useEffect(()=>{if(draft.task&&draft.check)api(`projects/${project.id}/check-test`,{}).then(setCheck,error=>setCheckError(error.message));},[draft.version]);
   const usesSpark=Object.values(draft.roles).includes('spark-contributor');
   const live=draft.mode==='live';
   const newHosts=live&&project.notice.some(entry=>!project.notice_accepted.includes(entry.host));
@@ -214,7 +220,8 @@ function Review({project,jobs,limitFields,ui,close,done}){
       {['orchestrator','improver','worker'].map(role=><React.Fragment key={role}><dt className="capital">{role}</dt><dd>{draft.providers[role].name}</dd></React.Fragment>)}
     </dl>
     {live&&<Spending project={project} jobs={jobs} limitFields={limitFields}/>}
-    {draft.task&&<><h3>How the check scores</h3>{check?<CheckScores result={check}/>:checkError?<p className="callout bad" role="alert">{checkError}</p>:<p className="muted" role="status">Testing the check…</p>}</>}
+    {draft.task&&!draft.check&&<p className="callout warn" role="status">This run has no check, so it will not be scored. Nothing will say whether the harness got better or worse.</p>}
+    {draft.task&&draft.check&&<><h3>How the check scores</h3>{check?<CheckScores result={check}/>:checkError?<p className="callout bad" role="alert">{checkError}</p>:<p className="muted" role="status">Testing the check…</p>}</>}
     {project.external_orchestrator&&<p className="muted">A connected agent is the orchestrator. It uses its own model and account, so the costs shown here leave it out.</p>}
     {live&&<><h3>Who receives what</h3><ul className="plain">{project.notice.map(entry=><li key={entry.who}><strong>{entry.who}</strong> ({entry.host}): {entry.gets}</li>)}</ul></>}
     {usesSpark&&live&&<p className="callout warn">Spark Contributor may use approved content for training.</p>}
