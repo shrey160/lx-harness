@@ -55,10 +55,11 @@ def normalize_photo(data, *, max_side=MAX_SIDE):
     return out.getvalue()
 
 
-def check_sample_folder(folder, *, inventory=True):
+def check_sample_folder(folder, *, inventory=True, need_truth=True):
     """Validate a user sample folder; returns (photo paths in order, truth, wav path or None, text or None).
 
-    `inventory` applies the inventory truth schema; other tasks' truth is the check file's business."""
+    `inventory` applies the inventory truth schema; other tasks' truth is the check file's business.
+    A task with no check needs no truth, so a missing file gives None."""
     folder = Path(folder)
     photos_dir = folder / "photos"
     if not photos_dir.is_dir():
@@ -77,7 +78,9 @@ def check_sample_folder(folder, *, inventory=True):
     try:
         truth = json.loads((folder / "truth.json").read_text(encoding="utf-8"))
     except FileNotFoundError:
-        raise ValueError(f"{folder.name}: missing truth.json") from None
+        if need_truth:
+            raise ValueError(f"{folder.name}: missing truth.json") from None
+        truth = None
     except ValueError as exc:
         raise ValueError(f"{folder.name}: truth.json is not valid JSON ({exc})") from None
     if inventory:
@@ -154,7 +157,7 @@ class _Dataset:
             path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def add_user_samples(dataset_root, source_root, *, stream_count=6, calibration_count=0, seed=20261029, prefix="user",
+def add_user_samples(dataset_root, source_root, *, need_truth=True, stream_count=6, calibration_count=0, seed=20261029, prefix="user",
                      inventory=True):
     """Copy user sample folders into the dataset with a seeded split.
 
@@ -168,7 +171,7 @@ def add_user_samples(dataset_root, source_root, *, stream_count=6, calibration_c
     if stream_count + calibration_count > len(folders):
         raise ValueError(f"only {len(folders)} sample folders for {stream_count} stream + {calibration_count} calibration")
     random.Random(f"{seed}:user-split").shuffle(folders)
-    checked = [(folder, *check_sample_folder(folder, inventory=inventory)) for folder in folders]
+    checked = [(folder, *check_sample_folder(folder, inventory=inventory, need_truth=need_truth)) for folder in folders]
     # Normalise everything before writing, so a bad photo leaves the dataset untouched.
     normalized = [[normalize_photo(path.read_bytes()) for path in paths] for _, paths, _, _, _ in checked]
     dataset = _Dataset(dataset_root)

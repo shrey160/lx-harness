@@ -742,13 +742,14 @@ class Engine:
         draft = workspace.spec(workspace.project()["spec_version"])
         if not draft.get("task"):
             raise ValueError("This workflow has a built-in task and check")
-        problems, check, blocked = tasks.sample_problems(workspace.samples_path, draft["task"]), None, None
+        need_truth = tasks.needs_truth(draft)
+        problems, check, blocked = tasks.sample_problems(workspace.samples_path, draft["task"], need_truth=need_truth), None, None
         problems += [{"sample":None,"problem":text+"; save the spec with the hint files to take them, or change the file"} for text in self.hint_drift(workspace, draft)]
         problems += [{"sample":None,"problem":text+"; save the spec with the eval file to take it, or change the file"} for text in self.eval_drift(workspace, draft)]
         if not problems:
             try:
                 with tempfile.TemporaryDirectory() as folder:
-                    tasks.build_dataset(workspace.samples_path, Path(folder)/"dataset", draft["task"], preview=False)
+                    tasks.build_dataset(workspace.samples_path, Path(folder)/"dataset", draft["task"], preview=False, need_truth=need_truth)
                 check = self.test_check(identifier) if draft.get("check") else None
             except ValueError as exc:
                 problems.append({"sample":None,"problem":str(exc)})

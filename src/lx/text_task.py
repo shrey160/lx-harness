@@ -50,8 +50,8 @@ def sample_folders(root):
     return sorted(p for p in Path(root).iterdir() if p.is_dir() and re.fullmatch(r"sample-[A-Za-z0-9_-]{1,40}", p.name))
 
 
-def check_sample_folder(folder):
-    """(request text, truth) of one sample folder, or a ValueError naming what is wrong."""
+def check_sample_folder(folder, *, need_truth=True):
+    """(request text, truth) of one sample folder, or a ValueError naming what is wrong. With no check a missing truth is None."""
     folder = Path(folder)
     try:
         request = (folder/"request.txt").read_text(encoding="utf-8")
@@ -62,7 +62,9 @@ def check_sample_folder(folder):
     try:
         return request, json.loads((folder/"truth.json").read_text(encoding="utf-8"))
     except FileNotFoundError:
-        raise ValueError(f"{folder.name}: missing truth.json") from None
+        if need_truth:
+            raise ValueError(f"{folder.name}: missing truth.json") from None
+        return request, None
     except ValueError as exc:
         raise ValueError(f"{folder.name}: truth.json is not valid JSON ({exc})") from None
 
@@ -90,14 +92,14 @@ def require_preview_samples(root, count):
             raise ValueError("A preview runs only on the synthetic samples; your own need a live run, which a person decides on")
 
 
-def build_dataset(snapshot, root, task):
+def build_dataset(snapshot, root, task, *, need_truth=True):
     """The run's dataset, frozen once written. Returns (stream ids, truth, requests)."""
     root = Path(root)
     truth_file = root/"controller_truth"/"ground_truth.json"
     if not truth_file.exists():
         folders = sample_folders(snapshot)
         random.Random(f"{SPLIT_SEED}:user-split").shuffle(folders)  # folder order must not bias the split
-        checked = [check_sample_folder(folder) for folder in folders]
+        checked = [check_sample_folder(folder, need_truth=need_truth) for folder in folders]
         (root/"worker_inputs"/"requests").mkdir(parents=True)
         samples, truth = [], {}
         for index, (request, expected) in enumerate(checked, 1):

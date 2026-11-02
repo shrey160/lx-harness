@@ -174,15 +174,23 @@ class TaskDomain(InventoryDomain):
         return run_check(self.check, truth, answer)
 
 
-def sample_truths(root, task):
+def needs_truth(spec):
+    """A check reads truth, and a preview's doubles answer from it, so only a live run with no check goes without."""
+    return bool(spec.get("check")) or spec.get("mode") != "live"
+
+
+def _inventory(task, need_truth):
+    return need_truth and task.get("truth_schema") == "inventory"
+
+
+def sample_truths(root, task, *, need_truth=True):
     """{folder name: truth} after validating every sample folder under the task's rules."""
     folders = sample_folders(root)
     if len(folders) < task["stream_samples"]:
         raise ValueError(f"This task needs at least {task['stream_samples']} sample folders; found {len(folders)}")
     if is_text(task):
-        return {folder.name: text_task.check_sample_folder(folder)[1] for folder in folders}
-    inventory = task.get("truth_schema") == "inventory"
-    return {folder.name: check_sample_folder(folder, inventory=inventory)[1] for folder in folders}
+        return {folder.name: text_task.check_sample_folder(folder, need_truth=need_truth)[1] for folder in folders}
+    return {folder.name: check_sample_folder(folder, inventory=_inventory(task, need_truth), need_truth=need_truth)[1] for folder in folders}
 
 
 def require_audio(root):
@@ -191,11 +199,11 @@ def require_audio(root):
         raise ValueError(f"A live run needs request.wav in every sample; missing in {', '.join(missing[:6])}")
 
 
-def _media_problems(folder, inventory):
+def _media_problems(folder, inventory, need_truth):
     """What would stop this photo sample in a live run. Photos are read as the worker and SAM will get them."""
     from .agent import render_view
     from .inventory_probe import MAX_VIEW_BYTES
-    photos, _, wav, _ = check_sample_folder(folder, inventory=inventory)
+    photos, _, wav, _ = check_sample_folder(folder, inventory=inventory, need_truth=need_truth)
     found = [] if wav else ["add request.wav: a live run needs the spoken request"]
     for path in photos:
         try:
@@ -208,7 +216,7 @@ def _media_problems(folder, inventory):
     return found
 
 
-def sample_problems(root, task):
+def sample_problems(root, task, *, need_truth=True):
     """[{sample, problem}] across every sample, so one bad file does not hide the next."""
     folders, problems = sample_folders(root), []
     if len(folders) < task["stream_samples"]:
@@ -216,10 +224,10 @@ def sample_problems(root, task):
     for folder in folders:
         try:
             if is_text(task):
-                text_task.check_sample_folder(folder)
+                text_task.check_sample_folder(folder, need_truth=need_truth)
                 found = []
             else:
-                found = _media_problems(folder, task.get("truth_schema") == "inventory")
+                found = _media_problems(folder, _inventory(task, need_truth), need_truth)
         except ValueError as exc:
             found = [str(exc).removeprefix(folder.name+": ")]
         problems += [{"sample": folder.name, "problem": text} for text in found]
@@ -245,14 +253,14 @@ def require_preview_samples(root, count):
                 raise ValueError("A preview runs only on the synthetic demo samples; your own need a live run, which a person decides on")
 
 
-def build_dataset(snapshot, root, task, *, preview):
+def build_dataset(snapshot, root, task, *, preview, need_truth=True):
     """The run's dataset: worker inputs and controller truth, frozen. Returns (stream ids, truth, requests)."""
     if is_text(task):
-        return text_task.build_dataset(snapshot, root, task)
+        return text_task.build_dataset(snapshot, root, task, need_truth=need_truth)
     root = Path(root)
-    inventory = task.get("truth_schema") == "inventory"
+    inventory = _inventory(task, need_truth)
     if not (root/"controller_truth"/"media.json").exists():
-        add_user_samples(root, snapshot, stream_count=task["stream_samples"], prefix="sample", inventory=inventory)
+        add_user_samples(root, snapshot, need_truth=need_truth, stream_count=task["stream_samples"], prefix="sample", inventory=inventory)
         manifest = json.loads((root/"worker_inputs"/"manifest.json").read_text(encoding="utf-8"))
         for index, sample in enumerate(manifest["samples"], 1):
             audio = root/"worker_inputs"/sample["audio"]

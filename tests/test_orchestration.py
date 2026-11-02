@@ -193,6 +193,19 @@ class WhatItMayDo(Actions):
         self.write_eval("check.py", "x")
         self.assertEqual(self.lx.spec_show(self.path)["eval_drift"], ["eval/check.py is not in use, because this spec has no check"])
 
+    def test_live_samples_need_no_truth_only_without_a_check(self):
+        self.begin()
+        samples = Path(self.path)/"samples"
+        for index, folder in enumerate(sorted(samples.iterdir()), 1):
+            (folder/"truth.json").unlink()
+            (folder/"request.wav").write_bytes(_tone(index))
+        self.lx.spec_draft(self.path, mode="live")
+        self.assertIn("missing truth.json", str(self.lx.ready(self.path)["problems"]))
+        self.lx.spec_draft(self.path, no_check=True)
+        self.assertEqual(self.lx.ready(self.path)["problems"], [])
+        self.lx.spec_draft(self.path, mode="controlled_preview")
+        self.assertIn("missing truth.json", str(self.lx.ready(self.path)["problems"]))
+
     def test_a_new_task_is_read_by_its_own_rules_not_the_old_drafts(self):
         self.begin()
         samples = Path(self.path)/"samples"

@@ -18,7 +18,7 @@ from dataclasses import replace
 from . import hints as hint_notes
 from .checks import CheckError, named_checks, shown_checks
 from .inventory_workflow import InventoryAdapter, grade_stream, preview_transcription, run_stream
-from .tasks import EXTERNAL, SEGMENTATION, TaskDomain, build_dataset, is_text, preview_scenes, spec_mcp, spec_tools, tool_catalog
+from .tasks import EXTERNAL, SEGMENTATION, TaskDomain, build_dataset, is_text, needs_truth, preview_scenes, spec_mcp, spec_tools, tool_catalog
 from .text_task import TextAdapter, TextDomain
 
 
@@ -246,7 +246,7 @@ def run_task(engine, workspace, job, snapshot, clients, *, live, check, health=N
     spec, identifier = job["spec"], job["id"]
     task = spec["task"]
     run_dir = workspace.run_dir(identifier)
-    stream, truth, requests = build_dataset(snapshot, run_dir/"dataset", task, preview=not live)
+    stream, truth, requests = build_dataset(snapshot, run_dir/"dataset", task, preview=not live, need_truth=needs_truth(spec))
     stream = run_order(stream, identifier)
     limits, tools = engine.limits_of(spec), spec_tools(spec)
     if is_text(task):
@@ -291,7 +291,7 @@ def run_trial(engine, workspace, job, snapshot, client, *, check, health=None):
     spec, identifier = job["spec"], job["id"]
     task = spec["task"]
     run_dir, output = workspace.run_dir(identifier), workspace.run_dir(identifier)/"outputs"
-    stream, truth, _ = build_dataset(snapshot, run_dir/"dataset", task, preview=False)
+    stream, truth, _ = build_dataset(snapshot, run_dir/"dataset", task, preview=False, need_truth=needs_truth(spec))
     limits, tools = engine.limits_of(spec), spec_tools(spec)
     perception = None if is_text(task) else engine.build_perception(workspace, identifier, job["cap_usd"], run_dir/"perception-cache", limits, tools)
     mcp = engine.mcp_run(spec, limits)

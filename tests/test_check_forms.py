@@ -174,6 +174,30 @@ class ShownChecks(unittest.TestCase):
         self.assertEqual(checks.shown_checks(source, [(TRUTHS["a"], {})]), [[{"name": "check 1", "passed": True}, {"name": "plain", "passed": False}]])
 
 
+class TruthIsOptionalWithNoCheck(unittest.TestCase):
+    def test_a_text_sample_without_truth_builds_a_dataset(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for name in ("sample-01", "sample-02"):
+                (root/"in"/name).mkdir(parents=True)
+                (root/"in"/name/"request.txt").write_text("Tidy this.", encoding="utf-8")
+            task = {"template": tasks.TEXT_TEMPLATE, "stream_samples": 1}
+            with self.assertRaisesRegex(ValueError, "missing truth.json"):
+                tasks.sample_truths(root/"in", task)
+            self.assertEqual(set(tasks.sample_truths(root/"in", task, need_truth=False).values()), {None})
+            stream, truth, _ = tasks.build_dataset(root/"in", root/"out", task, preview=False, need_truth=False)
+            self.assertEqual((len(stream), set(truth.values())), (1, {None}))
+
+    def test_a_broken_truth_file_is_still_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            sample = Path(folder)/"sample-01"
+            sample.mkdir()
+            (sample/"request.txt").write_text("Tidy this.", encoding="utf-8")
+            (sample/"truth.json").write_text("{", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "not valid JSON"):
+                tasks.sample_truths(folder, {"template": tasks.TEXT_TEMPLATE, "stream_samples": 1}, need_truth=False)
+
+
 class EvalFolderIsNotSamples(unittest.TestCase):
     def test_a_samples_folder_at_the_workspace_root_leaves_eval_out(self):
         with tempfile.TemporaryDirectory() as folder:
