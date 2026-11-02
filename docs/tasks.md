@@ -192,6 +192,23 @@ and shows scores and check names, never answers. A trial that failed saved no an
 - Validate truth in the file, in `example_answer`, so a mistake in the samples fails the
   self-test.
 
+## Running with no check
+
+A check is optional. The loop never sees scores, so it learns the same way with or
+without one: the check only reports on a run after it ends. Use `spec_draft` with
+`no_check`, `lx spec draft --no-check`, or Run without a check in the Spec tab.
+
+- Samples need no `truth.json` on a live run. A preview still does, because its doubles
+  answer from it.
+- Nothing says whether the harness got better or worse. A run page shows each sample's
+  reply before and after, for a person to judge, and the package says it was never
+  scored and holds no `check.py`.
+- Only a person can approve it. A connected agent or a grant gets `pending`.
+- A check file left in `eval/` blocks approval until it is removed or saved as the check.
+- To score such a run later, add `truth.json` to the samples and call `check_try` with a
+  draft check. Saving a check turns scoring back on for later runs; a past run keeps its
+  result.
+
 ## Trying it
 
 `trial_start` runs one sample on the base harness, with no improver, within a small cap.
