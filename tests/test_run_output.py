@@ -155,23 +155,28 @@ class Trajectories(Base):
         self.assertEqual([m["role"] for m in self.app.run_trajectory(project["id"], run, "task-x/sample-01/base1")["opening"]], ["developer", "user"])
         (folder/"opening.json").write_text("not json", encoding="utf-8")
         self.assertIsNone(self.app.run_trajectory(project["id"], run, "task-x/sample-01/base1")["opening"])
-        for bad in ("", None, "../secret.txt", "/etc/passwd", "task-x/..", "task-x\sample-01", "task-x/sample-01", "task-x/sample-01/base1/trace.json"):
+        for bad in ("", None, "../secret.txt", "/etc/passwd", "task-x/..", "task-x\\sample-01", "task-x/sample-01", "task-x/sample-01/base1/trace.json"):
             with self.subTest(path=bad), self.assertRaisesRegex(ValueError, "Unknown trajectory"):
                 self.app.run_trajectory(project["id"], run, bad)
 
 
 @unittest.skipUnless(sandbox.available(), "needs the script sandbox")
-class APreviewPackage(Base):
-    def setUp(self):
-        super().setUp()
-        self.path = self.folder()
-        write_synthetic(Path(self.path)/"samples", 6)
-        self.lx = Orchestration(self.app, launch=False)
-        self.lx.init(self.path, "photo-request")
-        self.run_id = self.lx.preview(self.path)["run_id"]
-        self.project = self.app.open_workspace(self.path)
-        workspace = self.app.workspace(self.project["id"])
-        execute(self.app, workspace, self.run_id, workspace.run_dir(self.run_id)/"snapshot")
+class APreviewPackage(unittest.TestCase):
+    """These tests only read one finished preview, so they share it."""
+
+    @classmethod
+    def setUpClass(cls):
+        shared = Base("setUp")
+        shared.setUp()
+        cls.addClassCleanup(shared.doCleanups)
+        cls.app, cls.path = shared.app, shared.folder()
+        write_synthetic(Path(cls.path)/"samples", 6)
+        cls.lx = Orchestration(cls.app, launch=False)
+        cls.lx.init(cls.path, "photo-request")
+        cls.run_id = cls.lx.preview(cls.path)["run_id"]
+        cls.project = cls.app.open_workspace(cls.path)
+        workspace = cls.app.workspace(cls.project["id"])
+        execute(cls.app, workspace, cls.run_id, workspace.run_dir(cls.run_id)/"snapshot")
 
     def test_it_holds_what_was_learned_and_who_could_read_what(self):
         with zipfile.ZipFile(io.BytesIO(self.app.package_bytes(self.project["id"], self.run_id))) as archive:
