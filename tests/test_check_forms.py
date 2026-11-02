@@ -187,6 +187,8 @@ class TruthIsOptionalWithNoCheck(unittest.TestCase):
             self.assertEqual(set(tasks.sample_truths(root/"in", task, need_truth=False).values()), {None})
             stream, truth, _ = tasks.build_dataset(root/"in", root/"out", task, preview=False, need_truth=False)
             self.assertEqual((len(stream), set(truth.values())), (1, {None}))
+            sources = json.loads((root/"out"/"controller_truth"/"sources.json").read_text(encoding="utf-8"))
+            self.assertEqual({entry["folder"] for entry in sources.values()}, {"sample-01", "sample-02"})
 
     def test_a_broken_truth_file_is_still_refused(self):
         with tempfile.TemporaryDirectory() as folder:

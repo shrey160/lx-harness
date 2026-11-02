@@ -1,4 +1,5 @@
 """The orchestrator's actions (D-024): a scripted caller reaches a finished preview, and what stays with a person is refused."""
+import json
 from pathlib import Path
 import re
 import shutil
@@ -10,6 +11,7 @@ from lx.engine import EXTERNAL
 from lx.inventory import write_synthetic
 from lx.inventory_data import _tone
 from lx.orchestration import ACTIONS, Orchestration
+from lx.taskrun import run_truths
 from lx.worker import execute
 from test_tasks import Base
 
@@ -332,6 +334,24 @@ class WholeFlow(Actions):
         self.assertEqual(len(replies), 6)
         self.assertEqual(set(replies[0]), {"sample", "before", "after", "same"})
         self.assertTrue(replies[0]["before"])
+
+    def test_a_run_with_no_check_can_be_scored_later_from_the_sample_folders(self):
+        project = self.begin()
+        workspace = self.app.workspace(project["id"])
+        self.lx.spec_draft(self.path, no_check=True)
+        run_id = self.preview(workspace)
+        saved = workspace.run_dir(run_id)/"dataset"/"controller_truth"/"ground_truth.json"
+        truth = json.loads(saved.read_text(encoding="utf-8"))
+        saved.write_text(json.dumps(dict.fromkeys(truth)), encoding="utf-8")
+        self.assertEqual(run_truths(workspace, workspace.run_dir(run_id)), truth)
+        tried = self.lx.check_try(self.path, "def score(truth, answer):\n    return answer == truth\n")
+        self.assertGreater(tried["answers"], 0)
+        self.assertEqual(tried["no_truth"], [])
+        self.assertEqual({item["old"] for item in tried["results"]}, {None})
+        for folder in (Path(self.path)/"samples").iterdir():
+            (folder/"truth.json").unlink()
+        tried = self.lx.check_try(self.path, "def score(truth, answer):\n    return answer == truth\n")
+        self.assertEqual((tried["answers"], tried["no_truth"]), (0, [run_id]))
 
     def improver_input(self, workspace, run_id):
         """Every file of what the improver read and wrote, with what differs between any two runs taken out."""

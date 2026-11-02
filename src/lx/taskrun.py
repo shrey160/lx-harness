@@ -364,27 +364,44 @@ def _old_checks(source, items):
         return None
 
 
+def run_truths(workspace, run_dir):
+    """{sample id: truth} for a run. A run with no check froze none, so its samples' current truth files stand in, matched by folder."""
+    saved = Path(run_dir)/"dataset"/"controller_truth"/"ground_truth.json"
+    truth = json.loads(saved.read_text(encoding="utf-8")) if saved.is_file() else {}
+    folders, found = _folders(run_dir), {}
+    for sample, value in truth.items():
+        path = workspace.samples_path/folders.get(sample, "")/"truth.json"
+        if value is None and sample in folders and path.is_file():
+            try:
+                value = json.loads(path.read_text(encoding="utf-8"))
+            except ValueError:
+                continue
+        if value is not None:
+            found[sample] = value
+    return found
+
+
 def try_check(workspace, source):
     """Score saved answers with a check and say what changes, against each run's own check. Reads runs and writes
     nothing. Reports scores and check names, never an answer, and only to whoever is setting up the task."""
-    tried, skipped = [], []
-    finished = [job for job in workspace.runs() if job["status"] not in {"queued", "running"} and job["spec"].get("check")]
+    tried, skipped, no_truth = [], [], []
+    finished = [job for job in workspace.runs() if job["status"] not in {"queued", "running"} and job["spec"].get("task")]
     for job in finished[:MAX_TRY_RUNS]:
         run_dir = workspace.run_dir(job["id"])
-        truth_file = run_dir/"dataset"/"controller_truth"/"ground_truth.json"
-        truth = json.loads(truth_file.read_text(encoding="utf-8")) if truth_file.is_file() else {}
-        answers = [item for item in saved_answers(run_dir) if item[0] in truth]
+        truth, saved = run_truths(workspace, run_dir), saved_answers(run_dir)
+        answers = [item for item in saved if item[0] in truth]
         if not answers:
-            skipped.append(job["id"])
+            (no_truth if saved else skipped).append(job["id"])
             continue
         items = [(truth[sample], answer) for sample, _, answer in answers]
         new = shown_checks(source, items)
-        old = _old_checks(workspace.check_source(job["spec"]["check"]), items) or [None]*len(items)
+        own = job["spec"].get("check")
+        old = (own and _old_checks(workspace.check_source(own), items)) or [None]*len(items)
         folders = _folders(run_dir)
         tried += [{"run": job["id"], "sample": folders.get(sample, sample), "where": where, "old": old_named and _score(old_named), "new": _score(new_named),
                    "changed": _changes(old_named or [], new_named)} for (sample, where, _), old_named, new_named in zip(answers, old, new)]
     changed = [item for item in tried if item["old"] != item["new"] or item["changed"]]
-    return {"answers": len(tried), "changed": len(changed), "results": changed, "no_answers_saved": skipped, "runs_left_out": max(0, len(finished)-MAX_TRY_RUNS),
+    return {"answers": len(tried), "changed": len(changed), "results": changed, "no_answers_saved": skipped, "no_truth": no_truth, "runs_left_out": max(0, len(finished)-MAX_TRY_RUNS),
             "note": "Saved answers only, so this shows what an edit changes, not how a harness would do."}
 
 

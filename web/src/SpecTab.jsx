@@ -126,9 +126,9 @@ function CheckEditor({project,ui}){
 
 function TriedAnswers({result}){
   const score=value=>value===null?'none':value.toFixed(2);
-  if(!result.answers)return <p className="muted" role="status">No saved answers yet. Run a trial to get one.</p>;
+  if(!result.answers)return <p className="muted" role="status">{result.no_truth.length?'Saved answers need a truth.json in their samples before they can be scored.':'No saved answers yet. Run a trial to get one.'}</p>;
   return <div role="status">
-    <p className="muted">Scored {result.answers} saved answers: {result.changed?`${result.changed} would change.`:'none would change.'}{result.no_answers_saved.length>0?` ${result.no_answers_saved.length} runs saved no answer.`:''}{result.runs_left_out?` ${result.runs_left_out} older runs left out.`:''}</p>
+    <p className="muted">Scored {result.answers} saved answers: {result.changed?`${result.changed} would change.`:'none would change.'}{result.no_answers_saved.length>0?` ${result.no_answers_saved.length} runs saved no answer.`:''}{result.no_truth.length>0?` ${result.no_truth.length} runs have samples with no truth.json, so they were left out.`:''}{result.runs_left_out?` ${result.runs_left_out} older runs left out.`:''}</p>
     {result.changed>0&&<ul className="plain">{result.results.map(item=><li key={item.run+item.where}><strong>{item.sample}</strong> {score(item.old)} to {score(item.new)} <span className="muted">{item.run} {item.where}{item.changed.length?': '+item.changed.map(check=>check.name).join(', '):''}</span></li>)}</ul>}
   </div>;
 }

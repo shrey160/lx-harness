@@ -110,6 +110,7 @@ def build_dataset(snapshot, root, task, *, need_truth=True):
             truth[sample_id] = expected
         (root/"worker_inputs"/"manifest.json").write_text(json.dumps({"samples": samples}), encoding="utf-8")
         truth_file.parent.mkdir()
+        (truth_file.parent/"sources.json").write_text(json.dumps({sample["sample_id"]: {"folder": folder.name} for sample, folder in zip(samples, folders)}), encoding="utf-8")
         truth_file.write_text(json.dumps(truth), encoding="utf-8")
     manifest = json.loads((root/"worker_inputs"/"manifest.json").read_text(encoding="utf-8"))
     truth = json.loads(truth_file.read_text(encoding="utf-8"))
