@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
+import fast_sandbox
 from lx import sandbox, tasks
 from lx.engine import Engine
 from lx.inventory import verify_inventory, write_synthetic
@@ -44,6 +45,10 @@ class MemoryKeychain:
 
 class Base(unittest.TestCase):
     def setUp(self):
+        if sandbox.backend() == "docker":
+            docker = patch.object(sandbox, "run_python", fast_sandbox.run_python)
+            docker.start()
+            self.addCleanup(docker.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)

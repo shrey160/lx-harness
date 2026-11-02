@@ -8,6 +8,7 @@ from pathlib import Path
 
 from harness2.substrate.opencode import OpencodeSubstrate
 
+import fast_sandbox
 from lx import sandbox
 from lx.agent import PhotoSetTools, photo_tools
 from lx.budget import BudgetLedger
@@ -34,6 +35,19 @@ def harness(**extra):
 
 
 needs_sandbox = unittest.skipUnless(sandbox.available(), "script sandbox needs the Linux controller")
+
+
+@unittest.skipUnless(sandbox.backend() == "docker", "the stand-in replaces only Docker")
+class FastSandboxStandsIn(unittest.TestCase):
+    def test_it_answers_as_the_real_sandbox_does(self):
+        scripts = ['import json, sys\nprint(json.dumps({"got": json.load(sys.stdin)["x"], "file": open("data/in.txt").read()}))',
+                   'from PIL import Image\nprint(Image.new("RGB", (2, 3)).size)', 'import sys\nprint("partial")\nsys.exit(3)', 'print("caf\u00e9")']
+        for source in scripts:
+            with self.subTest(source):
+                real = sandbox.run_python(source, '{"x": 1}', {"data/in.txt": b"text"}, timeout=10)
+                fast = fast_sandbox.run_python(source, '{"x": 1}', {"data/in.txt": b"text"}, timeout=10)
+                self.assertEqual({key: fast[key].replace("\r\n", "\n") if key == "stdout" else fast[key] for key in ("exit_code", "timed_out", "stdout")},
+                                 {key: real[key] for key in ("exit_code", "timed_out", "stdout")})
 
 
 @needs_sandbox
