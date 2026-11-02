@@ -32,7 +32,7 @@ export function SpecTab({state,project,ui,setTab}){
     <h2>Task</h2>
     {draft.task?<>
       <p className="capital-first">{draft.task.name.replace(/^lx_/,'').replaceAll('_',' ')} · {draft.task.stream_samples} samples in the loop · check <code>{draft.check.sha256.slice(0,12)}</code></p>
-      <TaskText project={project}/>
+      <TaskText project={project} ui={ui}/>
       <div className="actions"><button className="button" disabled={ui.busy} onClick={testCheck}>Test the check</button><button className="button" disabled={ui.busy} onClick={checkReady}>Check these samples</button></div>
       {checkResult&&<CheckScores result={checkResult}/>}
       {readyResult&&<Ready result={readyResult}/>}
@@ -88,15 +88,48 @@ export function SpecTab({state,project,ui,setTab}){
 
 const TASK_TEXT=[['contract','Task text and reply format'],['yardstick','What a good result is'],['selection_checks','Checks before an answer is final']];
 
-function TaskText({project}){
-  const {task}=project.draft,[check,setCheck]=useState(null),[problem,setProblem]=useState('');
-  const loadCheck=open=>{if(open&&check===null&&!problem)api(`check/${project.id}`).then(reply=>setCheck(reply.source),e=>setProblem(e.message));};
+function TaskText({project,ui}){
+  const {task}=project.draft;
   return <div className="task-text">
     {TASK_TEXT.filter(([field])=>task[field]).map(([field,label])=><details key={field} open={field==='contract'}><summary>{label}</summary><pre className="setup"><code>{task[field]}</code></pre></details>)}
-    <details onToggle={e=>loadCheck(e.currentTarget.open)}><summary>Scoring check</summary>
-      {problem?<p className="callout bad">{problem}</p>:check===null?<p className="muted">Loading…</p>:<pre className="setup check-source"><code>{check}</code></pre>}
-    </details>
-    <p className="muted">To change these, ask a connected agent or use Discuss. Each change is a new version and needs a new approval.</p>
+    <CheckEditor key={project.draft.version} project={project} ui={ui}/>
+    <p className="muted">To change the task text, ask a connected agent or use Discuss. Each change is a new version and needs a new approval.</p>
+  </div>;
+}
+
+function CheckEditor({project,ui}){
+  const {draft}=project,[saved,setSaved]=useState(null),[text,setText]=useState(''),[problem,setProblem]=useState(''),[tested,setTested]=useState(null),[tried,setTried]=useState(null);
+  const load=open=>{if(open&&saved===null&&!problem)api(`check/${project.id}`).then(reply=>{setSaved(reply.source);setText(reply.source);},e=>setProblem(e.message));};
+  const edit=value=>{setText(value);setTested(null);setTried(null);};
+  const fill=action=>ui.act(async()=>edit((await api(`projects/${project.id}/${action}`,{})).text));
+  const test=()=>ui.act(async()=>{setTested(null);setTested(await api(`projects/${project.id}/check-test`,{check:text}));});
+  const tryIt=()=>ui.act(async()=>{setTried(null);setTried(await api(`projects/${project.id}/check-try`,{check:text}));});
+  const save=()=>ui.act(async()=>{await api(`projects/${project.id}/task`,{task:draft.task,check:text});ui.notify('Saved as a new version.');});
+  const drift=project.eval_drift||[];
+  return <details onToggle={e=>load(e.currentTarget.open)}><summary>Scoring check</summary>
+    {problem?<p className="callout bad">{problem}</p>:saved===null?<p className="muted">Loading…</p>:<>
+      <p className="muted">Write rules as JSON, a Python <code>def score(truth, answer):</code>, or a full check. The guide has each form. Test and Try save nothing.</p>
+      {drift.length>0&&<div className="callout warn" role="status"><p>{drift.join('. ')}. Approval waits until they match.</p><button className="button" disabled={ui.busy} onClick={()=>fill('check-file')}>Load the eval file</button></div>}
+      <textarea className="check-editor" rows="16" spellCheck="false" aria-label="Scoring check" value={text} onChange={e=>edit(e.target.value)}/>
+      <div className="actions">
+        <button className="button" disabled={ui.busy} onClick={()=>fill('check-draft')}>Draft rules from the samples</button>
+        <button className="button" disabled={ui.busy||!text.trim()} onClick={test}>Test</button>
+        <button className="button" disabled={ui.busy||!text.trim()} onClick={tryIt}>Try on saved answers</button>
+        <button className="button" disabled={ui.busy||!text.trim()||text===saved} onClick={save}>Save check</button>
+      </div>
+      {text!==saved&&<p className="muted" role="status">Saving makes a new version and clears any approval.</p>}
+      {tested&&<CheckScores result={tested}/>}
+      {tried&&<TriedAnswers result={tried}/>}
+    </>}
+  </details>;
+}
+
+function TriedAnswers({result}){
+  const score=value=>value===null?'none':value.toFixed(2);
+  if(!result.answers)return <p className="muted" role="status">No saved answers yet. Run a trial to get one.</p>;
+  return <div role="status">
+    <p className="muted">Scored {result.answers} saved answers: {result.changed?`${result.changed} would change.`:'none would change.'}{result.no_answers_saved.length>0?` ${result.no_answers_saved.length} runs saved no answer.`:''}{result.runs_left_out?` ${result.runs_left_out} older runs left out.`:''}</p>
+    {result.changed>0&&<ul className="plain">{result.results.map(item=><li key={item.run+item.where}><strong>{item.sample}</strong> {score(item.old)} to {score(item.new)} <span className="muted">{item.run} {item.where}{item.changed.length?': '+item.changed.map(check=>check.name).join(', '):''}</span></li>)}</ul>}
   </div>;
 }
 

@@ -76,6 +76,7 @@ small.muted { display: block; font-size: 12px; }
 .inline { display: flex; gap: 8px; }
 input, textarea, select { width: 100%; padding: 6px 9px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); }
 textarea { resize: vertical; line-height: 1.5; }
+.check-editor { margin: 8px 0; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; white-space: pre; overflow-x: auto; }
 input::placeholder, textarea::placeholder { color: #85878c; }
 input[type=checkbox] { width: 15px; height: 15px; margin: 0 8px 0 0; accent-color: var(--accent); }
 input[type=file] { padding: 4px; }

@@ -149,6 +149,7 @@ def server_for(app, port=8765):
                     elif action=="task": result=app.set_task(identifier,data.get("task"),data.get("check"))
                     elif action=="check-test": result=app.test_check(identifier,data.get("check"))
                     elif action=="check-draft": result={"text":app.draft_rules(identifier)}
+                    elif action=="check-file": result={"text":app.eval_check(identifier)}
                     elif action=="check-try": result=app.try_check(identifier,data.get("check"))
                     elif action=="ready": result=app.ready(identifier)
                     elif action=="approve": result=app.approve(identifier,data)
