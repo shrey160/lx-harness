@@ -69,6 +69,16 @@ class Approving(Base):
         approved = self.app.approve(self.id, {"version": version, "data_approved": True, "contributor_accepted": True, "notice_accepted": True})["approved"]
         self.assertEqual(approved["self_test"]["weaknesses"], ["This run has no check, so it will not be scored."])
 
+    def test_a_judged_run_waits_for_a_person(self):
+        self.lx.spec_draft(self.path, judges={"criteria": [{"name": "tidy", "question": "Is it tidy?"}], "entry": "spark-contributor", "cap_usd": 0.5})
+        result = self.lx.approve(self.path)
+        self.assertEqual(result["status"], "pending")
+        self.assertRegex(result["reason"], "model judge")
+        version = self.lx.spec_show(self.path)["version"]
+        approved = self.app.approve(self.id, {"version": version, "data_approved": True, "contributor_accepted": True, "notice_accepted": True})["approved"]
+        self.assertEqual(approved["self_test"]["weaknesses"][-1], "Scored partly by a model judge, whose verdicts can vary and may be wrong.")
+        self.assertIn("blank_score", approved["self_test"])
+
     def test_a_preview_has_nothing_to_approve(self):
         self.lx.spec_draft(self.path, mode="controlled_preview")
         with self.assertRaisesRegex(ValueError, "preview"):

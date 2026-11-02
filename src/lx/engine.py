@@ -58,6 +58,7 @@ from .workspace import NOT_SAMPLES, Workspace, native_path, write_json
 
 ROOT = Path(__file__).resolve().parents[2]
 NO_CHECK = "This run has no check, so it will not be scored."
+JUDGED = "Scored partly by a model judge, whose verdicts can vary and may be wrong."
 MAX_REPLY = 20_000
 DEFAULT_ROOT = home()/".local"/"state"/"lx-harness"/hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
 SAMPLES = "samples"
@@ -308,6 +309,17 @@ class Engine:
         profile = self.registry.profile(spec["judge"]["entry"])
         return float(profile.context_limit*profile.input_price + self.limits_of(spec)["reply_tokens"]*profile.output_price)
 
+    def _judge_view(self, draft):
+        """What a person approving a judged spec should see: how many calls, what each holds while it runs, and what the cap allows."""
+        judge = draft.get("judge")
+        if not judge or not judge.get("entry"):
+            return None
+        provider = judge["provider"]
+        return {"model": provider["name"], "calls_per_run": 2*draft["task"]["stream_samples"], "calls_per_trial": 1,
+                "pricing": provider["pricing"], "priced": provider["priced"], "call_holds_usd": self.judge_call_usd(draft), "cap_usd": judge.get("cap_usd"),
+                "same_as_worker": judge["entry"] == draft["roles"]["worker"],
+                "note": "Each answer is judged once, and a kept verdict is never paid for twice. The judges never spend more than their cap."}
+
     def _judge_cap_short(self, spec):
         judge = spec.get("judge")
         if not judge:
@@ -503,6 +515,7 @@ class Engine:
                 "blocked": self._blocked(draft),
                 "grant": self._grant_view(workspace, record["id"]),
                 "trial_cap_usd": self.trial_cap(record["id"], draft),
+                "judge": self._judge_view(draft),
                 "budget": {key:value for key,value in self._ledger(workspace).summary().items()
                            if key in {"cap_usd","spent_usd","reserved_usd","remaining_usd"}}}
 
@@ -1077,9 +1090,11 @@ class Engine:
             tasks.require_audio(snapshot)
         else:
             tasks.require_preview_samples(snapshot, len(truths))
+        judged = [JUDGED] if draft.get("judge") else []  # a model's verdicts are a person's to accept, as a weak check is
         if not draft.get("check"):
-            return {"no_check": True, "weaknesses": [NO_CHECK]}  # a weakness waits for a person, so no agent or grant starts this alone
-        return checks.self_test(workspace.check_source(draft["check"]), truths)
+            return {"no_check": True, "weaknesses": judged or [NO_CHECK]}  # a weakness waits for a person, so no agent or grant starts this alone
+        proven = checks.self_test(workspace.check_source(draft["check"]), truths)
+        return {**proven, "weaknesses": proven["weaknesses"]+judged}
 
     # Runs
 

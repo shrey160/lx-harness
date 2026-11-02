@@ -193,6 +193,12 @@ class Outside(Grants):
         self.assert_pending("no check")
         self.assertEqual(self.app.runs(self.id), [])
 
+    def test_a_judged_run_waits_for_a_person(self):
+        self.lx.spec_draft(self.path, no_check=True, judges={"criteria": [{"name": "tidy", "question": "Is it tidy?"}], "entry": "spark-contributor", "cap_usd": 0.5})
+        self.grant()
+        self.assert_pending("model judge")
+        self.assertEqual(self.app.runs(self.id), [])
+
     def test_a_spec_a_person_must_fix_stays_blocked(self):
         self.grant()
         with patch.object(self.app.registry, "meta_key_source", return_value=None):

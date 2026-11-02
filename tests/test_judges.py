@@ -126,6 +126,14 @@ class ModelAndCap(Actions):
         self.assertIn("expected answer", entry["gets"])
         self.assertNotIn("request", entry["gets"])
 
+    def test_the_project_shows_what_judging_costs_before_approval(self):
+        project = self.begin()
+        self.assertIsNone(self.app.project(project["id"])["judge"])
+        self.app.edit_spec(project["id"], {"judge": {**CRITERIA, "entry": "spark-contributor", "cap_usd": 0.5}})
+        shown = self.app.project(project["id"])["judge"]
+        self.assertEqual((shown["calls_per_run"], shown["calls_per_trial"], shown["cap_usd"], shown["same_as_worker"]), (12, 1, 0.5, True))
+        self.assertGreater(shown["call_holds_usd"], 0.1)
+
     def test_a_changed_judge_provider_needs_a_new_approval(self):
         project = self.begin()
         self.app.edit_spec(project["id"], {"judge": {**CRITERIA, "entry": "spark-contributor", "cap_usd": 0.5}})
