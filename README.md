@@ -291,8 +291,9 @@ else:
 
 Approval re-runs a self-test on the frozen samples. A correct answer must score 1.0,
 malformed answers must be graded without crashing and without full marks, grading
-must repeat exactly, another sample's answer must not pass, and errors must not
-reveal expected values. `Engine.test_check(id)` or
+must repeat exactly, and errors must not reveal expected values. Another sample's
+answer passing is a weakness a person must accept, since one answer can suit several
+samples on some tasks. `Engine.test_check(id)` or
 `POST /api/projects/<id>/check-test` runs it sooner. `src/lx/inventory_check.py` is a
 full example.
 

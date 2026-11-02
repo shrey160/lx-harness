@@ -52,6 +52,12 @@ class CheckProtocolTests(unittest.TestCase):
         self.assertEqual((summary["blank_score"], summary["wrong_score"]), (0, 0.9))
         self.assertIn("barely tells right from wrong", summary["weaknesses"][0])
 
+    def test_another_samples_answer_passing_is_a_weakness_not_a_refusal(self):
+        source = GOOD.replace('i["answer"].get("value") == i["truth"]["value"]', 'isinstance(i["answer"].get("value"), str)')
+        summary = checks.self_test(source, TRUTHS)
+        self.assertEqual(summary["wrong_score"], 1.0)
+        self.assertIn("cannot tell them apart", summary["weaknesses"][0])
+
     def test_samples_that_all_expect_the_same_answer_say_so(self):
         summary = checks.self_test(GOOD, {"a": {"value": "same"}, "b": {"value": "same"}})
         self.assertIsNone(summary["wrong_score"])
@@ -82,7 +88,6 @@ class CheckProtocolTests(unittest.TestCase):
             "correct answer scored": GOOD.replace('i["truth"]["value"]', '"nothing"'),
             "full marks": GOOD.replace('isinstance(i["answer"], dict) and i["answer"].get("value") == i["truth"]["value"]', "True")
                               .replace('"passed": isinstance(i["answer"], dict),', '"passed": True,'),
-            "cannot tell them apart": GOOD.replace('i["answer"].get("value") == i["truth"]["value"]', 'isinstance(i["answer"].get("value"), str)'),
             "different results": GOOD.replace('"error": "value: wrong"', '"error": "value: wrong" + str(__import__("os").urandom(4))'),
             "reveals an expected value": GOOD.replace('"error": "value: wrong"', '"error": "wanted " + str(i["truth"]["value"])'),
             "named checks": GOOD.replace('"checks": [', '"checks": [][:0] and [', 1),

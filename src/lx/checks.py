@@ -106,6 +106,8 @@ def _weaknesses(blank, wrong):
     found = [f"A blank answer scores {blank:.2f}, so much of the score is free."] if blank > BLANK_LIMIT else []
     if wrong is None:
         return found+["No wrong answer could be tried, because the samples all expect the same answer."]
+    if wrong >= 1.0:
+        return found+["Another sample's answer gets full marks. That is right only if one answer can suit several samples; otherwise the check cannot tell them apart."]
     return found+([f"Another sample's answer scores {wrong:.2f}, so the check barely tells right from wrong."] if wrong >= WRONG_LIMIT else [])
 
 
@@ -113,10 +115,10 @@ def self_test(source, truths):
     """Prove a check on {sample id: truth}: raises CheckError, or returns a summary.
 
     A correct answer scores 1.0, junk is graded without crashing and scores
-    less, grading repeats exactly, another sample's answer does not pass (with
-    two or more distinct samples), and errors do not reveal expected values.
+    less, grading repeats exactly, and errors do not reveal expected values.
     The summary says how high blank and wrong answers score, and why that may
-    be weak, for the person approving it. A failure's message reaches whoever
+    be weak, for the person approving it: another sample's answer can pass, as
+    one design can meet two specs, so only a person lets that through. A failure's message reaches whoever
     wrote the check, so one naming an expected value is withheld.
     """
     try:
@@ -158,8 +160,6 @@ def _prove(source, truths):
             raise CheckError(f"{sample}: a correct answer scored {result.score:.2f}, not 1.0")
         if label[0] == "junk" and result.score >= 1.0:
             raise CheckError(f"{sample}: a malformed answer got full marks")
-        if label[0] == "other" and result.score >= 1.0:
-            raise CheckError(f"{sample}: another sample's answer got full marks, so the check cannot tell them apart")
         if label[0] in {"junk", "other"} and _reveals(" ".join(result.errors), [truths[sample]]):
             raise CheckError(f"{sample}: a check error reveals an expected value")
     scores = lambda kind: [graded[position].score for label, position in positions.items() if label[0] == kind]

@@ -188,9 +188,7 @@ class TaskRunTests(Base):
         self.assertEqual(self.approve(p)["approved"]["self_test"]["checks_per_sample"], 2)
         broken = self.app.set_task(p["id"], task, CUSTOM_CHECK.replace('right = shape and answer["total"] == item["truth"]["total"]', "right = shape"))
         self.assertIsNone(broken["approved"])
-        with self.assertRaisesRegex(ValueError, "cannot tell them apart"):
-            self.approve(broken)
-        self.assertIsNone(self.app.project(p["id"])["approved"])
+        self.assertIn("cannot tell them apart", self.app.test_check(p["id"])["weaknesses"][0])
 
     def test_a_live_task_run_spends_from_the_workspace_with_tools_on_the_ledger(self):
         from lx.inventory import FakeShapeSegmentation
