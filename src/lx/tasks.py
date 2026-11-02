@@ -15,6 +15,7 @@ from pathlib import Path
 import re
 
 from . import text_task
+from . import check_forms
 from .checks import CheckError, run_check
 from .inventory import CONTRACT, GRID, CELL, synthetic_sample
 from .inventory_data import _tone, add_user_samples, check_sample_folder, finalize_inventory, normalize_photo
@@ -104,7 +105,7 @@ def tool_list(models):
 def validate_check_source(source):
     if type(source) is not str or not source.strip() or len(source) > MAX_CHECK:
         raise ValueError(f"A scoring check must be non-empty and at most {MAX_CHECK} characters")
-    return source
+    return check_forms.saved_form(source)
 
 
 def truth_shape(truths):

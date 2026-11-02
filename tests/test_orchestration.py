@@ -115,6 +115,15 @@ class WhatItMayDo(Actions):
         after = self.lx.spec_show(self.path)
         self.assertEqual((after["version"], after["check"]), (before["version"], before["check"]))
 
+    def test_a_function_check_is_saved_with_its_kit_and_shown_as_written(self):
+        self.begin()
+        text = "def score(truth, answer):\n    return answer == truth\n"
+        self.lx.spec_draft(self.path, check=text)
+        self.assertEqual(self.lx.spec_show(self.path)["check"], text)
+        self.assertEqual(self.lx.check_test(self.path)["samples"], 6)
+        self.lx.spec_draft(self.path, goal="Count what the request asks for.")
+        self.assertEqual(self.lx.spec_show(self.path)["check"], text)
+
     def test_a_new_task_is_read_by_its_own_rules_not_the_old_drafts(self):
         self.begin()
         samples = Path(self.path)/"samples"

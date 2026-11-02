@@ -157,7 +157,8 @@ def _prove(source, truths):
     for label, position in positions.items():
         result, sample = graded[position], label[1]
         if label[0] in {"example", "again"} and result.score != 1.0:
-            raise CheckError(f"{sample}: a correct answer scored {result.score:.2f}, not 1.0")
+            why = next((error for error in result.errors if not _reveals(error, [truths[sample]])), None)
+            raise CheckError(f"{sample}: a correct answer scored {result.score:.2f}, not 1.0"+(f" ({why})" if why else ""))
         if label[0] == "junk" and result.score >= 1.0:
             raise CheckError(f"{sample}: a malformed answer got full marks")
         if label[0] in {"junk", "other"} and _reveals(" ".join(result.errors), [truths[sample]]):

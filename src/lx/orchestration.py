@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
-from . import sandbox, tasks
+from . import check_forms, sandbox, tasks
 from .engine import EXTERNAL
 from .guides import guide_list, read_guide
 from .limits import field_list
@@ -91,7 +91,7 @@ class Orchestration:
         draft, approved = project["draft"], project["approved"]
         check = None
         if draft.get("check"):
-            check = self.engine.workspace(project["id"]).check_source(draft["check"])
+            check = check_forms.author_text(self.engine.workspace(project["id"]).check_source(draft["check"]))
         return {"goal": project["goal"], "version": draft["version"], "mode": draft["mode"], "roles": draft["roles"], "tools": draft.get("tools", []), "mcp_tools": [entry["server"]+"/"+entry["tool"] for entry in tasks.spec_mcp(draft)],
                 "budget_usd": draft["budget_usd"], "limits": draft["limits"], "task": draft.get("task"), "check": check, "blocked": project["blocked"],
                 "approved": {"by": approved.get("by", "person")} if approved and approved["version"] == draft["version"] else None,

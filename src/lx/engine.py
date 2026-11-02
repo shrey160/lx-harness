@@ -37,7 +37,7 @@ from .budget import BudgetLedger
 from .domain import build_demo_dataset, verify_output, _Rectangle, _write_png
 from .health import read_health
 from .home import home
-from . import checks, hints as hint_notes, launcher, limits as run_limits, sandbox, tasks, text_task
+from . import check_forms, checks, hints as hint_notes, launcher, limits as run_limits, sandbox, tasks, text_task
 from .intake import IntakeError, MAX_BYTES, inspect_folder, snapshot_folder, snapshot_zip
 from .keychain import SystemKeychain
 from .live_transport import DISCUSSION_CALL_LIMIT, RUN_CALL_LIMIT, LiveChatTransport
@@ -578,8 +578,9 @@ class Engine:
         reference = previous.get("check")
         if task is not None and check is not None:
             tasks.validate_task(task)
-            workspace.add_check(version, tasks.validate_check_source(check))
-            reference = {"version":version,"sha256":tasks.source_hash(check)}
+            source = tasks.validate_check_source(check)
+            workspace.add_check(version, source)
+            reference = {"version":version,"sha256":tasks.source_hash(source)}
         spec = {"version": version, "goal": goal.strip(), "budget_usd": budget,
                 "roles": {r:roles[r] for r in ROLES}, "providers": providers,
                 "mode": mode, "limits": resolved, "limits_set": own}
@@ -1194,7 +1195,7 @@ class Engine:
         draft = workspace.spec(workspace.project()["spec_version"])
         if not draft.get("task"):
             raise ValueError("This workflow has a built-in check")
-        return workspace.check_source(draft["check"])
+        return check_forms.author_text(workspace.check_source(draft["check"]))
 
     def runs(self, identifier):
         """A workspace's runs, newest first, reconciled with the core's job state."""
