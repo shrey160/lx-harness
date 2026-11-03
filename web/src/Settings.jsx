@@ -62,9 +62,19 @@ function Connectivity({system,ui,refresh}){
     <p className="muted">How outside agents reach LX. Tools your runs use from other servers are under MCP servers.</p>
     <h3>Agent access</h3>
     <div className="provider-row"><div><strong><span className={'dot '+(on?'ok':'')}/>{on?'Started':'Stopped'}</strong><span className="muted">{on?'Connected agents can act here.':'Agents are refused on their next call, including sessions already open.'}</span></div><button className="button" disabled={ui.busy} onClick={()=>set(!on)}>{on?'Stop':'Start'}</button></div>
-    <p className="muted">Your agent client launches its own LX server when it needs one, so nothing runs here until then. Stop does not end runs already started, and it does not cover the <code>lx</code> command.</p>
+    <p className="muted">Your agent client launches its own LX server when it needs one, so nothing runs here until then. Stop does not end runs already started. It also blocks workspace deletion through the <code>lx</code> command; other commands are not covered.</p>
+    <AgentWorkspaceDeletion system={system} ui={ui} refresh={refresh}/>
     <ConnectAgent setup={system.agent_setup}/>
   </section>;
+}
+
+export function AgentWorkspaceDeletion({system,ui,refresh}){
+  const change=on=>ui.act(async()=>{await api('agent-workspace-deletion',{on});await refresh();});
+  return <div>
+    <h3>Workspace deletion</h3>
+    <label className="check"><input type="checkbox" checked={system.agent_workspace_deletion===true} disabled={ui.busy} onChange={e=>change(e.target.checked)}/>Allow agents to delete workspaces</label>
+    <p className="muted">Off by default. When enabled, connected agents and the lx command can permanently delete a workspace’s LX settings, runs and harnesses. Original samples, other files and spend records are kept. Active runs and unsettled calls still block deletion. Stopping agent access also blocks agent deletion.</p>
+  </div>;
 }
 
 function ConnectAgent({setup}){

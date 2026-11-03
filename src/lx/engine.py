@@ -546,16 +546,22 @@ class Engine:
             self.store.save("workspace", {**self.store.get("workspace", identifier), "archived": archived})
         return self._view(workspace)
 
-    def delete_workspace(self, identifier, confirmation):
+    def delete_workspace(self, identifier, confirmation=None, *, by="person"):
         """Delete LX's own directory only; original samples and user-level billing stay."""
+        if by not in {"person", "agent"}:
+            raise ValueError("Unknown deletion caller")
+        if by == "agent":
+            self._require_agent_workspace_deletion()
         workspace = self.workspace(identifier)
         self._jobs(workspace)
         with workspace.lock():
+            if by == "agent":
+                self._require_agent_workspace_deletion()
             entry = self.store.get("workspace", identifier)
             if entry.get("deleting"):
                 raise ValueError("This workspace is being deleted")
             record = workspace.project()
-            if confirmation != record["name"]:
+            if confirmation is not None and confirmation != record["name"]:
                 raise ValueError("Type the workspace name to confirm deletion")
             if any(j["status"] in {"queued", "running"} for j in workspace.runs()):
                 raise ValueError("Stop the active run before deleting this workspace")
@@ -1565,6 +1571,7 @@ class Engine:
         calls = [tool.get("function", tool) for tool in task_tools(tasks.tool_catalog(enabled))]
         return {"version":version("lx-harness"),"state_root":str(self.root),"sandbox":sandbox.backend(),
                 "meta_key":self.registry.meta_key_source(),"agent_setup":self.agent_setup(),"agent_access":self.agent_access(),
+                "agent_workspace_deletion":self.agent_workspace_deletion(),
                 "agent_tools":[{"name":call["name"],"description":call["description"]} for call in calls],
                 "mcp_servers":self.mcp_view()}
 
@@ -1581,6 +1588,26 @@ class Engine:
             raise ValueError("Say whether agents may connect")
         self.store.save("setting", {"id":"agent_access","on":on})
         return {"agent_access":on}
+
+    def agent_workspace_deletion(self):
+        """A separate person-controlled permission, off on existing and new installs."""
+        try:
+            return self.store.get("setting", "agent_workspace_deletion")["on"] is True
+        except ValueError:
+            return False
+
+    def set_agent_workspace_deletion(self, on):
+        """Only Settings exposes this switch; agents cannot turn it on themselves."""
+        if type(on) is not bool:
+            raise ValueError("Say whether agents may delete workspaces")
+        self.store.save("setting", {"id":"agent_workspace_deletion","on":on})
+        return {"agent_workspace_deletion":on}
+
+    def _require_agent_workspace_deletion(self):
+        if not self.agent_access():
+            raise ValueError("Agent access is stopped in LX: Settings, Connectivity")
+        if not self.agent_workspace_deletion():
+            raise ValueError("Workspace deletion by agents is off: a person can enable it in Settings, Connectivity")
 
     def agent_setup(self):
         """Ready setup for an agent client, with this install's own paths (D-024). No keys: the agent never needs one."""

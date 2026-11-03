@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from lx.engine import Engine
+from lx.orchestration import Orchestration
 from lx.usage import usage_rows
 from test_tasks import Base, MemoryKeychain
 
@@ -69,7 +70,7 @@ class Lifecycle(Base):
                 with self.subTest(unknown=unknown), self.assertRaisesRegex(ValueError, "unsettled"):
                     action()
 
-    def test_delete_requires_exact_name_and_preserves_files_and_spend(self):
+    def test_one_click_delete_preserves_files_spend_and_legacy_name_checks(self):
         p = self.project()
         workspace = self.app.workspace(p["id"])
         original = {path.relative_to(workspace.folder): path.read_bytes() for path in workspace.samples_path.rglob("*") if path.is_file()}
@@ -79,13 +80,13 @@ class Lifecycle(Base):
         reservation = ledger.reserve(0.01, "worker", "test", "scratch")
         ledger.settle(reservation, cost_usd=0.005, input_tokens=1, output_tokens=1)
         before = usage_rows(ledger)
-        for confirmation in (None, "", p["name"].lower(), p["name"]+" "):
+        for confirmation in ("", p["name"].lower(), p["name"]+" "):
             with self.assertRaisesRegex(ValueError, "workspace name"):
                 self.app.delete_workspace(p["id"], confirmation)
         self.app.archive_workspace(p["id"])
         for kind in ("approval", "grant", "notice"):
             self.app.store.save(kind, {"id": p["id"], "test": True})
-        result = self.app.delete_workspace(p["id"], p["name"])
+        result = self.app.delete_workspace(p["id"])
         self.assertEqual(result, {"deleted": True, "samples_preserved": True, "spend_records_preserved": True})
         self.assertFalse(workspace.home.exists())
         self.assertEqual(list(workspace.folder.glob(".lx-delete-*")), [])
@@ -97,6 +98,44 @@ class Lifecycle(Base):
             with self.assertRaises(ValueError):
                 self.app.store.get(kind, p["id"])
         self.assertEqual(self.app.state()["projects"], [])
+
+    def test_agent_permission_is_off_by_default_persists_and_can_be_revoked(self):
+        p = self.project()
+        lx = Orchestration(self.app, launch=False)
+        self.assertFalse(lx.status()["can_delete_workspaces"])
+        with self.assertRaisesRegex(ValueError, "deletion by agents is off"):
+            lx.workspace_delete(p["path"])
+        for bad in (None, 1, "true", {}, []):
+            with self.assertRaises(ValueError):
+                self.app.set_agent_workspace_deletion(bad)
+        self.app.set_agent_workspace_deletion(True)
+        other = Engine(self.app.root, keychain=MemoryKeychain())
+        self.assertTrue(other.agent_workspace_deletion())
+        self.assertTrue(lx.status()["can_delete_workspaces"])
+        other.set_agent_workspace_deletion(False)
+        with self.assertRaisesRegex(ValueError, "deletion by agents is off"):
+            lx.workspace_delete(p["path"])
+        other.set_agent_workspace_deletion(True)
+        self.app.set_agent_access(False)
+        self.assertFalse(lx.status()["can_delete_workspaces"])
+        with self.assertRaisesRegex(ValueError, "Agent access is stopped"):
+            lx.workspace_delete(p["path"])
+        self.app.set_agent_access(True)
+        self.assertTrue(lx.workspace_delete(p["path"])["deleted"])
+        self.assertTrue((Path(p["path"])/"samples"/"manifest.json").exists())
+
+    def test_agent_permission_does_not_bypass_active_run_or_unsettled_call_guards(self):
+        p = self.project()
+        lx = Orchestration(self.app, launch=False)
+        self.app.set_agent_workspace_deletion(True)
+        self.approve(p)
+        job = self.app.start(p["id"], launch=False)
+        with self.assertRaisesRegex(ValueError, "active run"):
+            lx.workspace_delete(p["path"])
+        self.app.workspace(p["id"]).update_run(job["id"], status="cancelled", launch_pending=False)
+        self.app._ledger(self.app.workspace(p["id"])).reserve(0, "worker", "test", "scratch")
+        with self.assertRaisesRegex(ValueError, "unsettled"):
+            lx.workspace_delete(p["path"])
 
     def test_failed_rename_restores_registration_and_archive_flag(self):
         p = self.project()

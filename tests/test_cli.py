@@ -22,6 +22,16 @@ class Terminal:
 
 
 class Commands(Base):
+    def test_workspace_delete_is_gated_even_without_an_interactive_terminal(self):
+        p = self.app.create_project({"source": "demo", "name": "Disposable CLI workspace", "path": self.folder()})
+        self.assertEqual(self.lx("workspace", "delete", "--workspace", p["path"])[0], 1)
+        self.assertIn("deletion by agents is off", self.err)
+        self.app.set_agent_workspace_deletion(True)
+        code, result = self.lx("workspace", "delete", "--workspace", p["path"])
+        self.assertEqual(code, 0, self.err)
+        self.assertTrue(result["deleted"])
+        self.assertTrue((Path(p["path"])/"samples").exists())
+
     def setUp(self):
         super().setUp()
         self.path = self.folder()

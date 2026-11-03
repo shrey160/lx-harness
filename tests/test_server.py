@@ -95,7 +95,7 @@ class ServerBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(status, 403)
 
-    def test_workspace_lifecycle_routes_require_token_and_exact_confirmation(self):
+    def test_workspace_lifecycle_routes_require_token_and_allow_one_click_delete(self):
         status, p, _ = self.request("POST", "/api/projects", self.body("Disposable HTTP workspace"), token=self.token)
         self.assertEqual(status, 200, p)
         route = f"/api/projects/{p['id']}"
@@ -110,10 +110,23 @@ class ServerBoundaryTests(unittest.TestCase):
         self.assertFalse(restored["archived"])
         status, _, _ = self.request("POST", route+"/delete", {"confirmation": "wrong"}, token=self.token)
         self.assertEqual(status, 400)
-        status, result, _ = self.request("POST", route+"/delete", {"confirmation": p["name"]}, token=self.token)
+        status, result, _ = self.request("POST", route+"/delete", {}, token=self.token)
         self.assertEqual(status, 200, result)
         self.assertTrue(result["deleted"])
         self.assertTrue((Path(p["path"])/"samples"/"manifest.json").exists())
+
+    def test_agent_deletion_setting_requires_session_token_and_a_boolean(self):
+        status, _, _ = self.request("POST", "/api/agent-workspace-deletion", {"on": True})
+        self.assertEqual(status, 403)
+        self.assertFalse(self.app.agent_workspace_deletion())
+        status, _, _ = self.request("POST", "/api/agent-workspace-deletion", {"on": "true"}, token=self.token)
+        self.assertEqual(status, 400)
+        status, result, _ = self.request("POST", "/api/agent-workspace-deletion", {"on": True}, token=self.token)
+        self.assertEqual(status, 200, result)
+        self.assertTrue(result["agent_workspace_deletion"])
+        status, result, _ = self.request("POST", "/api/agent-workspace-deletion", {"on": False}, token=self.token)
+        self.assertEqual(status, 200, result)
+        self.assertFalse(result["agent_workspace_deletion"])
 
     def test_a_rejected_post_still_gets_its_reply_with_a_large_body(self):
         # Unread bytes at close reset the connection on Windows (WinError 10053).

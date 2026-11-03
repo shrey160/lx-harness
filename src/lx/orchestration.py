@@ -13,7 +13,7 @@ from .engine import EXTERNAL
 from .guides import guide_list, read_guide
 from .limits import field_list
 
-ACTIONS = ("status", "guide", "environment", "init", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "eval_init", "check_test", "check_try", "judge_try", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
+ACTIONS = ("status", "guide", "environment", "init", "workspace_delete", "samples", "read_sample", "truth_shape", "spec_show", "spec_draft", "eval_init", "check_test", "check_try", "judge_try", "ready", "preview", "approve", "run_start", "trial_start", "run_status", "run_stop", "edits", "results")
 TEMPLATES = {"photo-request": "inventory", "text-request": "records"}
 _MODEL_FIELDS = ("id", "name", "model_id", "role_ready", "enabled")
 MAX_SAMPLE_TEXT = 8000
@@ -37,7 +37,13 @@ class Orchestration:
         """Whether LX can run. Says a key exists, never what it is."""
         engine = self.engine
         return {"live_available": engine.live_enabled, "meta_key": bool(engine.registry.meta_key_source()),
+                "can_delete_workspaces": engine.agent_access() and engine.agent_workspace_deletion(),
                 "models": [{field: model.get(field) for field in _MODEL_FIELDS} for model in engine.registry.list_models()]}
+
+    def workspace_delete(self, workspace):
+        """Delete LX data only, if a person has enabled agent deletion in Settings."""
+        self.engine._require_agent_workspace_deletion()
+        return self.engine.delete_workspace(self._id(workspace), by="agent")
 
     def guide(self, topic=None):
         """The guides, or one guide's text."""

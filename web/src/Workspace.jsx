@@ -29,7 +29,6 @@ export function Workspace({state,project,ui,tab}){
 }
 
 export function WorkspaceOptions({project,jobs,ui}){
-  const [deleting,setDeleting]=useState(false),[confirmation,setConfirmation]=useState('');
   const running=jobs.some(active),disabled=ui.busy||running;
   const archive=()=>ui.act(async()=>{
     await api(`projects/${project.id}/${project.archived?'restore':'archive'}`,{});
@@ -37,27 +36,17 @@ export function WorkspaceOptions({project,jobs,ui}){
     ui.notify(project.archived?'Workspace restored.':'Workspace archived. Find it under Archived in the sidebar.');
   });
   const remove=()=>ui.act(async()=>{
-    const result=await api(`projects/${project.id}/delete`,{confirmation});
+    const result=await api(`projects/${project.id}/delete`,{});
     ui.go({page:'new',cleanupPending:result.cleanup_pending});
     ui.notify('Workspace deleted. Original samples and other files were kept.');
   });
   return <details className="workspace-options"><summary>Workspace options</summary>
     <p className="muted">Archive keeps all data and run history. You can restore it from the sidebar.</p>
+    <p className="muted">Delete permanently removes this workspace’s LX settings, runs and harnesses in one click. Original samples, other files and spend records are kept. There is no undo.</p>
     {running&&<p className="muted">Stop the active run before archiving or deleting this workspace.</p>}
     <div className="actions"><button className="button" disabled={disabled} onClick={archive}>{project.archived?'Restore workspace':'Archive workspace'}</button>
-      <button className="button danger" disabled={disabled} onClick={()=>{setDeleting(true);setConfirmation('');}}>Delete workspace…</button></div>
-    {deleting&&<DeleteWorkspace project={project} confirmation={confirmation} setConfirmation={setConfirmation} disabled={disabled} remove={remove} cancel={()=>setDeleting(false)}/>}
+      <button className="button danger" disabled={disabled} onClick={remove}>Delete workspace</button></div>
   </details>;
-}
-
-export function DeleteWorkspace({project,confirmation,setConfirmation,disabled,remove,cancel}){
-  return <form className="delete-workspace stack" aria-label="Delete workspace" onSubmit={e=>{e.preventDefault();if(!disabled&&confirmation===project.name)remove();}}>
-    <h3>Delete {project.name}?</h3>
-    <p>This permanently removes this workspace’s LX settings, runs and harnesses. Original samples, other files in the folder and spend records are kept.</p>
-    <label>Type <strong>{project.name}</strong> to confirm<input autoComplete="off" value={confirmation} onChange={e=>setConfirmation(e.target.value)} disabled={disabled}/></label>
-    <div className="actions"><button type="button" className="button" disabled={disabled} onClick={cancel}>Cancel</button>
-      <button type="submit" className="button danger" disabled={disabled||confirmation!==project.name}>Delete workspace permanently</button></div>
-  </form>;
 }
 
 function Samples({project}){

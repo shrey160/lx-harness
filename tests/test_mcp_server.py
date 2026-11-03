@@ -74,6 +74,30 @@ class Tools(Base):
         self.assertIn("Settings, Connectivity", stopped.content[0].text)
         self.assertFalse(restored.is_error)
 
+    def test_workspace_deletion_requires_live_person_permission_and_is_marked_destructive(self):
+        p = self.inventory()
+        async def flow(client):
+            tools = (await client.list_tools()).tools
+            deletion = next(t for t in tools if t.name == "workspace_delete")
+            self.assertTrue(deletion.annotations.destructive_hint)
+            self.assertNotIn("set_agent_workspace_deletion", {t.name for t in tools})
+            args = {"workspace": p["path"]}
+            denied = await client.call_tool("workspace_delete", args)
+            self.app.set_agent_workspace_deletion(True)
+            self.assertTrue(reply(await client.call_tool("status", {}))["can_delete_workspaces"])
+            self.app.set_agent_workspace_deletion(False)
+            revoked = await client.call_tool("workspace_delete", args)
+            self.app.set_agent_workspace_deletion(True)
+            deleted = await client.call_tool("workspace_delete", args)
+            return denied, revoked, deleted
+        denied, revoked, deleted = self.using(flow)
+        self.assertTrue(denied.is_error)
+        self.assertTrue(revoked.is_error)
+        self.assertIn("deletion by agents is off", denied.content[0].text)
+        self.assertFalse(deleted.is_error)
+        self.assertTrue(reply(deleted)["deleted"])
+        self.assertTrue((Path(p["path"])/"samples").exists())
+
     def test_an_unexpected_failure_keeps_its_details_private(self):
         async def flow(client):
             return await client.call_tool("spec_show", {"workspace": self.path})

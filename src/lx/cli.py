@@ -139,6 +139,8 @@ def parser():
     item.add_argument("--template", required=True, choices=tuple(TEMPLATES))
     item.add_argument("--goal")
     item.add_argument("--name")
+    workspace = commands.add_parser("workspace", help="manage workspace data").add_subparsers(dest="workspace_action", required=True)
+    action(workspace, "delete", "workspace_delete", "delete LX data; requires agent deletion enabled in Settings")
     item = command(commands, "samples", samples, help="list the samples, or read one text file")
     item.add_argument("--read", metavar="PATH")
 

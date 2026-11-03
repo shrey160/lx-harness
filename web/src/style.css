@@ -211,7 +211,5 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .verdicts li { margin: 4px 0; }
 .workspace-options { margin: 12px 0 18px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); }
 .workspace-options > summary, .archived-workspaces > summary { cursor: pointer; color: var(--muted); }
-.delete-workspace { max-width: 620px; padding: 12px; margin-top: 12px; border: 1px solid var(--bad); border-radius: var(--radius); }
-.delete-workspace h3, .delete-workspace p { margin: 0; }
 .archived-workspaces { padding: 8px 0; }
 .archived-workspaces > summary { padding: 6px 12px; font-size: 13px; }

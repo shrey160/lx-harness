@@ -9,6 +9,7 @@ anything about a model.
 
 | Folder (dates in 2026) | What it holds | Kind |
 |---|---|---|
+| [11-03-agent-workspace-deletion](2026-11-03-agent-workspace-deletion/README.md) | Default-off person-controlled agent deletion, MCP/CLI action, one-click user deletion | Offline / UI |
 | [11-03-workspace-lifecycle](2026-11-03-workspace-lifecycle/README.md) | Archive/restore, confirmed LX-only deletion, active-call guards and disposable UI checks | Offline / UI |
 | [11-03-sample-display-labels](2026-11-03-sample-display-labels/README.md) | Original sample names across score/trajectory views; preserved internal IDs | Offline |
 | [11-03-three-sample-spark-run](2026-11-03-three-sample-spark-run/README.md) |3 final answers pass; intermediate fork balance slip dropped; natural audio/user photos | Live |
