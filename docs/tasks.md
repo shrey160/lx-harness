@@ -44,7 +44,7 @@ text as well: `spec_draft` refuses text that repeats them.
    This works even when the final package kept the base harness. The trial
    copies that saved harness and reports its source run, sample and fingerprint.
    It selects the harness, not the trial input. CLI:
-   `lx run trial WORKSPACE --from RUN --from-sample sample-01`.
+   `lx run trial --workspace WORKSPACE --from RUN --from-sample sample-01`.
 
 The same actions exist as `lx` commands. Run `lx --help`.
 

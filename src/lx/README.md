@@ -1,11 +1,13 @@
 # lx: the product package
 
 Everything LX runs is here. The [main README](../../README.md) covers how to use it;
-this page says where the code is.
+this page says where the code is. See [architecture](../../docs/architecture.md)
+for the separate execution core and host-project layout.
 
-`engine.py` is the single service layer. `server.py` is a thin HTTP layer over it, and
-the CLI and MCP server planned for later phases will sit beside it. A run starts as a
-separate `worker.py` process, so credentials load there and never in task workers.
+`engine.py` is the single service layer. `server.py` is a thin HTTP layer over it;
+the shipped CLI and MCP server expose agent actions through `orchestration.py`.
+A run starts as a separate `worker.py` process, so credentials load there and never
+in task workers.
 
 ## Application
 
@@ -13,6 +15,8 @@ separate `worker.py` process, so credentials load there and never in task worker
 |---|---|
 | `engine.py` | The engine API: workspaces, specs, approval, runs, results, provider tests |
 | `orchestration.py` | What an orchestrator may do; the built-in one, the CLI and the MCP server share it (D-024) |
+| `cli.py`, `mcp_server.py` | Terminal commands and the local stdio server for external agents |
+| `mcp_client.py` | Connections to other MCP servers whose tools workers can use |
 | `guides.py` | The guides in `docs/` an orchestrator can read, by topic |
 | `orchestrator.py` | The built-in orchestrator: a bounded conversation over those actions |
 | `server.py` | Loopback-only HTTP API and the built React UI |

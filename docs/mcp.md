@@ -1,5 +1,9 @@
 # MCP tools
 
+**Connecting an external agent to operate LX?** Use [Agent-facing MCP](agent-mcp.md).
+This guide covers tools LX workers use from other servers, configured under
+Settings → MCP servers. These are two separate connections.
+
 A run's agent can use tools from an MCP server, and the loop learns how to use them from
 its runs, as with any other tool. Connecting a coding agent to LX is separate and works
 the other way round: there, LX is the server.
@@ -26,8 +30,10 @@ change anything are also out, on purpose.
 ## Secrets
 
 Give a server its keys in Settings or with `--secret NAME`, which asks for the value.
-They go to Windows Credential Manager, never into a workspace, a spec or a package, and an
-agent cannot read them.
+They use the operating system's keychain (Windows Credential Manager on Windows),
+with restricted file storage on Linux without a usable keychain; see
+[configuration](configuration.md). They do not enter a workspace, spec or package,
+and are not returned through LX's agent tools.
 
 - A command gets each one as an environment variable.
 - A container gets it the same way. The value is not on Docker's command line.

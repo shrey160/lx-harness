@@ -1,13 +1,24 @@
-# docs
+# Documentation
 
-Guides, task contracts and the reviews written before each live experiment. Reviews
-are records of what was approved, so they are not updated afterwards. For how the
-product works today, read the [main README](../README.md).
+Start with the [main README](../README.md) for the complete first-run path: clone
+inside your project, configure the Web UI, connect an agent and inspect a task run.
+The guides below describe current behavior. Contracts and experiment reviews are
+dated records of what was proposed/approved then; preserve them even where newer
+behavior supersedes their assumptions.
+
+## Current guides
 
 | File | Purpose |
 |---|---|
+| [installation.md](installation.md) | Windows/Linux prerequisites, nested clones, separate core, launch, updates and troubleshooting |
+| [configuration.md](configuration.md) | Web UI keys/providers/tools, budgets, persistence, access and workspace lifecycle |
+| [agent-mcp.md](agent-mcp.md) | Connect an external agent to LX; stdio setup, current tools, permissions and errors |
+| [agent-workflow.md](agent-workflow.md) | Person/agent responsibilities, first preview, task preparation, execution and result review |
 | [tasks.md](tasks.md) | Writing a task: samples, the spec, the scoring check, trying and reading a run |
 | [environment.md](environment.md) | Preparing an environment: keys, Python libraries and system tools for a task |
+| [mcp.md](mcp.md) | Give LX workers tools from other MCP servers; separate from connecting an agent to LX |
+| [architecture.md](architecture.md) | Host-project/LX/core boundaries, execution/state and development map |
+| [documentation-validation.md](documentation-validation.md) | Dated source revisions, documentation checks, runtime evidence and unverified setup cases |
 | [history.md](history.md) | Earlier product history, moved out of the main README |
 
 ## Contracts
