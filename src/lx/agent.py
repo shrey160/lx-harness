@@ -21,7 +21,6 @@ MAX_BOXES_SHOWN = 300
 IMAGE_KEY = "_image"
 # Whole-context loop: no count of images is fixed; only the size of the request bounds the window.
 WINDOW_CHARS = 1_400_000  # base64 text; the transport allows 2 MB for the whole request
-NOTE_CHARS = 1_500
 
 
 def _tool(name, description, properties, required):
@@ -291,7 +290,7 @@ def run_agent(client, messages, tools, handler, *, candidate="", max_turns=None,
             # Billed and recorded by the client; the item fails but keeps its trace.
             trace.append({"type": "stopped", "reason": "model reply was cut off before it finished"})
             return "", trace
-        notes = message.get("reasoning", "")[:NOTE_CHARS] if whole_context else ""
+        notes = message.get("reasoning", "") if whole_context else ""
         trace.append({"type": "assistant", "content": message["content"],
                       "tool_calls": [{"name": c["name"], "arguments": c["arguments"]} for c in message["tool_calls"]],
                       "output_tokens": usage["output_tokens"], **({"reasoning": notes} if notes else {})})

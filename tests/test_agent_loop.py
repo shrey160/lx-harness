@@ -159,10 +159,19 @@ class Reasoning(unittest.TestCase):
         run_agent(client, START, [], view({}), keep_images=4, whole_context=True)
         self.assertEqual(next(m for m in client.seen[-1] if m["role"] == "assistant")["content"], "two pens")
 
-    def test_long_reasoning_is_cut(self):
-        client = Client({**calls(("view", {"photo": 1})), "reasoning": "x"*9000}, ANSWER)
-        run_agent(client, START, [], view({}), keep_images=4, whole_context=True)
-        self.assertLess(len(next(m for m in client.seen[-1] if m["role"] == "assistant")["content"]), 1600)
+    def test_full_reasoning_reaches_history_trace_and_improver(self):
+        notes = "x" * 9000 + " final observation"
+        final_notes = "y" * 9000 + " final conclusion"
+        client = Client({**calls(("view", {"photo": 1})), "reasoning": notes},
+                        {**ANSWER, "reasoning": final_notes})
+        answer, trace = run_agent(client, START, [], view({}), keep_images=4, whole_context=True)
+        assistant = next(m for m in client.seen[-1] if m["role"] == "assistant")
+        self.assertEqual(assistant["content"], f"(my notes) {notes}")
+        recorded = [s["reasoning"] for s in trace if s["type"] == "assistant"]
+        self.assertEqual(recorded, [notes, final_notes])
+        rendered = render_trace(trace, answer)
+        self.assertIn("[REASONING]\n" + notes, rendered)
+        self.assertIn("[REASONING]\n" + final_notes, rendered)
 
 
 class PausedExperimentsKeepTheirLoop(unittest.TestCase):
