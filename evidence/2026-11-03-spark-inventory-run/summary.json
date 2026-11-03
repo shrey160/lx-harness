@@ -1,0 +1,380 @@
+{
+  "run_id": "386bafba041f",
+  "review_date": "2026-11-03",
+  "status": "completed",
+  "spec_version": 5,
+  "worker": "muse-spark-1.3-contributor",
+  "code_commit": "61ca81b",
+  "source_order": [
+    "sample-01",
+    "sample-02"
+  ],
+  "elapsed_seconds": 586.4399297237396,
+  "deterministic_base": 1,
+  "deterministic_after": 1,
+  "combined_base": 1.0,
+  "combined_after": 1.0,
+  "objective_checks_all_executions": 64,
+  "objective_passed_all_executions": 64,
+  "judge_checks": 20,
+  "judge_passed": 20,
+  "package_is_base": true,
+  "package_sample_internal": "sample-01",
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 619868,
+        "output_tokens": 33966,
+        "spent_usd": 0.025304358
+      },
+      "worker": {
+        "input_tokens": 107023,
+        "output_tokens": 12914,
+        "spent_usd": 0.007573758
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.011932
+      },
+      "judge": {
+        "input_tokens": 848,
+        "output_tokens": 729,
+        "spent_usd": 0.0002306
+      }
+    },
+    "per_phase": {
+      "improver/preflight": {
+        "settled_calls": 1,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 3.91e-05
+      },
+      "worker/execute": {
+        "settled_calls": 34,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.007573758
+      },
+      "tool/transcribe": {
+        "settled_calls": 2,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.001932
+      },
+      "tool/segment": {
+        "settled_calls": 4,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.01
+      },
+      "improver/improvement": {
+        "settled_calls": 59,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.018455832
+      },
+      "improver/reflection": {
+        "settled_calls": 17,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.006809426
+      },
+      "judge/grading": {
+        "settled_calls": 1,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0002306
+      }
+    },
+    "settled_calls": 118,
+    "held": {
+      "calls": 0,
+      "usd": 0.0,
+      "reasons": {}
+    },
+    "provider_reported": {
+      "calls": 0,
+      "reported_usd": 0.0,
+      "computed_usd": 0.0
+    },
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.045040716
+  },
+  "limits": {
+    "agent_turns_per_photo": null,
+    "agent_tools_per_photo": null,
+    "stop_after_empty_runs": 8,
+    "improver_turns": null,
+    "improver_seconds": 900,
+    "call_seconds": 90,
+    "run_seconds": 14400,
+    "reply_tokens": 4096,
+    "worker_reply_tokens": 32768,
+    "chat_calls": 1400,
+    "segment_calls": 600,
+    "transcribe_calls": 60,
+    "mcp_calls": 500
+  },
+  "executions": [
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "base1",
+      "passed": 8,
+      "checks": 8,
+      "tool_calls": [
+        "transcribe",
+        "view",
+        "view",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 421,
+      "reasoning_chars": [
+        0,
+        0,
+        0
+      ],
+      "stopped": [],
+      "tool_errors": [],
+      "script_failures": 0,
+      "script_failure_outputs": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-agg1/sample-01/base1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-02",
+      "stage": "base1",
+      "passed": 8,
+      "checks": 8,
+      "tool_calls": [
+        "transcribe",
+        "view",
+        "view",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 565,
+      "reasoning_chars": [
+        0,
+        0,
+        0
+      ],
+      "stopped": [],
+      "tool_errors": [],
+      "script_failures": 0,
+      "script_failure_outputs": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-agg1/sample-02/base1"
+    },
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "c1",
+      "passed": 8,
+      "checks": 8,
+      "tool_calls": [
+        "transcribe",
+        "view",
+        "view",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 471,
+      "reasoning_chars": [
+        0,
+        0,
+        0
+      ],
+      "stopped": [],
+      "tool_errors": [],
+      "script_failures": 0,
+      "script_failure_outputs": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-01/c1"
+    },
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "dom1",
+      "passed": 8,
+      "checks": 8,
+      "tool_calls": [
+        "load_skill",
+        "transcribe",
+        "view",
+        "view",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 646,
+      "reasoning_chars": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "stopped": [],
+      "tool_errors": [],
+      "script_failures": 0,
+      "script_failure_outputs": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-01/dom1"
+    },
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "inv1",
+      "passed": 8,
+      "checks": 8,
+      "tool_calls": [
+        "transcribe",
+        "view",
+        "view",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 462,
+      "reasoning_chars": [
+        0,
+        0,
+        0
+      ],
+      "stopped": [],
+      "tool_errors": [],
+      "script_failures": 0,
+      "script_failure_outputs": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-01/inv1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-02",
+      "stage": "c1",
+      "passed": 8,
+      "checks": 8,
+      "tool_calls": [
+        "load_skill",
+        "transcribe",
+        "view",
+        "view",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 464,
+      "reasoning_chars": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "stopped": [],
+      "tool_errors": [],
+      "script_failures": 0,
+      "script_failure_outputs": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-02/c1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-02",
+      "stage": "dom1",
+      "passed": 8,
+      "checks": 8,
+      "tool_calls": [
+        "load_skill",
+        "transcribe",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 479,
+      "reasoning_chars": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "stopped": [],
+      "tool_errors": [],
+      "script_failures": 0,
+      "script_failure_outputs": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-02/dom1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-02",
+      "stage": "inv1",
+      "passed": 8,
+      "checks": 8,
+      "tool_calls": [
+        "load_skill",
+        "transcribe",
+        "view",
+        "view",
+        "segment",
+        "segment",
+        "run_script",
+        "run_script",
+        "run_script",
+        "run_script",
+        "run_script",
+        "run_script"
+      ],
+      "max_reply_tokens": 1469,
+      "reasoning_chars": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "stopped": [],
+      "tool_errors": [],
+      "script_failures": 6,
+      "script_failure_outputs": [
+        {
+          "error": "item not found in inventory keys"
+        },
+        {
+          "error": "item not found in inventory keys"
+        },
+        {
+          "error": "item not found in inventory keys"
+        },
+        {
+          "error": "item not found in inventory keys"
+        },
+        {
+          "error": "item not found in inventory keys"
+        },
+        {
+          "error": "item not found in inventory keys"
+        }
+      ],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-02/inv1"
+    }
+  ]
+}

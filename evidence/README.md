@@ -9,6 +9,7 @@ anything about a model.
 
 | Folder (dates in 2026) | What it holds | Kind |
 |---|---|---|
+| [11-03-spark-inventory-run](2026-11-03-spark-inventory-run/README.md) | Spark all 8 executions pass; failed helper discarded; unchanged-base final, $0.04504 | Live |
 | [11-03-full-reasoning](2026-11-03-full-reasoning/README.md) | Remove 1,500-character reasoning clip; trace/history/improver preservation, 41 tests | Offline |
 | [11-03-uncapped-judged-run-review](2026-11-03-uncapped-judged-run-review/README.md) | Eight trajectories: audio present, tool/JSON failures, wrong learned cash sign, judge false positive | Live review |
 | `10-28-product-gates` | Product gate tests | Offline |
