@@ -147,11 +147,11 @@ def server_for(engine):
         return lx.run_start(workspace)
 
     @tool(CHANGES)
-    def trial_start(workspace: str, from_run: str | None = None) -> dict[str, Any]:
+    def trial_start(workspace: str, from_run: str | None = None, from_sample: str | None = None) -> dict[str, Any]:
         """Try the current live spec once on one real sample with the base harness, or with the package of the finished run `from_run`, within a small cap. It spends real money and sends that sample to the
-        providers, so it needs what run_start needs: an approval or a grant. Answers pending or blocked otherwise. Poll run_status, then read results: a score, checks by name,
+        providers, so it needs what run_start needs: an approval or a grant. Add `from_sample` (a source sample folder) to use that sample's saved adopted harness instead of the final package. It selects the harness, not the trial input. Answers pending or blocked otherwise. Poll run_status, then read results: a score, checks by name,
         how it stopped and calls per tool, never the trace or answer. One sample is a smoke test, not a measure."""
-        return lx.trial_start(workspace, from_run)
+        return lx.trial_start(workspace, from_run, from_sample)
 
     @tool(READ)
     def run_status(workspace: str) -> dict[str, Any]:

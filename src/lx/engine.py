@@ -1101,12 +1101,16 @@ class Engine:
             return "The samples changed since the grant; a person needs to approve this live run"
         return None
 
-    def start_granted(self, identifier, launch=True, trial=False, from_run=None):
+    def start_granted(self, identifier, launch=True, trial=False, from_run=None, from_sample=None):
         """Approves and starts the current live spec, or a trial of it, under the grant, or says why a person must."""
+        if (from_run is not None or from_sample is not None) and not trial:
+            raise ValueError("A saved harness can only be used for a trial")
+        if from_sample is not None and from_run is None:
+            raise ValueError("A sample harness needs its source run")
         workspace = self.workspace(identifier)
         draft = workspace.spec(workspace.project()["spec_version"])
         if from_run is not None:
-            self._trial_package(workspace, from_run, draft)
+            self._trial_package(workspace, from_run, draft, from_sample)
         if any(j["status"] in {"queued","running"} for j in self._jobs(workspace)):
             raise ValueError("One run is already active")
         refusal = self._grant_refusal(workspace, draft, identifier, self.trial_cap(identifier, draft) if trial else draft["budget_usd"])
@@ -1118,7 +1122,7 @@ class Engine:
         if weak:  # no person reads the scores under a grant, so a weak check is theirs to judge
             self._drop_approval(workspace, identifier)
             return {"status":"pending","reason":"A person needs to review this check: "+weak[0]}
-        return {"status":"started","run_id":self.start(identifier, launch=launch, trial=trial, from_run=from_run)["id"]}
+        return {"status":"started","run_id":self.start(identifier, launch=launch, trial=trial, from_run=from_run, from_sample=from_sample)["id"]}
 
     def approve_as_agent(self, identifier):
         """A connected agent approves the current live spec (D-026). It accepts the data notice and the Contributor
@@ -1157,19 +1161,39 @@ class Engine:
 
     # Runs
 
-    def _trial_package(self, workspace, run_id, draft):
+    def _trial_package(self, workspace, run_id, draft, from_sample=None):
         """The harness a finished run left, if a trial of this spec can fairly use it. The worker model and the
         check may differ, which is how a harness gets retested; the task and the agent's tools may not."""
         source = workspace.run(run_id)
         if source["status"] != "completed" or source.get("kind") == "trial" or source["spec"].get("mode") != "live" or not source["spec"].get("task"):
             raise ValueError("Only a finished live run left a harness to try")
-        if source["result"].get("package_is_base"):
+        if from_sample is None and source["result"].get("package_is_base"):
             raise ValueError("That run's package is the base harness; start a plain trial")
         if (source["spec"]["task"], tasks.spec_tools(source["spec"]), tasks.spec_mcp(source["spec"])) != (draft["task"], tasks.spec_tools(draft), tasks.spec_mcp(draft)):
             raise ValueError("That harness was learned on another task or tool list than this spec")
+        if from_sample is not None:
+            from .taskrun import _folders
+            run_dir = workspace.run_dir(run_id)
+            report_file = run_dir/"outputs"/"ea_report.json"
+            if not isinstance(from_sample, str) or not report_file.is_file():
+                raise ValueError("Choose a sample folder from that finished run")
+            report = json.loads(report_file.read_text(encoding="utf-8"))
+            sample = next((key for key, folder in _folders(run_dir).items() if folder == from_sample), None)
+            row = report.get("per_sample", {}).get(sample, {})
+            if not row.get("harness_dir"):
+                raise ValueError("No saved harness for that sample folder in this run")
+            root = run_dir/"outputs"/"runs"
+            target = root
+            for part in PureSafe(row["harness_dir"]):
+                target = target/part
+                if target.is_symlink():
+                    raise ValueError("Linked trial harness rejected")
+            if not target.is_dir():
+                raise ValueError("The saved sample harness is missing")
+            return target
         return workspace.package_dir(run_id)/"harness"
 
-    def start(self, identifier, launch=True, trial=False, from_run=None):
+    def start(self, identifier, launch=True, trial=False, from_run=None, from_sample=None):
         workspace = self.workspace(identifier)
         self._jobs(workspace)
         with workspace.lock():
@@ -1177,7 +1201,11 @@ class Engine:
             draft = workspace.spec(record["spec_version"])
             if trial and (draft.get("mode") != "live" or not draft.get("task")):
                 raise ValueError("A trial tries a task's live spec on one sample")
-            package = self._trial_package(workspace, from_run, draft) if from_run is not None else None
+            if (from_run is not None or from_sample is not None) and not trial:
+                raise ValueError("A saved harness can only be used for a trial")
+            if from_sample is not None and from_run is None:
+                raise ValueError("A sample harness needs its source run")
+            package = self._trial_package(workspace, from_run, draft, from_sample) if from_run is not None else None
             approved = self._approval(identifier)
             if not approved or approved["spec_hash"] != fingerprint(draft):
                 raise ValueError("Approve the current spec before starting")
@@ -1194,7 +1222,8 @@ class Engine:
                 shutil.copytree(package, workspace.run_dir(job_id)/"harness")
             job = {"id":job_id,"project_id":identifier,"name":record["name"],"status":"queued","phase":"queued","created_at":time.time(),
                    "mode":draft.get("mode","controlled_preview"),"spec":draft,"approved":_approval_identity(approved),"approved_by":approved.get("by","person"),"grant":approved.get("grant"),"launch_pending":True,
-                   **({"kind":"trial","cap_usd":self.trial_cap(identifier, draft)} if trial else {}),**({"from_run":from_run} if package else {})}
+                   **({"kind":"trial","cap_usd":self.trial_cap(identifier, draft)} if trial else {}),**({"from_run":from_run} if package else {}),
+                   **({"from_sample":from_sample} if from_sample is not None else {})}
             workspace.write_run(job)
         if launch:
             self._launch(workspace, job_id)

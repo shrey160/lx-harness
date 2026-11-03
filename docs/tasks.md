@@ -39,6 +39,13 @@ text as well: `spec_draft` refuses text that repeats them.
    match the current spec; the worker model and the check may differ. One sample is a
    smoke test, not a measure.
 
+   Add `from_sample` with the source sample folder (for example `sample-01`) to
+   try the adopted harness saved for that sample instead of the final package.
+   This works even when the final package kept the base harness. The trial
+   copies that saved harness and reports its source run, sample and fingerprint.
+   It selects the harness, not the trial input. CLI:
+   `lx run trial WORKSPACE --from RUN --from-sample sample-01`.
+
 The same actions exist as `lx` commands. Run `lx --help`.
 
 ## Samples

@@ -396,9 +396,11 @@ def _tried_harness(workspace, job, folder):
     folders = _folders(workspace.run_dir(source))
     result = workspace.run(source)["result"]
     seen = folder in {folders.get(sample, sample) for sample in result.get("samples") or result["scores"]["base"]}
-    return {"harness": {"from_run": source, "sha256": harness_sha256(workspace.run_dir(job["id"])/"harness"), "sample_seen": seen},
-            "note": (f"One sample on the package of run {source}, which saw this sample, so this reads high: a smoke test, not a measure." if seen else
-                     f"One sample on the package of run {source}, which never saw this sample. One sample is still a smoke test, not a measure.")}
+    selection = {"from_sample": job["from_sample"]} if job.get("from_sample") is not None else {}
+    target = (f"saved harness for sample {job['from_sample']} of run {source}" if selection else f"package of run {source}")
+    return {"harness": {"from_run": source, **selection, "sha256": harness_sha256(workspace.run_dir(job["id"])/"harness"), "sample_seen": seen},
+            "note": (f"One sample on the {target}, which saw this sample, so this reads high: a smoke test, not a measure." if seen else
+                     f"One sample on the {target}, which never saw this sample. One sample is still a smoke test, not a measure.")}
 
 
 def saved_answers(run_dir):

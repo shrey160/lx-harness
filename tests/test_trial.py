@@ -241,6 +241,78 @@ class Package(Trials):
                 self.lx.trial_start(self.path, run_id)
         self.assertEqual(len(self.app.runs(self.id)), 1)
 
+    def sample_harness(self):
+        run_dir = self.workspace.run_dir(self.source)
+        internal, folder = next(iter(_folders(run_dir).items()))
+        relative = f"saved/{internal}/harnesses/c1"
+        target = run_dir/"outputs"/"runs"/relative
+        shutil.copytree(self.workspace.package_dir(self.source)/"harness", target)
+        guidance = target/"tool_descriptions"/"tool_guidance.md"
+        guidance.write_text(guidance.read_text(encoding="utf-8")+" SAMPLE_CANDIDATE", encoding="utf-8")
+        report = run_dir/"outputs"/"ea_report.json"
+        report.write_text(json.dumps({"per_sample": {internal: {"harness_dir": relative}}}), encoding="utf-8")
+        self.workspace.update_run(self.source, result={"samples": [internal], "package_is_base": True})
+        return folder, target, report
+
+    def test_a_sample_harness_runs_even_when_final_package_kept_base(self):
+        folder, _, _ = self.sample_harness()
+        started = self.lx.trial_start(self.path, self.source, from_sample=folder)
+        run_id = started["run_id"]
+        self.assertEqual(self.workspace.run(run_id)["from_sample"], folder)
+        copied = self.workspace.run_dir(run_id)/"harness"/"tool_descriptions"/"tool_guidance.md"
+        self.assertIn("SAMPLE_CANDIDATE", copied.read_text(encoding="utf-8"))
+        seen, client = [], self.transport
+        self.transport = lambda body, timeout: (seen.append(json.dumps(body)), client(body, timeout))[1]
+        result = self.finish(run_id)
+        self.assertTrue(any("SAMPLE_CANDIDATE" in body for body in seen))
+        self.assertEqual(result["harness"]["from_sample"], folder)
+        self.assertRegex(result["note"], "saved harness for sample")
+        self.assertEqual(client.calls["improver"], 0)
+
+    def test_sample_selection_is_also_forwarded_under_a_grant(self):
+        folder, _, _ = self.sample_harness()
+        self.app.store.delete("approval", self.id)
+        self.app.set_grant(self.id, {"cap_usd": 1, **ACCEPTED})
+        started = self.lx.trial_start(self.path, self.source, from_sample=folder)
+        self.assertEqual(started["status"], "started")
+        self.assertEqual(self.workspace.run(started["run_id"])["from_sample"], folder)
+
+    def test_sample_harness_is_frozen_before_source_changes(self):
+        folder, target, _ = self.sample_harness()
+        run_id = self.lx.trial_start(self.path, self.source, from_sample=folder)["run_id"]
+        shutil.rmtree(target)
+        result = self.finish(run_id)
+        self.assertIn("sha256", result["harness"])
+        self.assertEqual(result["harness"]["from_sample"], folder)
+
+    def test_unknown_sample_and_missing_harness_are_refused_before_job_creation(self):
+        folder, target, _ = self.sample_harness()
+        for name in ("missing", "../../secret", True):
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "sample folder"):
+                self.lx.trial_start(self.path, self.source, from_sample=name)
+        shutil.rmtree(target)
+        with self.assertRaisesRegex(ValueError, "harness is missing"):
+            self.lx.trial_start(self.path, self.source, from_sample=folder)
+        self.assertEqual(len(self.app.runs(self.id)), 1)
+
+    def test_saved_report_cannot_escape_run_harnesses(self):
+        folder, _, report = self.sample_harness()
+        data = json.loads(report.read_text(encoding="utf-8"))
+        next(iter(data["per_sample"].values()))["harness_dir"] = "../../outside"
+        report.write_text(json.dumps(data), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "Invalid snapshot inventory path"):
+            self.lx.trial_start(self.path, self.source, from_sample=folder)
+        self.assertEqual(len(self.app.runs(self.id)), 1)
+
+    def test_sample_harness_requires_source_run_and_trial_mode(self):
+        folder, _, _ = self.sample_harness()
+        for start in (self.app.start, self.app.start_granted):
+            with self.subTest(start=start.__name__):
+                with self.assertRaisesRegex(ValueError, "source run"):
+                    start(self.id, launch=False, trial=True, from_sample=folder)
+                with self.assertRaisesRegex(ValueError, "only be used for a trial"):
+                    start(self.id, launch=False, from_run=self.source, from_sample=folder)
+
 
 class Refused(Trials):
     def test_without_approval_or_a_grant_it_is_pending(self):
