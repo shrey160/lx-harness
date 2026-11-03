@@ -170,8 +170,8 @@ test, not proof of transfer or improvement. [Complete user/agent workflow](docs/
   state, preserves original files and spend records, and refuses active jobs.
   Unsettled calls remain visible for later person-only billing resolution.
 - This README describes the local source revision checked in
-  [documentation validation](docs/documentation-validation.md). Unpushed product
-  and core changes are not available from GitHub merely because they work locally.
+  [documentation validation](docs/documentation-validation.md), including the
+  published product/core revisions and remaining clean-install verification.
   Historical experiment results are indexed in [evidence](evidence/README.md);
   immutable reviews retain the assumptions of their date.
 

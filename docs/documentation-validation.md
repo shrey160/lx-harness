@@ -15,10 +15,11 @@ quality. No real sample workspace was deleted and no paid experiment was started
 The working product was clean before this task. The core had a pre-existing
 `.env.example` modification, which was left untouched. At inspection the local
 product and core were respectively 229 and 6 commits ahead of their cached remote
-tracking branches. No remote fetch, push or public clone verification was performed.
-Consequently the cloning instructions express the required layout, but newly
-documented behavior is not established as available from the public remote yet.
-Publish/reconcile matching source revisions before advertising a tested release.
+tracking branches during the documentation audit. Subsequently, on the user's
+explicit request on 3 November 2026, LX through documentation commit `083985f` and
+core `53b9b6b` were successfully pushed to their configured GitHub `main` branches.
+This publication note is a follow-up documentation change. A fresh public clone
+and clean-machine installation have still not been tested.
 
 ## Checks performed
 
