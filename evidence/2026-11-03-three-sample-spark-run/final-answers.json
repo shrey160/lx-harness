@@ -1,0 +1,219 @@
+{
+  "sample-02": {
+    "item": "bottle",
+    "change": -5,
+    "inventory": {
+      "cup": {
+        "quantity": 7,
+        "unit_price": 2.0
+      },
+      "bottle": {
+        "quantity": 5,
+        "unit_price": 3.25
+      },
+      "bowl": {
+        "quantity": 5,
+        "unit_price": 5.0
+      },
+      "chocolate": {
+        "quantity": 6,
+        "unit_price": 1.5
+      }
+    },
+    "cash_change": 16.25,
+    "account": {
+      "currency": "USD",
+      "balance": 41.25
+    },
+    "evidence": [
+      {
+        "photo": 1,
+        "box": [
+          129,
+          368,
+          214,
+          622
+        ]
+      },
+      {
+        "photo": 2,
+        "box": [
+          75,
+          440,
+          132,
+          673
+        ]
+      },
+      {
+        "photo": 2,
+        "box": [
+          380,
+          146,
+          475,
+          384
+        ]
+      },
+      {
+        "photo": 3,
+        "box": [
+          124,
+          570,
+          538,
+          754
+        ]
+      },
+      {
+        "photo": 3,
+        "box": [
+          119,
+          751,
+          534,
+          948
+        ]
+      }
+    ]
+  },
+  "sample-03": {
+    "item": "fork",
+    "change": -2,
+    "inventory": {
+      "earphones": {
+        "quantity": 3,
+        "unit_price": 12.0
+      },
+      "glue_stick": {
+        "quantity": 5,
+        "unit_price": 1.25
+      },
+      "pencil": {
+        "quantity": 8,
+        "unit_price": 0.75
+      },
+      "spoon": {
+        "quantity": 9,
+        "unit_price": 1.5
+      },
+      "fork": {
+        "quantity": 4,
+        "unit_price": 2.25
+      }
+    },
+    "cash_change": 4.5,
+    "account": {
+      "currency": "USD",
+      "balance": 44.5
+    },
+    "evidence": [
+      {
+        "photo": 2,
+        "box": [
+          352,
+          90,
+          618,
+          394
+        ]
+      },
+      {
+        "photo": 2,
+        "box": [
+          254,
+          74,
+          500,
+          405
+        ]
+      }
+    ]
+  },
+  "sample-01": {
+    "item": "cup",
+    "change": 7,
+    "inventory": {
+      "cup": {
+        "quantity": 11,
+        "unit_price": 2.5
+      },
+      "bottle": {
+        "quantity": 6,
+        "unit_price": 4.0
+      },
+      "bowl": {
+        "quantity": 8,
+        "unit_price": 6.0
+      },
+      "scissors": {
+        "quantity": 3,
+        "unit_price": 4.25
+      }
+    },
+    "cash_change": -17.5,
+    "account": {
+      "currency": "USD",
+      "balance": 32.5
+    },
+    "evidence": [
+      {
+        "photo": 1,
+        "box": [
+          154,
+          74,
+          420,
+          282
+        ]
+      },
+      {
+        "photo": 1,
+        "box": [
+          538,
+          136,
+          789,
+          341
+        ]
+      },
+      {
+        "photo": 2,
+        "box": [
+          65,
+          313,
+          328,
+          561
+        ]
+      },
+      {
+        "photo": 2,
+        "box": [
+          368,
+          252,
+          569,
+          501
+        ]
+      },
+      {
+        "photo": 2,
+        "box": [
+          625,
+          434,
+          797,
+          675
+        ]
+      },
+      {
+        "photo": 3,
+        "box": [
+          344,
+          425,
+          651,
+          668
+        ]
+      },
+      {
+        "photo": 3,
+        "box": [
+          76,
+          625,
+          389,
+          945
+        ]
+      }
+    ]
+  }
+}

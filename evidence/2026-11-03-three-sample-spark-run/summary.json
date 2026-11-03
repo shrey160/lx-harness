@@ -1,0 +1,414 @@
+{
+  "run_id": "0f64c549d33c",
+  "review_date": "2026-11-03",
+  "status": "completed",
+  "code_commit": "560cbd2",
+  "spec_version": 3,
+  "source_order": [
+    "sample-01",
+    "sample-02",
+    "sample-03"
+  ],
+  "sample_mapping": {
+    "sample-01": "sample-02",
+    "sample-02": "sample-03",
+    "sample-03": "sample-01"
+  },
+  "elapsed_seconds": 819.3365395069122,
+  "objective_base_passed": 24,
+  "objective_final_passed": 24,
+  "objective_checks_per_phase": 24,
+  "objective_passed_all_executions": 95,
+  "objective_checks_all_executions": 96,
+  "judge_passed": 30,
+  "judge_checks": 30,
+  "means": {
+    "base": 1.0,
+    "harness2": 1.0
+  },
+  "package_is_base": true,
+  "usage": {
+    "per_role": {
+      "orchestrator": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.0
+      },
+      "improver": {
+        "input_tokens": 786368,
+        "output_tokens": 52639,
+        "spent_usd": 0.038171182
+      },
+      "worker": {
+        "input_tokens": 120035,
+        "output_tokens": 13751,
+        "spent_usd": 0.009615658
+      },
+      "tool": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "spent_usd": 0.019316
+      },
+      "judge": {
+        "input_tokens": 3706,
+        "output_tokens": 2711,
+        "spent_usd": 0.000876638
+      }
+    },
+    "per_phase": {
+      "improver/preflight": {
+        "settled_calls": 1,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 4.33e-05
+      },
+      "worker/execute": {
+        "settled_calls": 42,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.009615658
+      },
+      "tool/transcribe": {
+        "settled_calls": 3,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.001816
+      },
+      "tool/segment": {
+        "settled_calls": 7,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0175
+      },
+      "improver/improvement": {
+        "settled_calls": 97,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.029914082
+      },
+      "improver/reflection": {
+        "settled_calls": 22,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.0082138
+      },
+      "judge/grading": {
+        "settled_calls": 4,
+        "unknown_calls": 0,
+        "reserved_calls": 0,
+        "spent_usd": 0.000876638
+      }
+    },
+    "settled_calls": 176,
+    "held": {
+      "calls": 0,
+      "usd": 0.0,
+      "reasons": {}
+    },
+    "provider_reported": {
+      "calls": 0,
+      "reported_usd": 0.0,
+      "computed_usd": 0.0
+    },
+    "reserved_calls": 0,
+    "unknown_calls": 0,
+    "spent_usd": 0.067979478
+  },
+  "transcripts": {
+    "sample-02": "Hey, those bottles in the photos have just sold. The customer paid cash, so that money's in the till now. Can you mark them off? The chocolates are still here, so leave those as they are.",
+    "sample-03": "Hey, I was going to restock the pencils in that first photo, photo, actually leave those alone for now. Someone bought the forks in the other photo and paid cash. cash. Take those off the shelf count and put the payment in the till. The spoons weren't part of the sale..",
+    "sample-01": "Hey, I picked up the cups in these pictures for the shop and I paid cash from the till. could you add them to stock and take the payment out the scissors and the other bits are just things we already had."
+  },
+  "executions": [
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "base1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "transcribe",
+        "view",
+        "view",
+        "view",
+        "segment",
+        "segment",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 739,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 3,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-agg1/sample-01/base1"
+    },
+    {
+      "source_folder": "sample-03",
+      "internal_sample": "sample-02",
+      "stage": "base1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "transcribe",
+        "view",
+        "view",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 534,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 2,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-agg1/sample-02/base1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-03",
+      "stage": "base1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "transcribe",
+        "view",
+        "view",
+        "view",
+        "segment",
+        "segment",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 836,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 3,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-agg1/sample-03/base1"
+    },
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "c1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "transcribe",
+        "segment",
+        "segment",
+        "segment",
+        "view",
+        "view",
+        "view"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 712,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 3,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-01/c1"
+    },
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "dom1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "load_skill",
+        "transcribe",
+        "segment",
+        "segment",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 455,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 3,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-01/dom1"
+    },
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "inv1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "transcribe",
+        "view",
+        "view",
+        "view",
+        "segment",
+        "segment",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 515,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 3,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-01/inv1"
+    },
+    {
+      "source_folder": "sample-03",
+      "internal_sample": "sample-02",
+      "stage": "c1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "transcribe",
+        "view",
+        "view",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 476,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 2,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-02/c1"
+    },
+    {
+      "source_folder": "sample-03",
+      "internal_sample": "sample-02",
+      "stage": "dom1",
+      "passed": 7,
+      "checks": 8,
+      "failed": [
+        "ending account"
+      ],
+      "tools": [
+        "load_skill",
+        "transcribe",
+        "view",
+        "view",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 419,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 2,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-02/dom1"
+    },
+    {
+      "source_folder": "sample-03",
+      "internal_sample": "sample-02",
+      "stage": "inv1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "transcribe",
+        "view",
+        "view",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 539,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 2,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-02/inv1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-03",
+      "stage": "c1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "transcribe",
+        "view",
+        "view",
+        "view",
+        "segment",
+        "segment",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 616,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 3,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-03/c1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-03",
+      "stage": "dom1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "load_skill",
+        "transcribe",
+        "view",
+        "view",
+        "view",
+        "segment",
+        "segment",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 475,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 3,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-03/dom1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-03",
+      "stage": "inv1",
+      "passed": 8,
+      "checks": 8,
+      "failed": [],
+      "tools": [
+        "transcribe",
+        "view",
+        "view",
+        "view",
+        "segment",
+        "segment",
+        "segment"
+      ],
+      "script_calls": 0,
+      "max_reply_tokens": 592,
+      "max_reasoning_chars": 0,
+      "stops": [],
+      "errors": [],
+      "input_exact": true,
+      "photo_count": 3,
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-03/inv1"
+    }
+  ]
+}

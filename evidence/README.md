@@ -9,6 +9,7 @@ anything about a model.
 
 | Folder (dates in 2026) | What it holds | Kind |
 |---|---|---|
+| [11-03-three-sample-spark-run](2026-11-03-three-sample-spark-run/README.md) |3 final answers pass; intermediate fork balance slip dropped; natural audio/user photos | Live |
 | [11-03-three-inventory-samples](2026-11-03-three-inventory-samples/README.md) | Four user photos,3 conversational samples, correction challenge,63 negative cases | Offline |
 | [11-03-unsloth-spark-candidate-trial](2026-11-03-unsloth-spark-candidate-trial/README.md) | Local trial of Spark cup harness:13/13, skill not loaded, full reasoning retained | Live |
 | [11-03-sample-harness-trials](2026-11-03-sample-harness-trials/README.md) | Trial a saved sample's adopted harness; source provenance, 60 checks | Offline |
