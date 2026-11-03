@@ -1,0 +1,187 @@
+{
+  "trial_id": "bd85de129c17",
+  "review_date": "2026-11-03",
+  "status": "completed",
+  "spec_version": 6,
+  "worker": "LiquidAI/LFM3-VL-2B-GGUF",
+  "source_run": "386bafba041f",
+  "source_sample": "sample-01",
+  "source_stage": "c1",
+  "trial_input_sample": "sample-02",
+  "elapsed_seconds": 883.9928421974182,
+  "code_commit": "f46fdda",
+  "harness_copy_matches_source": true,
+  "input_matches_snapshot": true,
+  "reasoning_lengths": [
+    29075,
+    1541,
+    1459,
+    24772,
+    718,
+    15919
+  ],
+  "max_reasoning_chars": 29075,
+  "total_reasoning_chars": 73484,
+  "execute_output_tokens": 17934,
+  "max_reply_tokens": 6748,
+  "learned_skill_loaded": false,
+  "stopped": [],
+  "tool_errors": [],
+  "result": {
+    "kind": "trial",
+    "task": "lx_inventory_update",
+    "live": true,
+    "sample": "sample-02",
+    "scored": true,
+    "score": 1.0,
+    "base_sha256": "eeffd99c5d77a72803f4c346e3f25431bb30fefcbb6d41c6e83a3aa842dc07d2",
+    "checks": [
+      {
+        "name": "changed item",
+        "passed": true
+      },
+      {
+        "name": "signed change",
+        "passed": true
+      },
+      {
+        "name": "updated quantity",
+        "passed": true
+      },
+      {
+        "name": "unchanged stock",
+        "passed": true
+      },
+      {
+        "name": "unit prices",
+        "passed": true
+      },
+      {
+        "name": "cash movement",
+        "passed": true
+      },
+      {
+        "name": "ending account",
+        "passed": true
+      },
+      {
+        "name": "object evidence",
+        "passed": true
+      },
+      {
+        "name": "judge: stock arithmetic consistent",
+        "passed": true
+      },
+      {
+        "name": "judge: cash arithmetic consistent",
+        "passed": true
+      },
+      {
+        "name": "judge: transaction quantity correct",
+        "passed": true
+      },
+      {
+        "name": "judge: other stock and prices preserved",
+        "passed": true
+      },
+      {
+        "name": "judge: complete usable answer",
+        "passed": true
+      }
+    ],
+    "stopped": null,
+    "tool_calls": {
+      "transcribe": 1,
+      "view": 2,
+      "segment": 2
+    },
+    "note": "One sample on the saved harness for sample sample-01 of run 386bafba041f, which saw this sample, so this reads high: a smoke test, not a measure.",
+    "harness": {
+      "from_run": "386bafba041f",
+      "from_sample": "sample-01",
+      "sha256": "fad0d047e65a9b89129e2737893667a36708384e3055ea4e5335695937ad47f7",
+      "sample_seen": true
+    },
+    "usage": {
+      "per_role": {
+        "orchestrator": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "spent_usd": 0.0
+        },
+        "improver": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "spent_usd": 0.0
+        },
+        "worker": {
+          "input_tokens": 59486,
+          "output_tokens": 18040,
+          "spent_usd": 0.0
+        },
+        "tool": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "spent_usd": 0.005976
+        },
+        "judge": {
+          "input_tokens": 787,
+          "output_tokens": 811,
+          "spent_usd": 0.0002409
+        }
+      },
+      "per_phase": {
+        "worker/preflight": {
+          "settled_calls": 1,
+          "unknown_calls": 0,
+          "reserved_calls": 0,
+          "spent_usd": 0.0
+        },
+        "judge/preflight": {
+          "settled_calls": 1,
+          "unknown_calls": 0,
+          "reserved_calls": 0,
+          "spent_usd": 4.25e-05
+        },
+        "worker/execute": {
+          "settled_calls": 6,
+          "unknown_calls": 0,
+          "reserved_calls": 0,
+          "spent_usd": 0.0
+        },
+        "tool/transcribe": {
+          "settled_calls": 1,
+          "unknown_calls": 0,
+          "reserved_calls": 0,
+          "spent_usd": 0.000976
+        },
+        "tool/segment": {
+          "settled_calls": 2,
+          "unknown_calls": 0,
+          "reserved_calls": 0,
+          "spent_usd": 0.005
+        },
+        "judge/grading": {
+          "settled_calls": 1,
+          "unknown_calls": 0,
+          "reserved_calls": 0,
+          "spent_usd": 0.0001984
+        }
+      },
+      "settled_calls": 12,
+      "held": {
+        "calls": 0,
+        "usd": 0.0,
+        "reasons": {}
+      },
+      "provider_reported": {
+        "calls": 0,
+        "reported_usd": 0.0,
+        "computed_usd": 0.0
+      },
+      "reserved_calls": 0,
+      "unknown_calls": 0,
+      "spent_usd": 0.0062169
+    }
+  }
+}
