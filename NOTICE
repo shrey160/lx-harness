@@ -1,0 +1,10 @@
+LX harness
+Copyright 2026 The LX harness contributors
+
+Original LX code and documentation are licensed under the Apache License,
+Version 2.0. See LICENSE.
+
+LX depends on the separately distributed Harness2 portable core and its
+vendored harness2-cli engine. Third-party software, benchmark material,
+datasets and media retain their own licenses and notices.
+See THIRD_PARTY_NOTICES.md and the core's UPSTREAM.md.

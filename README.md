@@ -175,6 +175,16 @@ test, not proof of transfer or improvement. [Complete user/agent workflow](docs/
   Historical experiment results are indexed in [evidence](evidence/README.md);
   immutable reviews retain the assumptions of their date.
 
+## License
+
+Original LX code and documentation are licensed under the
+[Apache License 2.0](LICENSE); see [NOTICE](NOTICE). This permits commercial use,
+modification and redistribution subject to the license terms.
+
+Third-party code, datasets and media retain their own terms. In particular, the
+separate core's optional WorkBuddy benchmark material has non-Apache conditions,
+including an EU-use restriction. See [third-party notices](THIRD_PARTY_NOTICES.md).
+
 ## Find your way around
 
 | Need | Read |
