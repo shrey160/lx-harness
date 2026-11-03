@@ -504,19 +504,85 @@ class Engine:
     def workspace(self, identifier):
         if not isinstance(identifier, str) or not re.fullmatch(r"[a-f0-9]{32}", identifier):
             raise ValueError("Invalid project identity")
-        workspace = Workspace.open(self.store.get("workspace", identifier)["path"])
+        entry = self.store.get("workspace", identifier)
+        if entry.get("deleting"):
+            raise ValueError("This workspace is being deleted")
+        workspace = Workspace.open(entry["path"])
         if workspace.project()["id"] != identifier:
             raise ValueError("That folder now holds a different project")
         return workspace
 
     def _remember(self, workspace):
-        self.store.save("workspace", {"id": workspace.project()["id"], "path": str(workspace.folder)})
+        identifier = workspace.project()["id"]
+        try:
+            previous = self.store.get("workspace", identifier)
+        except ValueError:
+            previous = {}
+        if previous.get("deleting"):
+            raise ValueError("This workspace is being deleted")
+        self.store.save("workspace", {**previous, "id": identifier, "path": str(workspace.folder)})
         return self._view(workspace)
+
+    def _require_active_workspace(self, identifier):
+        if self.store.get("workspace", identifier).get("archived"):
+            raise ValueError("Restore this archived workspace before starting work")
+
+    def archive_workspace(self, identifier, archived=True):
+        """Person-facing archive/restore; keeps files, spend and approvals."""
+        if type(archived) is not bool:
+            raise ValueError("Choose archive or restore")
+        workspace = self.workspace(identifier)
+        self._jobs(workspace)
+        with workspace.lock():
+            if any(j["status"] in {"queued", "running"} for j in workspace.runs()):
+                raise ValueError("Stop the active run before archiving or restoring this workspace")
+            self.store.save("workspace", {**self.store.get("workspace", identifier), "archived": archived})
+        return self._view(workspace)
+
+    def delete_workspace(self, identifier, confirmation):
+        """Delete LX's own directory only; original samples and user-level billing stay."""
+        workspace = self.workspace(identifier)
+        self._jobs(workspace)
+        with workspace.lock():
+            record = workspace.project()
+            if confirmation != record["name"]:
+                raise ValueError("Type the workspace name to confirm deletion")
+            if any(j["status"] in {"queued", "running"} for j in workspace.runs()):
+                raise ValueError("Stop the active run before deleting this workspace")
+            if any(row["status"] in {"reserved", "unknown"} for row in usage_rows(self._ledger(workspace))):
+                raise ValueError("Resolve unsettled calls before deleting this workspace")
+            target = workspace.home
+            if target.is_symlink() or target.resolve() != workspace.folder/".lx":
+                raise ValueError("Refusing to delete outside this workspace's LX folder")
+            entry = self.store.get("workspace", identifier)
+            self.store.save("workspace", {**entry, "deleting": True})
+        # The lock file must be closed before moving the directory on Windows.
+        stage = workspace.folder/(".lx-delete-"+uuid.uuid4().hex)
+        try:
+            os.replace(target, stage)
+        except OSError as error:
+            self.store.save("workspace", entry)
+            raise ValueError("Windows could not remove the workspace; close files in it and try again") from error
+        # Both resolved targets are fixed children of this workspace, never its samples directory.
+        if stage.parent.resolve() != workspace.folder or not stage.name.startswith(".lx-delete-"):
+            raise ValueError("Invalid LX cleanup directory")
+        cleanup_pending = False
+        try:
+            shutil.rmtree(stage)
+        except OSError:
+            cleanup_pending = True
+        for kind in ("workspace", "approval", "grant", "notice"):
+            self.store.delete(kind, identifier)
+        result = {"deleted": True, "samples_preserved": True, "spend_records_preserved": True}
+        if cleanup_pending:
+            result["cleanup_pending"] = str(stage)
+        return result
 
     def _view(self, workspace):
         record = workspace.project()
         draft = workspace.spec(record["spec_version"])
-        return {**record, "path": str(workspace.folder), "draft": {**draft, "limits": self.limits_of(draft)},
+        return {**record, "archived": self.store.get("workspace", record["id"]).get("archived", False),
+                "path": str(workspace.folder), "draft": {**draft, "limits": self.limits_of(draft)},
                 "limit_defaults": self._limit_defaults(draft["providers"], draft.get("task")),
                 "hidden_limits": self._hidden_limits(draft),
                 "tool_choices": self._tool_choices(draft),
@@ -871,6 +937,8 @@ class Engine:
         Only a person can spend: `spend` is {"cap_usd", "notice_accepted", "contributor_accepted"}. Without it, only
         verdicts already kept count, and any other answer is left not judged, so an agent's try costs nothing."""
         from .taskrun import _NoCalls, try_judges
+        if spend is not None:
+            self._require_active_workspace(identifier)
         workspace = self.workspace(identifier)
         draft = workspace.spec(workspace.project()["spec_version"])
         if not draft.get("task"):
@@ -932,6 +1000,7 @@ class Engine:
     # Discussion, spec and approval
 
     def discuss(self, identifier, text, consent, mode=None):
+        self._require_active_workspace(identifier)
         if consent is not True:
             raise ValueError("Approve the discussion data disclosure first")
         if not isinstance(text,str) or not text.strip() or len(text)>4000:
@@ -967,6 +1036,7 @@ class Engine:
 
     def approve(self, identifier, data, by="person", grant=None):
         """A human step. Freezes the samples as they are now, whatever was seen earlier."""
+        self._require_active_workspace(identifier)
         workspace = self.workspace(identifier)
         with workspace.lock():
             record = workspace.project()
@@ -1034,6 +1104,7 @@ class Engine:
     def set_grant(self, identifier, data):
         """A human step (D-024): lets a connected agent start live runs here, within a cap, an expiry and a run count.
         It holds what a person accepts at approval, for these samples, providers and tools; a change needs a person again."""
+        self._require_active_workspace(identifier)
         workspace = self.workspace(identifier)
         draft = workspace.spec(workspace.project()["spec_version"])
         cap, days, runs = data.get("cap_usd"), data.get("days",GRANT_DAYS), data.get("runs",GRANT_RUNS)
@@ -1103,6 +1174,7 @@ class Engine:
 
     def start_granted(self, identifier, launch=True, trial=False, from_run=None, from_sample=None):
         """Approves and starts the current live spec, or a trial of it, under the grant, or says why a person must."""
+        self._require_active_workspace(identifier)
         if (from_run is not None or from_sample is not None) and not trial:
             raise ValueError("A saved harness can only be used for a trial")
         if from_sample is not None and from_run is None:
@@ -1197,6 +1269,7 @@ class Engine:
         workspace = self.workspace(identifier)
         self._jobs(workspace)
         with workspace.lock():
+            self._require_active_workspace(identifier)
             record = workspace.project()
             draft = workspace.spec(record["spec_version"])
             if trial and (draft.get("mode") != "live" or not draft.get("task")):
@@ -1266,6 +1339,7 @@ class Engine:
         workspace = self.workspace(identifier)
         self._jobs(workspace)
         with workspace.lock():
+            self._require_active_workspace(identifier)
             if any(j["id"] != job_id and j["status"] in {"queued","running"} for j in workspace.runs()):
                 raise ValueError("Another run is already active")
             job = workspace.run(job_id)
@@ -1637,6 +1711,7 @@ class Engine:
                 "final_text":record.get("final_text") or "","trace":record["trace"],"opening":messages}
 
     def fresh(self, identifier, job_id):
+        self._require_active_workspace(identifier)
         workspace = self.workspace(identifier)
         job = workspace.run(job_id)
         if job["status"] != "completed":

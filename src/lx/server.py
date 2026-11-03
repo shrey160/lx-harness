@@ -162,6 +162,9 @@ def server_for(app, port=8765):
                     elif action=="run": result=app.start(identifier)
                     elif action=="trial": result=app.start(identifier,trial=True,from_run=data.get("from_run"),from_sample=data.get("from_sample"))
                     elif action=="trial-cap": result=app.set_trial_cap(identifier,data.get("cap_usd"))
+                    elif action=="archive": result=app.archive_workspace(identifier)
+                    elif action=="restore": result=app.archive_workspace(identifier,False)
+                    elif action=="delete": result=app.delete_workspace(identifier,data.get("confirmation"))
                     else: raise ValueError("Unknown project action")
                 elif len(route)==5 and route[:2]==["api","jobs"]:
                     identifier,job_id,action = route[2:]
