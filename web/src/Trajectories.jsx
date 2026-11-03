@@ -2,10 +2,11 @@ import React, {useEffect, useState} from 'react';
 import {active, api, plural} from './api.js';
 
 const STAGES={base1:'Base harness',inv1:'How the agent works',dom1:'The subject',c1:'Combined'};
-const name=path=>{
+export const trajectoryName=item=>{
+  const path=item.path;
   const parts=path.split('/'),last=parts[parts.length-1];
   const stage=STAGES[last]||(last==='trial'?'Trial':last);
-  return parts.length>=3?`${parts[parts.length-2]} · ${stage}`:stage;
+  return item.sample?`${item.sample} · ${stage}`:parts.length>=3?`${parts[parts.length-2]} · ${stage}`:stage;
 };
 const pretty=value=>typeof value==='string'?value:JSON.stringify(value,null,2);
 const SHORT=400;
@@ -34,7 +35,8 @@ function Execution({project,job,item}){
   };
   const calls=Object.entries(item.tool_calls).map(([tool,count])=>`${tool} ${count}`).join(', ')||'no tool calls';
   return <details className="execution" onToggle={e=>load(e.currentTarget.open)}>
-    <summary>{name(item.path)} <span className="muted">· {plural(item.turns,'turn')} · {calls}{item.stopped?` · stopped: ${item.stopped}`:!item.answered?' · no answer':item.reply==='text'?' · reply not JSON':''}</span></summary>
+    <summary>{trajectoryName(item)} <span className="muted">· {plural(item.turns,'turn')} · {calls}{item.stopped?` · stopped: ${item.stopped}`:!item.answered?' · no answer':item.reply==='text'?' · reply not JSON':''}</span></summary>
+    {item.sample&&item.internal_sample!==item.sample&&<p className="muted">Sample folder: {item.sample}. The saved messages use execution ID {item.internal_sample}.</p>}
     {problem&&<p className="callout bad">{problem}</p>}
     {!record&&!problem&&<p className="muted">Loading…</p>}
     {record&&<ol className="steps">
@@ -56,7 +58,7 @@ function Step({step}){
   if(step.type==='assistant')return <li className="step agent">
     <strong>Agent</strong> <span className="muted">{step.output_tokens!=null?`${step.output_tokens.toLocaleString()} output tokens`:''}</span>
     {step.content&&<p className="said">{step.content}</p>}
-    {step.reasoning&&<details><summary className="muted">Reasoning notes (kept to a short excerpt)</summary><p className="said">{step.reasoning}</p></details>}
+    {step.reasoning&&<details><summary className="muted">Saved reasoning (older runs may contain an excerpt)</summary><p className="said">{step.reasoning}</p></details>}
     {step.tool_calls.map((call,i)=><div className="call" key={i}><code>{call.name}</code> <code className="muted">{JSON.stringify(call.arguments)}</code></div>)}
   </li>;
   if(step.type==='tool'){

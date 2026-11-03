@@ -144,7 +144,7 @@ class Trajectories(Base):
         (folder/"trace.json").write_text(json.dumps({"final_text": "done", "trace": trace}), encoding="utf-8")
         (workspace.run_dir(run)/"secret.txt").write_text("not a trace", encoding="utf-8")
         listed = self.app.run_trajectories(project["id"], run)["executions"]
-        self.assertEqual(listed, [{"path": "task-x/sample-01/base1", "turns": 2, "tool_calls": {"view": 1}, "stopped": None, "answered": True, "reply": None}])
+        self.assertEqual(listed, [{"path": "task-x/sample-01/base1", "sample": "sample-01", "internal_sample": "sample-01", "turns": 2, "tool_calls": {"view": 1}, "stopped": None, "answered": True, "reply": None}])
         for answer, form in (("All done.\n```json\n{}\n```", "text"), ({"lines": []}, "json")):
             (folder/"answer.json").write_text(json.dumps(answer), encoding="utf-8")
             self.assertEqual(self.app.run_trajectories(project["id"], run)["executions"][0]["reply"], form)
@@ -158,6 +158,27 @@ class Trajectories(Base):
         for bad in ("", None, "../secret.txt", "/etc/passwd", "task-x/..", "task-x\\sample-01", "task-x/sample-01", "task-x/sample-01/base1/trace.json"):
             with self.subTest(path=bad), self.assertRaisesRegex(ValueError, "Unknown trajectory"):
                 self.app.run_trajectory(project["id"], run, bad)
+
+        sources = workspace.run_dir(run)/"dataset"/"controller_truth"/"sources.json"
+        sources.parent.mkdir(parents=True)
+        mapping = {"sample-01": {"folder": "sample-03"}, "sample-03": {"folder": "sample-01"}}
+        sources.write_text(json.dumps(mapping), encoding="utf-8")
+        other = folder.parent.parent/"sample-03"/"base1"
+        other.mkdir(parents=True)
+        raw = (folder/"trace.json").read_bytes()
+        (other/"trace.json").write_bytes(raw)
+        listed = self.app.run_trajectories(project["id"], run)["executions"]
+        self.assertEqual([(x["sample"], x["internal_sample"]) for x in listed], [("sample-01", "sample-03"), ("sample-03", "sample-01")])
+        self.assertEqual((folder/"trace.json").read_bytes(), raw)
+        self.assertEqual(self.app.run_trajectory(project["id"], run, listed[0]["path"])["sample"], "sample-01")
+        job = next(j for j in self.app.state()["jobs"] if j["id"] == run)
+        self.assertEqual(job["sample_folders"], {key: value["folder"] for key, value in mapping.items()})
+        trial = folder.parent.parent.parent/"trial"
+        trial.mkdir()
+        (trial/"trace.json").write_bytes(raw)
+        (trial/"execution.json").write_text(json.dumps({"task": "sample-03"}), encoding="utf-8")
+        listed = self.app.run_trajectories(project["id"], run)["executions"]
+        self.assertEqual(next(x for x in listed if x["path"] == "trial")["sample"], "sample-01")
 
 
 @unittest.skipUnless(sandbox.available(), "needs the script sandbox")

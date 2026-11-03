@@ -130,7 +130,7 @@ function Result({project,job,ui,post,live,canTry,tryHarness}){
     {result.stream_order&&<p className="muted">{result.scored===false?'':'Scores are a report: they chose nothing, and one run cannot separate a gain from noise. '}Order this run: {result.stream_order.join(', ')}.</p>}
     {result.not_graded>0&&<p className="callout warn" role="status">{plural(result.not_graded,'answer')} could not be judged, so the means leave them out. Replies below say why.</p>}
     {scores(result)&&<div className="stats"><Stat value={two(scores(result).base)} label="base score"/><Stat value={two(scores(result).harness2)} label="after the loop"/></div>}
-    {result.scores?<SampleScores result={result}/>:result.checks&&<div className="stats">{Object.entries(result.checks).map(([label,checks])=><Stat key={label} value={`${Object.values(checks).filter(Boolean).length}/${Object.keys(checks).length}`} label={{base:'passed before',harness2:'passed after',selected_dev:'passed after',heldout:'held-out passed'}[label]||label.replaceAll('_',' ')}/>)}</div>}
+    {result.scores?<SampleScores result={result} folders={job.sample_folders}/>:result.checks&&<div className="stats">{Object.entries(result.checks).map(([label,checks])=><Stat key={label} value={`${Object.values(checks).filter(Boolean).length}/${Object.keys(checks).length}`} label={{base:'passed before',harness2:'passed after',selected_dev:'passed after',heldout:'held-out passed'}[label]||label.replaceAll('_',' ')}/>)}</div>}
     {result.reply_files&&<Replies project={project} job={job} open={result.scored===false}/>}
     <div className="actions">
       <a className="button primary" href={`/api/packages/${project.id}/${job.id}/download`} download="harness-package.zip">Download package</a>
@@ -162,13 +162,13 @@ export function Verdicts({found}){
   return <ul className="plain verdicts">{found.map(item=><li key={item.name}><span className={'dot '+(item.passed?'ok':'bad')}/><strong>{item.name}</strong> <span className="muted">{item.reason}</span></li>)}</ul>;
 }
 
-function SampleScores({result}){
-  const {base,harness2}=result.scores,samples=Object.keys(base);
+export function SampleScores({result,folders={}}){
+  const {base,harness2}=result.scores,samples=Object.keys(base).sort((a,b)=>(folders[a]||a).localeCompare(folders[b]||b));
   const whole=row=>samples.filter(sample=>row[sample]===1).length,score=value=>typeof value==='number'?value.toFixed(2):'–';
   return <>
     <div className="table-wrap"><table className="table">
       <thead><tr><th>Sample</th><th>Before</th><th>After</th></tr></thead>
-      <tbody>{samples.map(sample=><tr key={sample}><td>{sample}</td><td>{score(base[sample])}</td><td>{score(harness2[sample])}</td></tr>)}</tbody>
+      <tbody>{samples.map(sample=><tr key={sample}><td>{folders[sample]||sample}</td><td>{score(base[sample])}</td><td>{score(harness2[sample])}</td></tr>)}</tbody>
     </table></div>
     <p className="muted">A score is the share of checks passed on that sample. Full marks on every check: {whole(base)} of {samples.length} before, {whole(harness2)} of {samples.length} after.</p>
   </>;

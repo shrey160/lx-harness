@@ -1427,6 +1427,7 @@ class Engine:
                               "models":{role:providers[role]["name"] for role in ("improver","worker") if role in providers}}}
 
     def state(self):
+        from .taskrun import _folders
         projects, jobs, rows, spent, missing = [], [], [], [], []
         for entry in self.store.list("workspace"):
             try:
@@ -1435,7 +1436,8 @@ class Engine:
                 missing.append(entry["path"])
                 continue
             projects.append(self._view(workspace))
-            jobs.extend(self._brief(job) for job in self._jobs(workspace))
+            jobs.extend({**self._brief(job), "sample_folders": _folders(workspace.run_dir(job["id"]))}
+                        for job in self._jobs(workspace))
             rows.extend(usage_rows(workspace.preview_ledger))
             spent.extend(usage_rows(self._ledger(workspace)))
         return {"models": self.registry.list_models(), "limit_fields": run_limits.field_list(),
@@ -1570,10 +1572,11 @@ class Engine:
 
     def run_trajectories(self, identifier, job_id):
         """What each agent run of this job did, in brief. A trace is written when its agent run ends, so a running job shows the finished ones."""
+        from .taskrun import _folders
         workspace = self.workspace(identifier)
         job = workspace.run(job_id)
         folder, traces = self._execution_traces(workspace, job_id)
-        found = []
+        found, folders = [], _folders(workspace.run_dir(job_id))
         for path in traces:
             try:
                 record = json.loads(path.read_text(encoding="utf-8"))
@@ -1583,12 +1586,27 @@ class Engine:
                     if step["type"] == "tool":
                         calls[step["name"]] = calls.get(step["name"], 0)+1
                 stopped = next((step["reason"] for step in steps if step["type"] == "stopped"), None)
-                found.append({"path":path.parent.relative_to(folder).as_posix(),"turns":sum(step["type"] == "assistant" for step in steps),
+                relative = path.parent.relative_to(folder).as_posix()
+                found.append({"path":relative, **self._trace_sample(path.parent, relative, folders), "turns":sum(step["type"] == "assistant" for step in steps),
                               "tool_calls":calls,"stopped":stopped,"answered":bool((record.get("final_text") or "").strip()),
                               "reply":self._reply_form(path.with_name("answer.json"))})
             except (OSError, ValueError, KeyError, TypeError):
                 continue
+        stages = {"base1": 0, "inv1": 1, "dom1": 2, "c1": 3, "trial": 4}
+        found.sort(key=lambda item: (item.get("sample") or "", stages.get(item["path"].split("/")[-1], 5), item["path"]))
         return {"status":job["status"],"executions":found}
+
+    @staticmethod
+    def _trace_sample(directory, relative, folders):
+        """Display the original folder while leaving recorded execution IDs untouched."""
+        metadata = directory/"execution.json"
+        try:
+            internal = json.loads(metadata.read_text(encoding="utf-8")).get("task") if metadata.is_file() and not metadata.is_symlink() else None
+        except (OSError, ValueError, TypeError, AttributeError):
+            internal = None
+        parts = relative.split("/")
+        internal = internal if isinstance(internal, str) else parts[-2] if len(parts) >= 3 else None
+        return {"sample": folders.get(internal, internal), "internal_sample": internal} if internal else {}
 
     @staticmethod
     def _reply_form(answer_file):
@@ -1599,6 +1617,7 @@ class Engine:
 
     def run_trajectory(self, identifier, job_id, path):
         """One agent run's trace, as recorded. Only a path under this job's executions folder is read."""
+        from .taskrun import _folders
         workspace = self.workspace(identifier)
         workspace.run(job_id)
         folder, traces = self._execution_traces(workspace, job_id)
@@ -1614,7 +1633,8 @@ class Engine:
             messages = json.loads(opening.read_text(encoding="utf-8")) if opening.is_file() and not opening.is_symlink() else None
         except (OSError, ValueError):
             messages = None  # a run from before this was kept has none
-        return {"path":wanted.as_posix(),"final_text":record.get("final_text") or "","trace":record["trace"],"opening":messages}
+        return {"path":wanted.as_posix(), **self._trace_sample(target.parent, wanted.as_posix(), _folders(workspace.run_dir(job_id))),
+                "final_text":record.get("final_text") or "","trace":record["trace"],"opening":messages}
 
     def fresh(self, identifier, job_id):
         workspace = self.workspace(identifier)
