@@ -128,6 +128,24 @@ class ServerBoundaryTests(unittest.TestCase):
         self.assertEqual(status, 200, result)
         self.assertFalse(result["agent_workspace_deletion"])
 
+    def test_delete_with_unsettled_calls_keeps_person_only_billing_resolution(self):
+        p = self.app.create_project(self.body("Disposable unsettled workspace"))
+        ledger = self.app._ledger(self.app.workspace(p["id"]))
+        reservation = ledger.reserve(0.03, "worker", "test", "scratch")
+        ledger.unknown(reservation, "test uncertainty")
+        status, result, _ = self.request("POST", f"/api/projects/{p['id']}/delete", {}, token=self.token)
+        self.assertEqual(status, 200, result)
+        self.assertTrue(result["deleted"])
+        status, state, _ = self.request("GET", "/api/state")
+        self.assertEqual(state["deleted_workspaces"][0]["usage"]["held"]["calls"], 1)
+        route = f"/api/deleted-workspaces/{p['id']}/release"
+        self.assertEqual(self.request("POST", route, {"charged":False})[0], 403)
+        self.assertEqual(self.request("POST", route, {"charged":"false"}, token=self.token)[0], 400)
+        status, result, _ = self.request("POST", route, {"charged":False}, token=self.token)
+        self.assertEqual(status, 200, result)
+        self.assertEqual(result["usage"]["held"]["calls"], 0)
+        self.assertEqual(result["usage"]["spent_usd"], 0)
+
     def test_a_rejected_post_still_gets_its_reply_with_a_large_body(self):
         # Unread bytes at close reset the connection on Windows (WinError 10053).
         status, _, _ = self.request("POST", "/api/projects", b"x"*(16*1024*1024))

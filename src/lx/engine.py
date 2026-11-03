@@ -565,8 +565,6 @@ class Engine:
                 raise ValueError("Type the workspace name to confirm deletion")
             if any(j["status"] in {"queued", "running"} for j in workspace.runs()):
                 raise ValueError("Stop the active run before deleting this workspace")
-            if any(row["status"] in {"reserved", "unknown"} for row in usage_rows(self._ledger(workspace))):
-                raise ValueError("Resolve unsettled calls before deleting this workspace")
             target = workspace.home
             if target.is_symlink() or getattr(target, "is_junction", lambda: False)() or target.resolve() != workspace.folder/".lx":
                 raise ValueError("Refusing to delete outside this workspace's LX folder")
@@ -586,12 +584,29 @@ class Engine:
             shutil.rmtree(stage)
         except OSError:
             cleanup_pending = True
+        self.store.save("deleted_workspace", {"id":identifier,"name":record["name"],"deleted_at":time.time()})
         for kind in ("workspace", "approval", "grant", "notice"):
             self.store.delete(kind, identifier)
         result = {"deleted": True, "samples_preserved": True, "spend_records_preserved": True}
         if cleanup_pending:
             result["cleanup_pending"] = str(stage)
         return result
+
+    def _deleted_workspace_ledger(self, identifier):
+        if not isinstance(identifier, str) or not re.fullmatch(r"[a-f0-9]{32}", identifier):
+            raise ValueError("Invalid workspace identity")
+        self.store.get("deleted_workspace", identifier)
+        return BudgetLedger(self.root/"ledgers"/f"{identifier}.sqlite3", self._workspace_budget(identifier), 0, adopt_cap=True)
+
+    def release_deleted_workspace_calls(self, identifier, charged):
+        """A person's later billing decision; workspace deletion makes no billing decision."""
+        if type(charged) is not bool:
+            raise ValueError("Say whether the provider billed these calls")
+        ledger = self._deleted_workspace_ledger(identifier)
+        for row in usage_rows(ledger):
+            if row["status"] in {"reserved", "unknown"}:
+                ledger.release(row["id"], charged=charged)
+        return {"usage":summarize(usage_rows(ledger))}
 
     def _view(self, workspace):
         record = workspace.project()
@@ -1530,8 +1545,17 @@ class Engine:
                         for job in self._jobs(workspace))
             rows.extend(usage_rows(workspace.preview_ledger))
             spent.extend(usage_rows(self._ledger(workspace)))
+        deleted = []
+        for entry in self.store.list("deleted_workspace"):
+            if any(project["id"] == entry["id"] for project in projects):
+                continue
+            ledger = self._deleted_workspace_ledger(entry["id"])
+            kept_rows = usage_rows(ledger)
+            spent.extend(kept_rows)
+            deleted.append({**entry,"usage":summarize(kept_rows)})
         return {"models": self.registry.list_models(), "limit_fields": run_limits.field_list(),
                 "projects": projects, "missing_workspaces": missing,
+                "deleted_workspaces":deleted,
                 "jobs": jobs, "preview_usage": summarize(rows),
                 "usage_events": (rows + spent)[-80:],
                 "live_usage": self.pilot_ledger.summary() if self.pilot_ledger else None}

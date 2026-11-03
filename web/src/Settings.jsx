@@ -17,7 +17,7 @@ export function Settings({state,ui,section}){
       {section==='tools'&&<Tools state={state} system={system} ui={ui} refresh={refresh}/>}
       {section==='mcp'&&<McpServers system={system} ui={ui} refresh={refresh}/>}
       {section==='connectivity'&&<Connectivity system={system} ui={ui} refresh={refresh}/>}
-      {section==='usage'&&<UsagePage state={state}/>}
+      {section==='usage'&&<UsagePage state={state} ui={ui}/>}
       {section==='general'&&<General state={state} system={system}/>}
     </div>
   </div>;
@@ -73,7 +73,7 @@ export function AgentWorkspaceDeletion({system,ui,refresh}){
   return <div>
     <h3>Workspace deletion</h3>
     <label className="check"><input type="checkbox" checked={system.agent_workspace_deletion===true} disabled={ui.busy} onChange={e=>change(e.target.checked)}/>Allow agents to delete workspaces</label>
-    <p className="muted">Off by default. When enabled, connected agents and the lx command can permanently delete a workspace’s LX settings, runs and harnesses. Original samples, other files and spend records are kept. Active runs and unsettled calls still block deletion. Stopping agent access also blocks agent deletion.</p>
+    <p className="muted">Off by default. When enabled, connected agents and the lx command can permanently delete a workspace’s LX settings, runs and harnesses. Original samples, other files and spend records are kept. Active runs must be stopped first. Unsettled billing entries stay in Usage after deletion. Stopping agent access also blocks agent deletion.</p>
   </div>;
 }
 
@@ -126,7 +126,7 @@ function ConnectAgent({setup}){
   </>;
 }
 
-function UsagePage({state}){
+function UsagePage({state,ui}){
   const runs=state.jobs,name=id=>state.projects.find(p=>p.id===id)?.name||id;
   return <section>
     <h2>Usage</h2>
@@ -134,12 +134,24 @@ function UsagePage({state}){
     <h3>Workspaces</h3>
     {state.projects.length?<div className="table-wrap"><table className="table"><thead><tr><th>Workspace</th><th>Spent</th><th>Held</th><th>Left</th><th>Budget</th></tr></thead>
       <tbody>{state.projects.map(p=><tr key={p.id}><td>{p.name}</td><td>{money(p.budget.spent_usd)}</td><td>{money(p.budget.reserved_usd)}</td><td>{money(p.budget.remaining_usd)}</td><td>{money(p.budget.cap_usd)}</td></tr>)}</tbody></table></div>:<p className="muted">No workspaces yet.</p>}
+    <DeletedWorkspaceUsage projects={state.deleted_workspaces||[]} ui={ui}/>
     <h3>Runs</h3>
     {runs.length?<div className="table-wrap"><table className="table"><thead><tr><th>Started</th><th>Workspace</th><th>Kind</th><th>Status</th><th>Calls</th><th>Cost</th></tr></thead>
       <tbody>{runs.map(run=><tr key={run.id}><td>{when(run.created_at)}</td><td>{name(run.project_id)}</td><td>{runName(run)}</td><td>{statusName(run)}</td><td>{run.usage.settled_calls}</td><td>{money(run.usage.spent_usd)}{run.mode==='live'?'':' (simulated)'}</td></tr>)}</tbody></table></div>:<p className="muted">No runs yet.</p>}
     <h3>Preview totals (simulated)</h3>
     <Usage usage={state.preview_usage}/>
   </section>;
+}
+
+export function DeletedWorkspaceUsage({projects,ui}){
+  if(!projects.length)return null;
+  const release=(id,charged)=>ui.act(()=>api(`deleted-workspaces/${id}/release`,{charged}));
+  return <div><h3>Deleted workspaces</h3>
+    <p className="muted">Deleting a workspace keeps its billing records here. It does not decide whether a provider charged for an unsettled call.</p>
+    {projects.map(p=><details key={p.id} open={p.usage.held.calls>0}><summary>{p.name} · {money(p.usage.spent_usd)} spent · {p.usage.held.calls} unsettled calls ({money(p.usage.held.usd)})</summary>
+      {p.usage.held.calls>0&&<div><p>Check your provider’s bill, then decide how to record these calls.</p><div className="actions"><button className="button" disabled={ui.busy} onClick={()=>release(p.id,false)}>Not billed: release</button><button className="button" disabled={ui.busy} onClick={()=>release(p.id,true)}>Billed: count as spent</button></div></div>}
+    </details>)}
+  </div>;
 }
 
 function General({state,system}){

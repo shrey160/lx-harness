@@ -9,7 +9,7 @@ import {trajectoryName} from './src/Trajectories.jsx';
 import {SampleScores,RunsTab} from './src/RunsTab.jsx';
 import {Sidebar} from './src/Sidebar.jsx';
 import {WorkspaceOptions} from './src/Workspace.jsx';
-import {AgentWorkspaceDeletion} from './src/Settings.jsx';
+import {AgentWorkspaceDeletion,DeletedWorkspaceUsage} from './src/Settings.jsx';
 export function check(){
   const folders={'sample-03':'sample-01','sample-01':'sample-03'};
   const ui={busy:false}, project={id:'scratch',name:'Disposable',archived:true,draft:{mode:'live',task:{}}};
@@ -20,6 +20,7 @@ export function check(){
     archivedOptions:renderToStaticMarkup(<WorkspaceOptions project={project} jobs={[]} ui={ui}/>),
     deletionOff:renderToStaticMarkup(<AgentWorkspaceDeletion system={{}} ui={ui}/>),
     deletionOn:renderToStaticMarkup(<AgentWorkspaceDeletion system={{agent_workspace_deletion:true}} ui={ui}/>),
+    deletedUsage:renderToStaticMarkup(<DeletedWorkspaceUsage ui={ui} projects={[{id:'gone',name:'Deleted sample',usage:{spent_usd:1,held:{calls:2,usd:0.03}}}]}/>),
     trajectory:trajectoryName({path:'run/sample-03/base1',sample:folders['sample-03']}),
     trial:trajectoryName({path:'trial',sample:'sample-02'}),
     legacy:trajectoryName({path:'run/sample-03/base1'}),
@@ -50,4 +51,8 @@ assert.ok(actual.archivedOptions.includes('in one click'));
 assert.ok(actual.deletionOff.includes('Allow agents to delete workspaces'));
 assert.ok(!actual.deletionOff.includes('checked=""'));
 assert.ok(actual.deletionOn.includes('checked=""'));
-console.log('Sample labels, archive navigation, start guards, one-click deletion and agent permission setting pass.');
+assert.ok(actual.deletedUsage.includes('Deleted workspaces'));
+assert.ok(actual.deletedUsage.includes('2 unsettled calls'));
+assert.ok(actual.deletedUsage.includes('Not billed: release'));
+assert.ok(actual.deletedUsage.includes('Billed: count as spent'));
+console.log('Sample labels, one-click and agent deletion, and retained billing controls pass.');

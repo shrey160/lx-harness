@@ -390,7 +390,10 @@ Archived workspaces cannot start or resume runs or make new discussion/judge cal
 Delete takes one click, with no typed name or second confirmation. It permanently removes only LX's
 `.lx/` settings, runs and harnesses and removes the workspace from the sidebar.
 Original samples, other files in the folder and user-level spend records stay.
-Stop active runs and resolve unsettled calls first. If Windows keeps LX files open,
+Stop active runs first. Unsettled calls do not block deletion: their billing records
+remain under **Settings → Usage → Deleted workspaces**, where you can reconcile them
+after checking the provider's bill. Deleting never guesses whether a call was billed.
+If Windows keeps LX files open,
 LX either leaves the workspace registered for another attempt or reports the exact
 temporary cleanup folder that remains; close programs using it before removing it.
 
@@ -399,7 +402,7 @@ default. Turn it on to permit the MCP `workspace_delete(workspace)` action and
 `lx workspace delete --workspace FOLDER`. Agents cannot enable this permission.
 The switch is checked on each call, including existing sessions; stopping Agent
 access also prevents agent deletion. Original files and billing records stay,
-and active runs and unsettled calls still block deletion.
+and active runs still block deletion. Unsettled billing entries remain in Usage.
 
 Provider entries, approvals, budgets and real-spend ledgers stay in user-level state
 at `~/.local/state/lx-harness/`, so writing to the folder cannot approve a run. Any

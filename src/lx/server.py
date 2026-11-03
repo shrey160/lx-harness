@@ -118,6 +118,8 @@ def server_for(app, port=8765):
                     result = app.set_agent_access(data.get("on"))
                 elif route == ["api","agent-workspace-deletion"]:
                     result = app.set_agent_workspace_deletion(data.get("on"))
+                elif len(route)==4 and route[:2]==["api","deleted-workspaces"] and route[3]=="release":
+                    result = app.release_deleted_workspace_calls(route[2],data.get("charged"))
                 elif route == ["api","pick-folder"]:
                     result = app.pick_folder()
                 elif route == ["api","mcp"]:

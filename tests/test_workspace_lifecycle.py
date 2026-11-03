@@ -58,17 +58,39 @@ class Lifecycle(Base):
                     action()
         self.assertTrue(workspace.home.exists())
 
-    def test_unsettled_calls_block_even_when_the_cost_is_zero(self):
+    def test_unsettled_calls_do_not_block_deletion_or_change_the_ledger(self):
         for unknown in (False, True):
             p = self.project()
             ledger = self.app._ledger(self.app.workspace(p["id"]))
             reservation = ledger.reserve(0, "worker", "test", "scratch")
             if unknown:
                 ledger.unknown(reservation, "test uncertainty")
-            for action in (lambda: self.app.archive_workspace(p["id"]),
-                           lambda: self.app.delete_workspace(p["id"], p["name"])):
-                with self.subTest(unknown=unknown), self.assertRaisesRegex(ValueError, "unsettled"):
-                    action()
+            with self.assertRaisesRegex(ValueError, "unsettled"):
+                self.app.archive_workspace(p["id"])
+            before = usage_rows(ledger)
+            self.assertTrue(self.app.delete_workspace(p["id"])["deleted"])
+            self.assertEqual(usage_rows(ledger), before)
+            kept = next(item for item in self.app.state()["deleted_workspaces"] if item["id"] == p["id"])
+            self.assertEqual(kept["usage"]["held"]["calls"], 1)
+
+    def test_deleted_workspace_billing_can_be_reconciled_later_without_restoring_it(self):
+        for charged in (False, True):
+            p = self.project()
+            ledger = self.app._ledger(self.app.workspace(p["id"]))
+            ledger.reserve(0.01, "worker", "test", "scratch/a")
+            uncertain = ledger.reserve(0.02, "tool", "test", "scratch/b")
+            ledger.unknown(uncertain, "Test uncertainty")
+            self.app.delete_workspace(p["id"])
+            fresh = Engine(self.app.root, keychain=MemoryKeychain())
+            kept = next(item for item in fresh.state()["deleted_workspaces"] if item["id"] == p["id"])
+            self.assertEqual(kept["usage"]["held"], {"calls":2,"usd":0.03,"reasons":{"no reason recorded":1,"Test uncertainty":1}})
+            with self.assertRaises(ValueError):
+                fresh.release_deleted_workspace_calls(p["id"], "yes")
+            result = fresh.release_deleted_workspace_calls(p["id"], charged)
+            self.assertEqual(result["usage"]["held"]["calls"], 0)
+            self.assertAlmostEqual(result["usage"]["spent_usd"], 0.03 if charged else 0)
+            self.assertFalse((Path(p["path"])/".lx").exists())
+            self.assertTrue((Path(p["path"])/"samples"/"manifest.json").exists())
 
     def test_one_click_delete_preserves_files_spend_and_legacy_name_checks(self):
         p = self.project()
@@ -124,7 +146,7 @@ class Lifecycle(Base):
         self.assertTrue(lx.workspace_delete(p["path"])["deleted"])
         self.assertTrue((Path(p["path"])/"samples"/"manifest.json").exists())
 
-    def test_agent_permission_does_not_bypass_active_run_or_unsettled_call_guards(self):
+    def test_agent_deletion_blocks_active_runs_but_keeps_unsettled_calls(self):
         p = self.project()
         lx = Orchestration(self.app, launch=False)
         self.app.set_agent_workspace_deletion(True)
@@ -134,8 +156,8 @@ class Lifecycle(Base):
             lx.workspace_delete(p["path"])
         self.app.workspace(p["id"]).update_run(job["id"], status="cancelled", launch_pending=False)
         self.app._ledger(self.app.workspace(p["id"])).reserve(0, "worker", "test", "scratch")
-        with self.assertRaisesRegex(ValueError, "unsettled"):
-            lx.workspace_delete(p["path"])
+        self.assertTrue(lx.workspace_delete(p["path"])["deleted"])
+        self.assertEqual(self.app.state()["deleted_workspaces"][0]["usage"]["held"]["calls"], 1)
 
     def test_failed_rename_restores_registration_and_archive_flag(self):
         p = self.project()

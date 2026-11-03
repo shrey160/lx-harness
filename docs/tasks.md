@@ -52,7 +52,8 @@ The same actions exist as `lx` commands. Run `lx --help`.
 by agents in Settings → Connectivity. When allowed, `workspace_delete(workspace)`
 (or `lx workspace delete --workspace FOLDER`) permanently removes only that workspace's
 LX settings, runs and harnesses. Original samples, unrelated files and real-spend
-records remain. Active runs and unsettled calls block deletion. The permission is off
+records remain, including unsettled calls that a person can reconcile later in Usage.
+Active runs block deletion. The permission is off
 by default, is checked on every call and can only be changed by a person in Settings;
 agents have no tool to turn it on. Stopping Agent access blocks deletion too.
 
