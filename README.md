@@ -382,6 +382,18 @@ Your workspace holds `.lx/`, which LX adds to a `.gitignore`:
 Settings shows spending across workspaces, the script sandbox's status and the tools
 an agent can call.
 
+Open **Workspace options** below a workspace's name to archive or delete it.
+Archive keeps its data and history under **Archived** in the sidebar; open it there
+and choose **Restore workspace** to work again. Reopening its folder keeps it archived.
+Archived workspaces cannot start or resume runs or make new discussion/judge calls.
+
+Delete requires typing the exact workspace name. It permanently removes only LX's
+`.lx/` settings, runs and harnesses and removes the workspace from the sidebar.
+Original samples, other files in the folder and user-level spend records stay.
+Stop active runs and resolve unsettled calls first. If Windows keeps LX files open,
+LX either leaves the workspace registered for another attempt or reports the exact
+temporary cleanup folder that remains; close programs using it before removing it.
+
 Provider entries, approvals, budgets and real-spend ledgers stay in user-level state
 at `~/.local/state/lx-harness/`, so writing to the folder cannot approve a run. Any
 change to a spec file voids its approval. An agent with full access to this machine

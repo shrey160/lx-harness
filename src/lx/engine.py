@@ -524,7 +524,10 @@ class Engine:
         return self._view(workspace)
 
     def _require_active_workspace(self, identifier):
-        if self.store.get("workspace", identifier).get("archived"):
+        entry = self.store.get("workspace", identifier)
+        if entry.get("deleting"):
+            raise ValueError("This workspace is being deleted")
+        if entry.get("archived"):
             raise ValueError("Restore this archived workspace before starting work")
 
     def archive_workspace(self, identifier, archived=True):
@@ -534,8 +537,12 @@ class Engine:
         workspace = self.workspace(identifier)
         self._jobs(workspace)
         with workspace.lock():
+            if self.store.get("workspace", identifier).get("deleting"):
+                raise ValueError("This workspace is being deleted")
             if any(j["status"] in {"queued", "running"} for j in workspace.runs()):
                 raise ValueError("Stop the active run before archiving or restoring this workspace")
+            if any(row["status"] in {"reserved", "unknown"} for row in usage_rows(self._ledger(workspace))):
+                raise ValueError("Resolve unsettled calls before archiving or restoring this workspace")
             self.store.save("workspace", {**self.store.get("workspace", identifier), "archived": archived})
         return self._view(workspace)
 
@@ -544,6 +551,9 @@ class Engine:
         workspace = self.workspace(identifier)
         self._jobs(workspace)
         with workspace.lock():
+            entry = self.store.get("workspace", identifier)
+            if entry.get("deleting"):
+                raise ValueError("This workspace is being deleted")
             record = workspace.project()
             if confirmation != record["name"]:
                 raise ValueError("Type the workspace name to confirm deletion")
@@ -552,9 +562,8 @@ class Engine:
             if any(row["status"] in {"reserved", "unknown"} for row in usage_rows(self._ledger(workspace))):
                 raise ValueError("Resolve unsettled calls before deleting this workspace")
             target = workspace.home
-            if target.is_symlink() or target.resolve() != workspace.folder/".lx":
+            if target.is_symlink() or getattr(target, "is_junction", lambda: False)() or target.resolve() != workspace.folder/".lx":
                 raise ValueError("Refusing to delete outside this workspace's LX folder")
-            entry = self.store.get("workspace", identifier)
             self.store.save("workspace", {**entry, "deleting": True})
         # The lock file must be closed before moving the directory on Windows.
         stage = workspace.folder/(".lx-delete-"+uuid.uuid4().hex)
@@ -1039,6 +1048,7 @@ class Engine:
         self._require_active_workspace(identifier)
         workspace = self.workspace(identifier)
         with workspace.lock():
+            self._require_active_workspace(identifier)
             record = workspace.project()
             draft = workspace.spec(record["spec_version"])
             if data.get("version") != draft["version"] or data.get("data_approved") is not True:

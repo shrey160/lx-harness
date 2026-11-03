@@ -95,6 +95,26 @@ class ServerBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(status, 403)
 
+    def test_workspace_lifecycle_routes_require_token_and_exact_confirmation(self):
+        status, p, _ = self.request("POST", "/api/projects", self.body("Disposable HTTP workspace"), token=self.token)
+        self.assertEqual(status, 200, p)
+        route = f"/api/projects/{p['id']}"
+        for action in ("archive", "restore", "delete"):
+            status, _, _ = self.request("POST", route+"/"+action, {"confirmation": p["name"]})
+            self.assertEqual(status, 403)
+        status, archived, _ = self.request("POST", route+"/archive", {}, token=self.token)
+        self.assertEqual(status, 200, archived)
+        self.assertTrue(archived["archived"])
+        status, restored, _ = self.request("POST", route+"/restore", {}, token=self.token)
+        self.assertEqual(status, 200, restored)
+        self.assertFalse(restored["archived"])
+        status, _, _ = self.request("POST", route+"/delete", {"confirmation": "wrong"}, token=self.token)
+        self.assertEqual(status, 400)
+        status, result, _ = self.request("POST", route+"/delete", {"confirmation": p["name"]}, token=self.token)
+        self.assertEqual(status, 200, result)
+        self.assertTrue(result["deleted"])
+        self.assertTrue((Path(p["path"])/"samples"/"manifest.json").exists())
+
     def test_a_rejected_post_still_gets_its_reply_with_a_large_body(self):
         # Unread bytes at close reset the connection on Windows (WinError 10053).
         status, _, _ = self.request("POST", "/api/projects", b"x"*(16*1024*1024))

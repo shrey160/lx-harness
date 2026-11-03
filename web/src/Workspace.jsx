@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {api, modeName, plural, statusName, tone} from './api.js';
+import {active, api, modeName, plural, statusName, tone} from './api.js';
 import {RunsTab} from './RunsTab.jsx';
 import {SpecTab} from './SpecTab.jsx';
 
@@ -9,18 +9,55 @@ const MANY_SAMPLES=6;
 export function Workspace({state,project,ui,tab}){
   const jobs=state.jobs.filter(job=>job.project_id===project.id),job=jobs[0];
   const setTab=next=>ui.go({page:'workspace',id:project.id,tab:next});
+  const tabs=project.archived?TABS.filter(([id])=>['samples','runs'].includes(id)):TABS;
+  const shownTab=tabs.some(([id])=>id===tab)?tab:'runs';
   return <div className="page">
     <header className="head">
       <h1>{project.name}</h1>
       <span className={'chip '+(project.draft.mode==='live'?'warn':'')}>{modeName(project.draft.mode)}</span>
       {job&&<span className={'chip '+tone(job)}>{statusName(job)}</span>}
+      {project.archived&&<span className="chip">Archived</span>}
     </header>
-    <div className="tabs" role="tablist">{TABS.map(([id,label])=><button key={id} role="tab" aria-selected={tab===id} className={tab===id?'current':''} onClick={()=>setTab(id)}>{label}</button>)}</div>
-    {tab==='samples'&&<Samples project={project}/>}
-    {tab==='discuss'&&<Discuss project={project} ui={ui}/>}
-    {tab==='spec'&&<SpecTab key={project.draft.version} state={state} project={project} ui={ui} setTab={setTab}/>}
-    {tab==='runs'&&<RunsTab project={project} jobs={jobs} ui={ui} setTab={setTab}/>}
+    <WorkspaceOptions project={project} jobs={jobs} ui={ui}/>
+    {project.archived&&<p className="callout">This workspace is archived. Its samples and run history are available below. Restore it to start work again.</p>}
+    <div className="tabs" role="tablist">{tabs.map(([id,label])=><button key={id} role="tab" aria-selected={shownTab===id} className={shownTab===id?'current':''} onClick={()=>setTab(id)}>{label}</button>)}</div>
+    {shownTab==='samples'&&<Samples project={project}/>}
+    {shownTab==='discuss'&&<Discuss project={project} ui={ui}/>}
+    {shownTab==='spec'&&<SpecTab key={project.draft.version} state={state} project={project} ui={ui} setTab={setTab}/>}
+    {shownTab==='runs'&&<RunsTab project={project} jobs={jobs} ui={ui} setTab={setTab}/>}
   </div>;
+}
+
+export function WorkspaceOptions({project,jobs,ui}){
+  const [deleting,setDeleting]=useState(false),[confirmation,setConfirmation]=useState('');
+  const running=jobs.some(active),disabled=ui.busy||running;
+  const archive=()=>ui.act(async()=>{
+    await api(`projects/${project.id}/${project.archived?'restore':'archive'}`,{});
+    ui.go(project.archived?{page:'workspace',id:project.id,tab:'runs'}:{page:'new'});
+    ui.notify(project.archived?'Workspace restored.':'Workspace archived. Find it under Archived in the sidebar.');
+  });
+  const remove=()=>ui.act(async()=>{
+    const result=await api(`projects/${project.id}/delete`,{confirmation});
+    ui.go({page:'new',cleanupPending:result.cleanup_pending});
+    ui.notify('Workspace deleted. Original samples and other files were kept.');
+  });
+  return <details className="workspace-options"><summary>Workspace options</summary>
+    <p className="muted">Archive keeps all data and run history. You can restore it from the sidebar.</p>
+    {running&&<p className="muted">Stop the active run before archiving or deleting this workspace.</p>}
+    <div className="actions"><button className="button" disabled={disabled} onClick={archive}>{project.archived?'Restore workspace':'Archive workspace'}</button>
+      <button className="button danger" disabled={disabled} onClick={()=>{setDeleting(true);setConfirmation('');}}>Delete workspace…</button></div>
+    {deleting&&<DeleteWorkspace project={project} confirmation={confirmation} setConfirmation={setConfirmation} disabled={disabled} remove={remove} cancel={()=>setDeleting(false)}/>}
+  </details>;
+}
+
+export function DeleteWorkspace({project,confirmation,setConfirmation,disabled,remove,cancel}){
+  return <form className="delete-workspace stack" aria-label="Delete workspace" onSubmit={e=>{e.preventDefault();if(!disabled&&confirmation===project.name)remove();}}>
+    <h3>Delete {project.name}?</h3>
+    <p>This permanently removes this workspace’s LX settings, runs and harnesses. Original samples, other files in the folder and spend records are kept.</p>
+    <label>Type <strong>{project.name}</strong> to confirm<input autoComplete="off" value={confirmation} onChange={e=>setConfirmation(e.target.value)} disabled={disabled}/></label>
+    <div className="actions"><button type="button" className="button" disabled={disabled} onClick={cancel}>Cancel</button>
+      <button type="submit" className="button danger" disabled={disabled||confirmation!==project.name}>Delete workspace permanently</button></div>
+  </form>;
 }
 
 function Samples({project}){

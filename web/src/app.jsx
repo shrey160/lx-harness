@@ -49,6 +49,7 @@ function App(){
     <main className="main">
       {!state&&!error&&<p className="empty">Opening…</p>}
       <PageError key={[view.page,view.id,view.tab,view.section].join('/')}>
+        {view.cleanupPending&&<div className="callout warn" role="alert">The workspace was removed from LX, but some LX files could not be deleted. Close any programs using them, then remove this folder: <code>{view.cleanupPending}</code><p>Original samples and spend records were kept.</p><button className="button" onClick={()=>setView({page:'new'})}>Dismiss</button></div>}
         {state&&view.page==='new'&&<NewWorkspace ui={ui}/>}
         {state&&view.page==='settings'&&<Settings state={state} ui={ui} section={view.section||'providers'}/>}
         {project&&<Workspace key={project.id} state={state} project={project} ui={ui} tab={view.tab||'spec'}/>}

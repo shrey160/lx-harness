@@ -10,13 +10,13 @@ export function RunsTab({project,jobs,ui,setTab}){
   const trial=()=>ui.act(async()=>{const run=await api(`projects/${project.id}/trial`,{});if(run?.id)setOpenId(run.id);});
   const canTry=project.draft.mode==='live'&&project.draft.task;
   const tryHarness=from_run=>ui.act(async()=>{const run=await api(`projects/${project.id}/trial`,{from_run});if(run?.id)setOpenId(run.id);});
-  if(job)return <RunPage project={project} job={job} ui={ui} back={()=>setOpenId(null)} canTry={project.approved&&!busyRun} tryHarness={tryHarness}/>;
+  if(job)return <RunPage project={project} job={job} ui={ui} back={()=>setOpenId(null)} canTry={!project.archived&&project.approved&&!busyRun} tryHarness={tryHarness}/>;
   return <section>
-    <div className="actions">
+    {!project.archived&&<div className="actions">
       <button className="button primary" disabled={ui.busy||!project.approved||busyRun} onClick={start}>{project.draft.mode==='live'?'Start live run':'Start preview'}</button>
       {canTry&&<button className="button" disabled={ui.busy||!project.approved||busyRun} onClick={trial} title="One sample on the base harness, with no loop">Try one sample (up to {money(project.trial_cap_usd)})</button>}
       {!project.approved&&<span className="muted">Approve the <button className="link" onClick={()=>setTab('spec')}>spec</button> first.</span>}
-    </div>
+    </div>}
     {jobs.length?<div className="table-wrap"><table className="table rows">
       <thead><tr><th>Started</th><th>Version</th><th>Kind</th><th>Worker</th><th>Status</th><th>Score</th><th>Cost</th></tr></thead>
       <tbody>{jobs.map(run=><tr key={run.id} onClick={()=>setOpenId(run.id)}>
@@ -45,8 +45,8 @@ export function RunPage({project,job,ui,back,canTry,tryHarness}){
     </div>}
     <div className="actions">
       {active(job)&&<button className="button danger" onClick={()=>post('stop')}>Stop</button>}
-      {resumable(job)&&<button className="button" disabled={ui.busy} onClick={()=>post('resume')}>Resume</button>}
-      {job.status==='failed'&&job.spec.task&&job.kind!=='trial'&&<button className="button" disabled={ui.busy} onClick={()=>post('regrade')}>Grade saved answers</button>}
+      {!project.archived&&resumable(job)&&<button className="button" disabled={ui.busy} onClick={()=>post('resume')}>Resume</button>}
+      {!project.archived&&job.status==='failed'&&job.spec.task&&job.kind!=='trial'&&<button className="button" disabled={ui.busy} onClick={()=>post('regrade')}>Grade saved answers</button>}
     </div>
     {job.spec.task&&<div className="tabs" role="tablist">{[['overview','Overview'],['trajectories','Trajectories']].map(([id,label])=><button key={id} role="tab" aria-selected={view===id} className={view===id?'current':''} onClick={()=>setView(id)}>{label}</button>)}</div>}
     {view==='trajectories'&&job.spec.task?<Trajectories project={project} job={job}/>:<>
@@ -136,7 +136,7 @@ function Result({project,job,ui,post,live,canTry,tryHarness}){
       <a className="button primary" href={`/api/packages/${project.id}/${job.id}/download`} download="harness-package.zip">Download package</a>
       {result.task&&<a className="button" href={`/api/trajectories/${project.id}/${job.id}/download`} download="trajectories.zip" title="Every agent run's trace, for fine-tuning. These can hold your data, and no answers.">Download trajectories</a>}
       {live&&result.task&&!result.package_is_base&&<button className="button" disabled={ui.busy||!canTry} onClick={()=>tryHarness(job.id)} title="One sample on this package, with no loop. Needs the current spec approved.">Try this harness on one sample (up to {money(project.trial_cap_usd)})</button>}
-      {!result.task&&<button className="button" disabled={ui.busy} onClick={()=>post('fresh')}>Try a new scene</button>}
+      {!project.archived&&!result.task&&<button className="button" disabled={ui.busy} onClick={()=>post('fresh')}>Try a new scene</button>}
     </div>
     {result.base_sha256&&<p className="muted">Started from the stock harness, with nothing learned from earlier runs (<code>{result.base_sha256.slice(0,12)}</code>).</p>}
     <p className="muted">The package holds the approved spec, the harness and the check results; a task package adds its check file and limitations.</p>
