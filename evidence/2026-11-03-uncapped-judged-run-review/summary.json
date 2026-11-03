@@ -1,0 +1,211 @@
+{
+  "run_id": "5a2e37184043",
+  "review_date": "2026-11-03",
+  "source_order": [
+    "sample-01",
+    "sample-02"
+  ],
+  "deterministic_base": 0.9375,
+  "deterministic_after": 0.5,
+  "combined_base": 0.9230769230769231,
+  "combined_after": 0.6538461538461539,
+  "cost_usd": 0.04979184,
+  "judge_cost_usd": 0.0008782,
+  "settled_calls": 133,
+  "held_calls": 0,
+  "audios": [
+    {
+      "internal_sample": "sample-01",
+      "source_folder": "sample-02",
+      "duration_seconds": 19.456,
+      "matches_snapshot": true,
+      "sha256": "c9e187535bc27ed1fe6e4928aed7dd2d1cd6e8414b72e31b9130ee91b52c3fb9"
+    },
+    {
+      "internal_sample": "sample-02",
+      "source_folder": "sample-01",
+      "duration_seconds": 19.11466666666667,
+      "matches_snapshot": true,
+      "sha256": "c2cc68db734fc1da1222a7204826fae8c1e225d3d0035daa1d6424e5b794cc1c"
+    }
+  ],
+  "executions": [
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "base1",
+      "passed": 7,
+      "checks": 8,
+      "failed_checks": [
+        "updated quantity"
+      ],
+      "tool_calls": [
+        "transcribe",
+        "view",
+        "view",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 5012,
+      "stopped": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-agg1/sample-01/base1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-02",
+      "stage": "base1",
+      "passed": 8,
+      "checks": 8,
+      "failed_checks": [],
+      "tool_calls": [
+        "view",
+        "transcribe",
+        "view",
+        "segment",
+        "view",
+        "segment"
+      ],
+      "max_reply_tokens": 7644,
+      "stopped": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-agg1/sample-02/base1"
+    },
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "c1",
+      "passed": 8,
+      "checks": 8,
+      "failed_checks": [],
+      "tool_calls": [
+        "load_skill",
+        "transcribe",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 6596,
+      "stopped": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-01/c1"
+    },
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "dom1",
+      "passed": 8,
+      "checks": 8,
+      "failed_checks": [],
+      "tool_calls": [
+        "load_skill",
+        "view",
+        "view",
+        "segment",
+        "transcribe",
+        "segment"
+      ],
+      "max_reply_tokens": 14014,
+      "stopped": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-01/dom1"
+    },
+    {
+      "source_folder": "sample-02",
+      "internal_sample": "sample-01",
+      "stage": "inv1",
+      "passed": 8,
+      "checks": 8,
+      "failed_checks": [],
+      "tool_calls": [
+        "transcribe",
+        "view",
+        "view",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 9280,
+      "stopped": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-01/inv1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-02",
+      "stage": "c1",
+      "passed": 0,
+      "checks": 8,
+      "failed_checks": [
+        "changed item",
+        "signed change",
+        "updated quantity",
+        "unchanged stock",
+        "unit prices",
+        "cash movement",
+        "ending account",
+        "object evidence"
+      ],
+      "tool_calls": [
+        "transcribe",
+        "view"
+      ],
+      "max_reply_tokens": 5927,
+      "stopped": [],
+      "input_matches_snapshot": true,
+      "answer_type": "str",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-02/c1",
+      "json_parse_error": "Expecting ',' delimiter: line 11 column 55 (char 328)"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-02",
+      "stage": "dom1",
+      "passed": 6,
+      "checks": 8,
+      "failed_checks": [
+        "cash movement",
+        "ending account"
+      ],
+      "tool_calls": [
+        "load_skill",
+        "transcribe",
+        "view",
+        "view",
+        "segment",
+        "segment"
+      ],
+      "max_reply_tokens": 5570,
+      "stopped": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-02/dom1"
+    },
+    {
+      "source_folder": "sample-01",
+      "internal_sample": "sample-02",
+      "stage": "inv1",
+      "passed": 0,
+      "checks": 8,
+      "failed_checks": [
+        "changed item",
+        "signed change",
+        "updated quantity",
+        "unchanged stock",
+        "unit prices",
+        "cash movement",
+        "ending account",
+        "object evidence"
+      ],
+      "tool_calls": [],
+      "max_reply_tokens": 1158,
+      "stopped": [],
+      "input_matches_snapshot": true,
+      "answer_type": "dict",
+      "artifact": "outputs/runs/executions/lx_inventory_update-oc-seq1/sample-02/inv1"
+    }
+  ]
+}

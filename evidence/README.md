@@ -9,6 +9,7 @@ anything about a model.
 
 | Folder (dates in 2026) | What it holds | Kind |
 |---|---|---|
+| [11-03-uncapped-judged-run-review](2026-11-03-uncapped-judged-run-review/README.md) | Eight trajectories: audio present, tool/JSON failures, wrong learned cash sign, judge false positive | Live review |
 | `10-28-product-gates` | Product gate tests | Offline |
 | `10-28-app-preview` | App preview, core regression and browser check | Preview |
 | `10-28-live-gate` | S1 live JSON spike: correct result | Live |
