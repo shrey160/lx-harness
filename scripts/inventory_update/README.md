@@ -1,4 +1,42 @@
-# Inventory and cash updates: two samples
+# Inventory and cash datasets
+
+The latest three-sample variant is built by `expand.py`. It preserves the
+original two-sample dataset and creates `.lx/inventory-update-three/`:
+
+| Sample | Photos | Transaction | Expected stock / cash |
+|---|---:|---|---|
+| 01 | Original two + user31132 (scissors/two cups) | Buy all7 cups | 11 cups /32.50 USD |
+| 02 | Original two + user31133 (chocolate/two bottled drinks) | Sell all5 bottles | 5 bottles /41.25 USD |
+| 03 | User31130 (stationery),31131 (cutlery) | Cancel pencil restock; sell2 forks | 4 forks /44.50 USD |
+
+The third conversational note changes its mind about the item, so an executor
+must preserve the cancelled pencils and unrelated spoons. No audio names a
+count, JSON field or tool. These are constructed transactions and USD prices,
+not statements about the real photographs' purchase history or printed prices.
+Every inventory key has a price. Earphones are one set. User photos are rotated
+upright, resized to768x1024 and stripped of metadata; source pixels are not
+cropped or synthesized. Original files and prior LX runs remain unchanged.
+
+Rebuild from the repository root, supplying the four original photos:
+
+```powershell
+python scripts/inventory_update/expand.py build --photos-dir PATH_TO_PHOTOS
+python scripts/inventory_update/expand.py voice
+python scripts/inventory_update/expand.py review
+python scripts/inventory_update/expand.py verify
+python scripts/inventory_update/expand.py pack
+```
+
+Use `--root` for a fresh output folder and `--source` for the original JSON
+dataset. The builder refuses existing samples. Voice uses the same offline
+Kokoro installation as the original builder. Review HTML includes audio,
+annotated photos and expected answers; the ZIP excludes runtime state.
+`truth.json` may now carry controller-only `photo_sizes` so the standalone
+check validates actual portrait dimensions and photo3. The six-field answer
+stays the same; legacy truths default to two1024x768 photos. Old approved
+snapshots keep their own check files and are not rewritten.
+
+## Original two-sample variant
 
 Two small photo/audio transactions for the local LFM3-VL-2B worker. A stock
 clerk receives an inventory with unit prices and a cash balance as direct JSON, two photos of

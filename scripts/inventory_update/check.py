@@ -25,15 +25,24 @@ def iou(a, b):
     return overlap / (area(a) + area(b) - overlap)
 
 
-def valid_boxes(entries):
+def photo_sizes(truth):
+    sizes = truth.get("photo_sizes", [[1024, 768], [1024, 768]])
+    assert type(sizes) is list and 2 <= len(sizes) <= 7
+    assert all(type(s) is list and len(s) == 2 and all(type(v) is int and 0 < v <= 8192 for v in s) for s in sizes)
+    return sizes
+
+
+def valid_boxes(entries, sizes=None):
+    sizes = [[1024, 768], [1024, 768]] if sizes is None else sizes
     if type(entries) is not list:
         return False
     for e in entries:
-        if type(e) is not dict or set(e) != {"photo", "box"} or type(e["photo"]) is not int or e["photo"] not in (1, 2):
+        if type(e) is not dict or set(e) != {"photo", "box"} or type(e["photo"]) is not int or not 1 <= e["photo"] <= len(sizes):
             return False
+        width, height = sizes[e["photo"] - 1]
         b = e["box"]
         if (type(b) is not list or len(b) != 4 or any(type(v) not in (int, float) or not math.isfinite(v) for v in b)
-                or not (0 <= b[0] <= b[2] < 1024 and 0 <= b[1] <= b[3] < 768)):
+                or not (0 <= b[0] <= b[2] < width and 0 <= b[1] <= b[3] < height)):
             return False
     return True
 
@@ -55,11 +64,11 @@ def boxes_match(given, want):
 
 
 def example_answer(truth):
-    assert type(truth) is dict and set(truth) == {"before", "prices", "balance", "item", "change", "evidence"}
+    assert type(truth) is dict and set(truth) - {"photo_sizes"} == {"before", "prices", "balance", "item", "change", "evidence"}
     before, item, change = truth["before"], truth["item"], truth["change"]
     assert type(before) is dict and all(type(k) is str and type(v) is int and v >= 0 for k, v in before.items())
     assert item in before and type(change) is int and change != 0
-    assert valid_boxes(truth["evidence"]) and abs(change) == len(truth["evidence"])
+    assert valid_boxes(truth["evidence"], photo_sizes(truth)) and abs(change) == len(truth["evidence"])
     assert set(truth["prices"]) == set(before) and all(cents(p) is not None and cents(p) > 0 for p in truth["prices"].values())
     assert cents(truth["balance"]) is not None and cents(truth["balance"]) >= 0
     inventory = {k: {"quantity": v, "unit_price": truth["prices"][k]} for k, v in before.items()}
@@ -81,7 +90,7 @@ def evaluate(truth, answer):
               and cents(answer["cash_change"]) is not None and type(answer["account"]) is dict
               and set(answer["account"]) == {"currency", "balance"} and type(answer["account"]["currency"]) is str
               and cents(answer["account"]["balance"]) is not None and answer["account"]["balance"] >= 0
-              and valid_boxes(answer["evidence"]))
+              and valid_boxes(answer["evidence"], photo_sizes(truth)))
     flags = [False] * len(NAMES)
     if schema:
         same_item = answer["item"] == want["item"]
