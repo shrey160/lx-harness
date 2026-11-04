@@ -7,7 +7,7 @@ stay fixed. LX records the executions, changes, checks, errors and usage so you 
 understand what happened and decide what to reuse. Scores can improve or decline;
 a finished run is evidence, not a guarantee of a better harness.
 
-**Demo:** [Watch LX on YouTube](https://youtu.be/bb_UPxmaFlw)
+[![Demo](https://img.shields.io/badge/Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/YcyyPwPcKYc)
 
 The usual workflow is:
 
