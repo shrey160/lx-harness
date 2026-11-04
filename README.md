@@ -15,6 +15,22 @@ through MCP → prepare a task → run within your budget → inspect results.**
 You can also work directly in the Web UI or CLI. Your external agent uses its own
 model as orchestrator; LX supplies the configured worker, improver and task tools.
 
+## How LX helps
+
+Building reliable agents requires testing how they work, understanding failures
+and deciding which changes are worth keeping. LX gives agents a platform for
+that experimentation.
+
+Provide sample inputs, a goal and an output contract. LX runs an automatic harness
+loop and records the attempts, prompt and skill changes, tool calls, checks,
+errors and usage. Agents and developers can inspect this evidence to understand
+what failed, assess proposed changes and build better harnesses while model
+weights stay fixed.
+
+A useful experiment can reveal a failure, an ineffective change or a successful
+approach. Improvement is something to investigate and validate—not something
+every run guarantees.
+
 ## 1. Install inside your project
 
 Install [Git](https://git-scm.com/downloads),
@@ -170,6 +186,24 @@ Use the included helper to copy the example or make a standalone ZIP; no origina
 media collection or speech generator is needed. Offline checks make no provider
 calls. Real photo/audio execution needs configured providers/tools and a requested
 run; the built-in synthetic preview remains the free end-to-end wiring check.
+
+## Development and roadmap
+
+LX is actively evolving. Future development will expand the kinds of agents,
+tasks and environments it can support. Planned directions include:
+
+- **Subagent support:** delegation and coordination across multiple agents.
+- **Extended connectivity:** more integrations with agent clients, providers and
+  development workflows.
+- **Better sandboxing:** stronger isolation and more flexible, reproducible
+  execution environments.
+- **Broader tooling and task support:** tools and environments for testing a wider
+  range of tasks.
+- **Richer experiment exports:** portable packages bringing together harnesses,
+  inputs, outcomes, trajectories and findings.
+
+These are development directions; availability and scope will evolve as features
+are implemented and tested.
 
 ## Current limits and evidence
 
