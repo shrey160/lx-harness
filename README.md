@@ -58,6 +58,43 @@ fine-tuning. The run page's **Download trajectories** option exports recorded
 agent interactions and tool use. Review, filter and convert these raw traces
 into your chosen training format, then fine-tune with your training framework.
 
+## Architecture
+
+LX manages setup, connections, run controls and evidence. Harness2 executes the
+refinement loop using LX's model/tool connections. Optional evaluations run in LX
+after the loop.
+
+```mermaid
+flowchart TD
+    A["You or your coding agent"] -->|"Web UI, CLI or MCP"| Entry
+
+    subgraph LX["LX application"]
+        Entry["Connect and manage workspaces"]
+        Setup["Define the task<br/>Samples, goal and output format"]
+        Config["Configure worker, improver<br/>and external tools"]
+        Approval["Check budgets, permissions<br/>and run approval"]
+        Run["Start and monitor execution"]
+        Services["Model and tool connections"]
+        Results["Save answers, trajectories,<br/>edits, token usage and costs"]
+        Eval["Optional checks and LLM judge<br/>After the loop"]
+        Review["Review results and download<br/>harness package and trajectories"]
+
+        Entry --> Setup --> Config --> Approval --> Run
+        Config --> Services
+        Results --> Review
+        Results --> Eval --> Review
+    end
+
+    Inputs["Text, photos, audio and JSON"] --> Setup
+    Run --> Core["Harness2 core<br/>Execute the refinement loop"]
+    Core <-->|"Through LX adapters"| Services
+    Providers["Local or hosted models<br/>SAM, Transcribe and MCP tools"] <--> Services
+    Core --> Results
+```
+
+Evaluation scores report outcomes; they do not choose the retained harness.
+See the [architecture guide](docs/architecture.md) for the implementation boundaries.
+
 ## 1. Install inside your project
 
 Install [Git](https://git-scm.com/downloads),
