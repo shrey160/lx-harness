@@ -9,6 +9,7 @@ anything about a model.
 
 | Folder (dates in 2026) | What it holds | Kind |
 |---|---|---|
+| [11-04-fresh-install](2026-11-04-fresh-install/README.md) | Fresh public clones on Windows and Ubuntu WSL2: install, UI/MCP, six-sample previews, restart persistence and separate example preparation | Fresh checkout / Preview |
 | [11-04-example-data](2026-11-04-example-data/README.md) | Bundled three-sample inventory dataset, agent runbook, offline copy/ZIP checks and fresh stdio MCP preparation | Offline |
 | [11-03-delete-with-unsettled-calls](2026-11-03-delete-with-unsettled-calls/README.md) | Delete immediately despite pending billing; keep ledgers and later Usage reconciliation | Offline / UI |
 | [11-03-agent-workspace-deletion](2026-11-03-agent-workspace-deletion/README.md) | Default-off person-controlled agent deletion, MCP/CLI action, one-click user deletion | Offline / UI |

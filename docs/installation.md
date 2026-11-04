@@ -20,6 +20,11 @@ architectures have not been established by the recorded checks. Building require
 internet access for pinned dependencies. Running checks/scripts uses an isolated,
 offline sandbox; hosted model/tool calls are made by the controller separately.
 
+[Fresh public-clone verification, 4 November 2026](../evidence/2026-11-04-fresh-install/README.md)
+passes on native Windows 11 and Ubuntu 24.04 WSL2, through UI/MCP setup, synthetic
+preview completion and restart persistence. This used an existing host and is
+not evidence of clean-OS prerequisite installation or bare Linux support.
+
 ## Clone inside the host project
 
 From the existing repository in which you want to use LX:
@@ -88,6 +93,11 @@ previous Linux execution evidence comes from Ubuntu under WSL2.
 Windows and WSL use separate user state and credentials. Keep UI and MCP in the
 same OS environment for a shared setup. A headless Linux install without a usable
 keychain needs a filesystem that can enforce owner-only secret-file permissions.
+
+Under WSL, check `command -v uv`, `command -v node` and `command -v npm` in the
+Linux shell. Windows npm on an inherited `/mnt/c/...` path does not establish a
+Linux-native Node installation. Install the Linux prerequisites before using the
+Linux commands; keep each OS's dependencies and virtual environment separate.
 
 ## Verify and connect
 
@@ -158,6 +168,7 @@ and a requested run; it cannot use the built-in synthetic preview doubles.
 | Keys/settings differ between UI and agent | Match installation, interpreter, OS user and state root |
 | No tools or stale tools in the client | Re-copy Connectivity setup and reconnect; verify an actual `status` call |
 | Port 8765 is occupied | Use another `--port` and open that URL; do not kill an unrelated process |
+| Cannot publish snapshot destination on Windows | Inspect Runs or `run_status` first. If no job was created and inputs are unchanged, retry once. Preserve evidence and investigate if it repeats; do not duplicate an existing job |
 | Paths contain spaces | Quote shell paths; keep client command and argument array separate. Prefer the UI-generated setup |
 
 See [configuration](configuration.md), [agent MCP](agent-mcp.md) and the dated

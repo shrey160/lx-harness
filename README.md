@@ -185,7 +185,10 @@ run; the built-in synthetic preview remains the free end-to-end wiring check.
   Unsettled calls remain visible for later person-only billing resolution.
 - This README describes the local source revision checked in
   [documentation validation](docs/documentation-validation.md), including the
-  published product/core revisions and remaining clean-install verification.
+  published product/core revisions. The later
+  [fresh-clone rehearsal](evidence/2026-11-04-fresh-install/README.md) passes on
+  Windows and Ubuntu WSL2; clean-OS prerequisites, bare Linux and real-provider
+  validation remain unverified by that rehearsal.
   Historical experiment results are indexed in [evidence](evidence/README.md);
   immutable reviews retain the assumptions of their date.
 

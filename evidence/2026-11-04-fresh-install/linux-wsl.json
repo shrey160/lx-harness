@@ -1,0 +1,94 @@
+{
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "python": "3.12.15",
+  "packages": {
+    "lx-harness": "0.1.0",
+    "h2portable": "0.1.0",
+    "harness2-cli": "0.1.0",
+    "mcp": "2.3.0",
+    "pillow": "11.3.0"
+  },
+  "fresh_ui_state_shared": true,
+  "generated_interpreter_and_root_match": true,
+  "mcp_transport": "fresh SDK stdio client",
+  "registered_tools": 23,
+  "scratch_root_live_disabled": true,
+  "provider_key_present": false,
+  "sam_disabled_seen_from_ui": true,
+  "sandbox": {
+    "backend": "linux-namespace",
+    "image": null,
+    "network": false,
+    "script_seconds": 20,
+    "script_chars": 20000,
+    "output_chars": 20000,
+    "input_chars": 2000000
+  },
+  "check_self_test": {
+    "samples": 6,
+    "checks_per_sample": 8,
+    "cases": 66,
+    "blank_score": 0.125,
+    "wrong_score": 0.25,
+    "weaknesses": []
+  },
+  "run": {
+    "id": "01907f576b3b",
+    "status": "completed",
+    "mode": "controlled_preview",
+    "progress": {
+      "done": 6,
+      "total": 6
+    },
+    "simulated_cost": true,
+    "cost_usd": 0.0018952
+  },
+  "means": {
+    "base": 0.75,
+    "harness2": 1.0
+  },
+  "result_fields": [
+    "base_sha256",
+    "checks",
+    "files_added",
+    "grading",
+    "learned",
+    "live",
+    "means",
+    "not_graded",
+    "package_is_base",
+    "package_sample",
+    "package_version",
+    "reply_files",
+    "samples",
+    "scored",
+    "scores",
+    "simulated_usage",
+    "skipped",
+    "stream_order",
+    "task",
+    "usage",
+    "usage_basis"
+  ],
+  "learned_text_present": true,
+  "edits_available": true,
+  "downloads": {
+    "package": {
+      "files": 12,
+      "bytes": 5969
+    },
+    "trajectories": {
+      "files": 24,
+      "bytes": 14631
+    }
+  },
+  "real_spend_usd": "0",
+  "real_reserved_usd": "0",
+  "provider_calls": 0,
+  "restart": {
+    "tool_setting_persisted": true,
+    "workspace_persisted": true,
+    "completed_run_persisted": true,
+    "fresh_mcp_reconnected": true
+  }
+}

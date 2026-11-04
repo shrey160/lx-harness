@@ -12,6 +12,9 @@ Ready-to-copy test tasks are in [Example datasets](../examples/README.md), start
 with the [three-sample inventory/cash example](../examples/inventory-cash-three/README.md)
 and its installing-agent runbook.
 
+[Fresh-clone installation evidence](../evidence/2026-11-04-fresh-install/README.md)
+records Windows/Ubuntu WSL2 setup, UI/MCP, synthetic previews and restart checks.
+
 | File | Purpose |
 |---|---|
 | [installation.md](installation.md) | Windows/Linux prerequisites, nested clones, separate core, launch, updates and troubleshooting |
