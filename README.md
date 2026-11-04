@@ -90,6 +90,9 @@ flowchart TD
     Core <-->|"Through LX adapters"| Services
     Providers["Local or hosted models<br/>SAM, Transcribe and MCP tools"] <--> Services
     Core --> Results
+
+    style LX fill:transparent,stroke:#8b949e,stroke-width:2px
+    linkStyle default stroke:#388bfd,stroke-width:2px
 ```
 
 Evaluation scores report outcomes; they do not choose the retained harness.
