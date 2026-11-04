@@ -7,6 +7,8 @@ stay fixed. LX records the executions, changes, checks, errors and usage so you 
 understand what happened and decide what to reuse. Scores can improve or decline;
 a finished run is evidence, not a guarantee of a better harness.
 
+**Demo:** [Watch LX on YouTube](https://youtu.be/bb_UPxmaFlw)
+
 The usual workflow is:
 
 **Clone inside your project → configure LX in the Web UI → connect your agent
