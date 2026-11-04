@@ -1,0 +1,24 @@
+{
+  "inventory": {
+    "cup": {
+      "quantity": 4,
+      "unit_price": 2.5
+    },
+    "bottle": {
+      "quantity": 6,
+      "unit_price": 4.0
+    },
+    "bowl": {
+      "quantity": 8,
+      "unit_price": 6.0
+    },
+    "scissors": {
+      "quantity": 3,
+      "unit_price": 4.25
+    }
+  },
+  "account": {
+    "currency": "USD",
+    "balance": 50.0
+  }
+}

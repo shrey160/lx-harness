@@ -1,0 +1,227 @@
+{
+  "source": "Four existing synthetic COCO scenes plus four user-supplied photographs",
+  "existing_coco_sources": [
+    {
+      "sample": "sample-01",
+      "photo": 1,
+      "ann_id": 1510784,
+      "image_id": 322125,
+      "file_name": "000000322125.jpg",
+      "kind": "cup",
+      "license": "Attribution License",
+      "flickr_url": "http://farm3.staticflickr.com/2594/3757920811_bbd629aa88_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000322125.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=3757920811",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-01",
+      "photo": 1,
+      "ann_id": 91452,
+      "image_id": 158498,
+      "file_name": "000000158498.jpg",
+      "kind": "bottle",
+      "license": "Attribution License",
+      "flickr_url": "http://farm4.staticflickr.com/3206/2967497897_12bf104b34_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000158498.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=2967497897",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-01",
+      "photo": 1,
+      "ann_id": 670581,
+      "image_id": 257941,
+      "file_name": "000000257941.jpg",
+      "kind": "cup",
+      "license": "Attribution License",
+      "flickr_url": "http://farm9.staticflickr.com/8306/7857283620_cf352d3455_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000257941.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=7857283620",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-01",
+      "photo": 2,
+      "ann_id": 674082,
+      "image_id": 371873,
+      "file_name": "000000371873.jpg",
+      "kind": "cup",
+      "license": "Attribution License",
+      "flickr_url": "http://farm3.staticflickr.com/2475/3926739165_bf6ba0e502_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000371873.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=3926739165",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-01",
+      "photo": 2,
+      "ann_id": 670413,
+      "image_id": 396608,
+      "file_name": "000000396608.jpg",
+      "kind": "cup",
+      "license": "Attribution License",
+      "flickr_url": "http://farm9.staticflickr.com/8245/8654786106_fe34dc37fc_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000396608.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=8654786106",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-01",
+      "photo": 2,
+      "ann_id": 1534460,
+      "image_id": 568788,
+      "file_name": "000000568788.jpg",
+      "kind": "bowl",
+      "license": "Attribution License",
+      "flickr_url": "http://farm2.staticflickr.com/1367/967049911_2b78eac663_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000568788.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=967049911",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-01",
+      "photo": 2,
+      "ann_id": 673487,
+      "image_id": 336762,
+      "file_name": "000000336762.jpg",
+      "kind": "cup",
+      "license": "Attribution License",
+      "flickr_url": "http://farm1.staticflickr.com/87/211104439_d51d3ff3f3_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000336762.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=211104439",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-02",
+      "photo": 1,
+      "ann_id": 669699,
+      "image_id": 419942,
+      "file_name": "000000419942.jpg",
+      "kind": "cup",
+      "license": "Attribution License",
+      "flickr_url": "http://farm9.staticflickr.com/8252/8618024298_8fda97b807_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000419942.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=8618024298",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-02",
+      "photo": 1,
+      "ann_id": 1484906,
+      "image_id": 214618,
+      "file_name": "000000214618.jpg",
+      "kind": "bottle",
+      "license": "Attribution License",
+      "flickr_url": "http://farm6.staticflickr.com/5483/9053517233_463ec1f114_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000214618.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=9053517233",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-02",
+      "photo": 2,
+      "ann_id": 1871286,
+      "image_id": 388031,
+      "file_name": "000000388031.jpg",
+      "kind": "bottle",
+      "license": "Attribution License",
+      "flickr_url": "http://farm2.staticflickr.com/1335/5133611496_c995d7e789_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000388031.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=5133611496",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-02",
+      "photo": 2,
+      "ann_id": 1533723,
+      "image_id": 571804,
+      "file_name": "000000571804.jpg",
+      "kind": "bowl",
+      "license": "Attribution License",
+      "flickr_url": "http://farm7.staticflickr.com/6075/6155496426_d035b57a3f_z.jpg",
+      "coco_url": "http://images.cocodataset.org/val2017/000000571804.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=6155496426",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    },
+    {
+      "sample": "sample-02",
+      "photo": 2,
+      "ann_id": 79162,
+      "image_id": 86282,
+      "file_name": "000000086282.jpg",
+      "kind": "bottle",
+      "license": "Attribution License",
+      "flickr_url": "http://farm6.staticflickr.com/5086/5349666143_871d556f21_z.jpg",
+      "coco_url": "http://images.cocodataset.org/train2017/000000086282.jpg",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "source_page": "https://www.flickr.com/photo.gne?id=5349666143",
+      "modification": "Object polygon cutout, resized and composited onto a generated background; no source photo is reproduced in full."
+    }
+  ],
+  "user_photos": [
+    {
+      "sample": "sample-01",
+      "photo": 3,
+      "filename": "31132.jpg",
+      "source_sha256": "16c9c9aa521a8946f1029fc93bb595f394f929595e5221b303bf851ca0014ae0",
+      "processing": "EXIF orientation applied, resized to768x1024, metadata removed; no crop or content synthesis",
+      "annotation": "Manual visible-object boxes on normalized image; shadows excluded"
+    },
+    {
+      "sample": "sample-02",
+      "photo": 3,
+      "filename": "31133.jpg",
+      "source_sha256": "75069556c738a78efde1b4daad7094fe9bd9d0228f9ead2d82fc4d13aedc0bfe",
+      "processing": "EXIF orientation applied, resized to768x1024, metadata removed; no crop or content synthesis",
+      "annotation": "Manual visible-object boxes on normalized image; shadows excluded"
+    },
+    {
+      "sample": "sample-03",
+      "photo": 1,
+      "filename": "31130.jpg",
+      "source_sha256": "452b1442778a80a4f081af7f73cbf9472f12f60bcfdd0768b45778fb658d7496",
+      "processing": "EXIF orientation applied, resized to768x1024, metadata removed; no crop or content synthesis",
+      "annotation": "Manual visible-object boxes on normalized image; shadows excluded"
+    },
+    {
+      "sample": "sample-03",
+      "photo": 2,
+      "filename": "31131.jpg",
+      "source_sha256": "687af43470acb7b78c55fdc321675d94723236e44200436fd92192aad0582914",
+      "processing": "EXIF orientation applied, resized to768x1024, metadata removed; no crop or content synthesis",
+      "annotation": "Manual visible-object boxes on normalized image; shadows excluded"
+    }
+  ],
+  "prices": "Constructed USD transaction prices from input.json; packaging labels are unrelated.",
+  "audio": {
+    "generator": "Kokoro v1.0 (int8 ONNX), generated offline on 2026-11-03",
+    "model_url": "https://huggingface.co/hexgrad/Kokoro-82M",
+    "model_license": "Apache-2.0",
+    "voices": {
+      "sample-01": "af_sarah",
+      "sample-02": "am_adam",
+      "sample-03": "af_sarah"
+    },
+    "format": "mono PCM16, 24000 Hz",
+    "scripts": "reviewer/voice-scripts.json",
+    "human_recording": false
+  },
+  "dataset_origin": {
+    "prepared": "2026-11-03",
+    "builder_revision": "560cbd2",
+    "historical_run": "0f64c549d33c",
+    "note": "Exact reviewed photos/audio/starting JSON/truth/task/check copied without re-encoding. No runtime state or prior approvals included."
+  }
+}

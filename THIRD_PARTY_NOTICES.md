@@ -22,6 +22,11 @@ does not require the benchmark plugin.
 
 ## Dependencies and external material
 
+The bundled [three-sample inventory example](examples/inventory-cash-three/MEDIA.md)
+contains COCO-derived CC BY 2.0 cutouts, user-supplied photographs and synthetic
+Kokoro speech. Its asset notices and attribution remain with the dataset; the
+root code license does not relicense all media.
+
 Python and frontend dependencies retain their own licenses. Dependency versions
 are recorded in [pyproject.toml](pyproject.toml), [uv.lock](uv.lock),
 [web/package.json](web/package.json) and [web/package-lock.json](web/package-lock.json).

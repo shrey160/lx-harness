@@ -8,6 +8,10 @@ behavior supersedes their assumptions.
 
 ## Current guides
 
+Ready-to-copy test tasks are in [Example datasets](../examples/README.md), starting
+with the [three-sample inventory/cash example](../examples/inventory-cash-three/README.md)
+and its installing-agent runbook.
+
 | File | Purpose |
 |---|---|
 | [installation.md](installation.md) | Windows/Linux prerequisites, nested clones, separate core, launch, updates and troubleshooting |

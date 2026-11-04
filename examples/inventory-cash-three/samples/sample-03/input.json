@@ -1,0 +1,28 @@
+{
+  "inventory": {
+    "earphones": {
+      "quantity": 3,
+      "unit_price": 12.0
+    },
+    "glue_stick": {
+      "quantity": 5,
+      "unit_price": 1.25
+    },
+    "pencil": {
+      "quantity": 8,
+      "unit_price": 0.75
+    },
+    "spoon": {
+      "quantity": 9,
+      "unit_price": 1.5
+    },
+    "fork": {
+      "quantity": 6,
+      "unit_price": 2.25
+    }
+  },
+  "account": {
+    "currency": "USD",
+    "balance": 40.0
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "offline": {
+    "example": "inventory-cash-three",
+    "version": 1,
+    "files": 29,
+    "samples": 3,
+    "photos": 8,
+    "audio_clips": 3,
+    "correct_cases": 6,
+    "negative_cases": 45,
+    "provider_calls": 0
+  },
+  "mcp": {
+    "transport": "fresh stdio SDK client",
+    "live_disabled_by_scratch_root": true,
+    "sample_files": 17,
+    "task_loaded": true,
+    "input_json_read_matches": true,
+    "truth_read_refused": true,
+    "sandbox": {
+      "backend": "docker",
+      "image": "lx-sandbox:pillow-11.3.0",
+      "network": false,
+      "script_seconds": 20,
+      "script_chars": 20000,
+      "output_chars": 20000,
+      "input_chars": 2000000
+    },
+    "self_test": {
+      "samples": 3,
+      "checks_per_sample": 8,
+      "cases": 33,
+      "blank_score": 0.0,
+      "wrong_score": 0.0,
+      "weaknesses": []
+    },
+    "ready": true,
+    "blocked": null,
+    "data_problems": [],
+    "eval_drift": [],
+    "hint_drift": [],
+    "approved": false,
+    "runs": 0,
+    "spent_usd": "0"
+  },
+  "manifest_sha256": "3f4321da1e943ad7544dff0fc2d5ffa32c64cb0f3d2a69c2cc3958a4d10424c3"
+}

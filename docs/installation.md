@@ -115,6 +115,13 @@ CLI smoke checks, using the same interpreter as the UI:
 For installed command names, use `.venv-win\Scripts\lx.exe` on Windows or
 `.venv/bin/lx` on Linux. No global `lx` installation is required.
 
+For a concrete test after setup, use the packaged
+[three-sample inventory/cash dataset](../examples/inventory-cash-three/README.md).
+Its [agent runbook](../examples/inventory-cash-three/AGENT.md) explains offline
+verification, copying into a separate task folder, loading the custom task/check
+and testing LX readiness. Live photo/audio execution requires configured providers
+and a requested run; it cannot use the built-in synthetic preview doubles.
+
 ## Stop, restart, update and move
 
 - **Stop a run:** use its UI Stop control or MCP `run_stop`. Spend already incurred

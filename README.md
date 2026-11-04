@@ -157,6 +157,20 @@ learned changes between samples within that run. A trial can explicitly use a
 finished run's package or a saved sample's adopted harness. One trial is a smoke
 test, not proof of transfer or improvement. [Complete user/agent workflow](docs/agent-workflow.md).
 
+## Example datasets
+
+[Example datasets](examples/README.md) contains ready-to-copy tasks for testing an
+installation. Start with [Inventory and cash: three samples](examples/inventory-cash-three/README.md):
+eight photos, conversational voice notes, starting inventory JSON and an independent
+checker. The third request corrects an earlier instruction. Its
+[agent runbook](examples/inventory-cash-three/AGENT.md) covers offline verification,
+a fresh workspace, MCP setup and an explicitly requested live test.
+
+Use the included helper to copy the example or make a standalone ZIP; no original
+media collection or speech generator is needed. Offline checks make no provider
+calls. Real photo/audio execution needs configured providers/tools and a requested
+run; the built-in synthetic preview remains the free end-to-end wiring check.
+
 ## Current limits and evidence
 
 - Two general templates ship; tasks outside their input/runtime contracts need
@@ -194,6 +208,7 @@ including an EU-use restriction. See [third-party notices](THIRD_PARTY_NOTICES.m
 | Connect an agent and use the MCP API | [Agent-facing MCP](docs/agent-mcp.md) |
 | Human/agent responsibilities and a worked workflow | [Agent workflow](docs/agent-workflow.md) |
 | Sample formats, checks and model judges | [Writing a task](docs/tasks.md) |
+| Ready-to-copy test data and installing-agent instructions | [Example datasets](examples/README.md) |
 | Give workers tools from another MCP server | [Worker-tool MCP](docs/mcp.md) |
 | Libraries, programs and sandbox limits | [Environment](docs/environment.md) |
 | LX/core boundary, source map and development | [Architecture](docs/architecture.md) |

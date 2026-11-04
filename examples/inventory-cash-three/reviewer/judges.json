@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "name": "stock arithmetic consistent",
+      "question": "Does the answer set the changed item's final quantity to expected_answer.before[item] plus answer.change? Check arithmetic independently of whether the quantity change is the right transaction quantity. Require an existing item key and integer quantities; fail empty, missing or malformed answers. Explain a concrete arithmetic error briefly when present."
+    },
+    {
+      "name": "cash arithmetic consistent",
+      "question": "Does cash_change equal minus answer.change times expected_answer.prices[item], and does account.balance equal expected_answer.balance plus cash_change, exact to cents, with currency USD? Check arithmetic independently of whether the change is the right transaction quantity. Purchases spend cash and sales receive it. Fail empty, missing or malformed answers; briefly identify an arithmetic inconsistency."
+    },
+    {
+      "name": "transaction quantity correct",
+      "question": "Does answer.item equal expected_answer.item, answer.change equal expected_answer.change, and the number of evidence entries equal the absolute expected change? This criterion checks transaction grounding separately from arithmetic consistency. Fail empty or malformed answers."
+    },
+    {
+      "name": "other stock and prices preserved",
+      "question": "Does the answer preserve exactly the inventory keys from expected_answer.before, every unit_price from expected_answer.prices, and every quantity except that of expected_answer.item? Fail missing, extra, changed or malformed inventory entries and empty answers."
+    },
+    {
+      "name": "complete usable answer",
+      "question": "Is the answer a complete JSON object with exactly item, change, inventory, cash_change, account and evidence, with integer change, inventory quantity/unit_price entries, a numeric cash_change, an account containing currency and numeric balance, and an evidence list? Fail empty, unfinished, malformed or prose-only answers."
+    }
+  ],
+  "sees_request": false
+}

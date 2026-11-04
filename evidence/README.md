@@ -9,6 +9,7 @@ anything about a model.
 
 | Folder (dates in 2026) | What it holds | Kind |
 |---|---|---|
+| [11-04-example-data](2026-11-04-example-data/README.md) | Bundled three-sample inventory dataset, agent runbook, offline copy/ZIP checks and fresh stdio MCP preparation | Offline |
 | [11-03-delete-with-unsettled-calls](2026-11-03-delete-with-unsettled-calls/README.md) | Delete immediately despite pending billing; keep ledgers and later Usage reconciliation | Offline / UI |
 | [11-03-agent-workspace-deletion](2026-11-03-agent-workspace-deletion/README.md) | Default-off person-controlled agent deletion, MCP/CLI action, one-click user deletion | Offline / UI |
 | [11-03-workspace-lifecycle](2026-11-03-workspace-lifecycle/README.md) | Archive/restore, confirmed LX-only deletion, active-call guards and disposable UI checks | Offline / UI |

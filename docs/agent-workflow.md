@@ -32,6 +32,13 @@ doubles understand; use readiness checks before any requested live task.
 
 ## Prepare a real task
 
+To use ready-made inputs, follow the
+[three-sample inventory/cash agent runbook](../examples/inventory-cash-three/AGENT.md).
+It includes media, starting JSON, controller truth, task/check, an offline verifier
+and a fresh-copy/ZIP helper. `init` does not auto-load an example's `task.json`;
+the runbook shows the required `spec_draft` step. Keep the example's reviewer
+material out of worker/improver prompts.
+
 Inside the host project, put task data in a dedicated folder alongside the LX
 and core clones. For example:
 

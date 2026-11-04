@@ -1,0 +1,49 @@
+{
+  "before": {
+    "earphones": 3,
+    "glue_stick": 5,
+    "pencil": 8,
+    "spoon": 9,
+    "fork": 6
+  },
+  "prices": {
+    "earphones": 12.0,
+    "glue_stick": 1.25,
+    "pencil": 0.75,
+    "spoon": 1.5,
+    "fork": 2.25
+  },
+  "balance": 40.0,
+  "item": "fork",
+  "change": -2,
+  "evidence": [
+    {
+      "photo": 2,
+      "box": [
+        253,
+        70,
+        503,
+        410
+      ]
+    },
+    {
+      "photo": 2,
+      "box": [
+        348,
+        88,
+        625,
+        400
+      ]
+    }
+  ],
+  "photo_sizes": [
+    [
+      768,
+      1024
+    ],
+    [
+      768,
+      1024
+    ]
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "inventory-cash-three",
+  "version": 1,
+  "manifest_sha256": "3f4321da1e943ad7544dff0fc2d5ffa32c64cb0f3d2a69c2cc3958a4d10424c3",
+  "package_files": 29,
+  "zip_bytes": 2700038,
+  "zip_sha256": "7dc254dd89614735637763da8e437b672bcc8e9578a93155f47808fc4f877414",
+  "source_files_compared_byte_identical": 19,
+  "package_tests": {
+    "passed": 5,
+    "skipped": 0
+  },
+  "local_links_checked": 84,
+  "provider_calls": 0,
+  "live_runs": 0
+}
