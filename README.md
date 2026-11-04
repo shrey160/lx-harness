@@ -1,13 +1,27 @@
 # LX harness
 
-LX is a local experimentation platform for agents building task-specific harnesses.
-Give it sample inputs, a goal and an output contract. A worker attempts the task;
-an improver edits prompts, guardrails, skills and helper scripts while model weights
-stay fixed. LX records the executions, changes, checks, errors and usage so you can
-understand what happened and decide what to reuse. Scores can improve or decline;
-a finished run is evidence, not a guarantee of a better harness.
+You've built an AI agent that handles a task well. Could a smaller model, perhaps
+one running locally, do it just as well? Finding out can mean repeatedly tweaking
+prompts, skills and configurations without knowing how much work it will take.
+
+**LX gives another agent a platform to investigate that question for you.** Built
+on harness2-cli through the [portable execution core](https://github.com/shrey160/harness2-portable-core),
+LX runs a worker/improver loop that refines the prompts, skills and helper scripts
+around a model while keeping its weights fixed. Connect your existing coding agent
+through MCP, provide sample tasks and inspect the evidence from each attempt.
+LX provides connection setup for Claude Code, Muse Code and Codex; other
+MCP-compatible clients can use its stdio server with their own client setup.
+
+The goal is to find out whether a task fits a smaller model and how few harness
+edits it takes. A run can reveal a useful change, a failure or a base setup that
+already works; improvement is something to test and validate.
 
 [![Demo](https://img.shields.io/badge/Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/YcyyPwPcKYc)
+
+To begin, give your coding agent [this repository](https://github.com/shrey160/lx-harness)
+and ask it to install LX and connect through MCP. Configure model providers and
+external tools in the Web UI, then give the agent your sample data and goal. It can
+prepare the workspace and spec, and run experiments when you request them.
 
 The usual workflow is:
 
@@ -19,24 +33,30 @@ model as orchestrator; LX supplies the configured worker, improver and task tool
 
 ## How LX helps
 
-Building reliable agents requires testing how they work, understanding failures
-and deciding which changes are worth keeping. LX gives agents a platform for
-that experimentation.
+LX separates task execution from harness refinement:
 
-Provide sample inputs, a goal and an output contract. LX runs an automatic harness
-loop and records the attempts, prompt and skill changes, tool calls, checks,
-errors and usage. Agents and developers can inspect this evidence to understand
-what failed, assess proposed changes and build better harnesses while model
-weights stay fixed.
+- **Workers attempt the task.** Choose the model you want to test, including a
+  smaller local model configured through a supported provider.
+- **Improvers inspect trajectories and propose edits.** They refine prompts,
+  skills and helper scripts. Worker and improver can use the same model, or a
+  stronger improver can refine the workflow for a smaller worker. Optional hints
+  can ask the improver to keep prompts and skills compact for that worker.
+- **The harness2 loop tries edits and records adoption decisions.** It carries
+  retained changes across the dataset and can retain the base harness unchanged.
+  External evaluation scores do not decide which harness is retained.
+- **You and your agent inspect the evidence.** Follow progress, trajectories and
+  edits during a run; afterward review retained changes, decisions, token usage,
+  costs and any configured evaluation results to decide what to reuse.
+
+**Evaluations are optional.** The loop operates without external scores. You or
+your agent can define objective checks and add an LLM judge for a separate
+assessment of recorded answers after the loop. Judges can be wrong; their verdicts
+need review alongside the trajectories and checks.
 
 Your agent can also use LX to generate task-specific trajectories for model
 fine-tuning. The run page's **Download trajectories** option exports recorded
 agent interactions and tool use. Review, filter and convert these raw traces
 into your chosen training format, then fine-tune with your training framework.
-
-A useful experiment can reveal a failure, an ineffective change or a successful
-approach. Improvement is something to investigate and validate—not something
-every run guarantees.
 
 ## 1. Install inside your project
 
@@ -152,6 +172,10 @@ Create a separate task folder such as `your-project/lx-task`, with `samples/`
 inside it. Keep your host project's code, the LX checkout and the core outside the
 sample-data tree. MCP workspace arguments take an absolute path to the task folder.
 
+Create a workspace manually in the UI, or ask your connected agent to prepare it
+from your data and goal. The Samples tab shows the task inputs; the Spec tab defines
+the goal, output contract, worker and improver models, hints and optional evaluations.
+
 - `text-request`: each `samples/sample-*/` has `request.txt` and, for a checked task,
   `truth.json`.
 - `photo-request`: each sample has 2–7 numbered photos, `request.wav`, optional
@@ -211,6 +235,10 @@ tasks and environments it can support. Planned directions include:
 
 These are development directions; availability and scope will evolve as features
 are implemented and tested.
+
+If your agent workflows reveal a gap or challenge, [open an issue](https://github.com/shrey160/lx-harness/issues),
+propose an improvement, contribute a change or fork LX for your own workflows.
+Real tasks and their failure evidence help guide what to build next.
 
 ## Current limits and evidence
 
