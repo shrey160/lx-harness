@@ -29,6 +29,11 @@ errors and usage. Agents and developers can inspect this evidence to understand
 what failed, assess proposed changes and build better harnesses while model
 weights stay fixed.
 
+Your agent can also use LX to generate task-specific trajectories for model
+fine-tuning. The run page's **Download trajectories** option exports recorded
+agent interactions and tool use. Review, filter and convert these raw traces
+into your chosen training format, then fine-tune with your training framework.
+
 A useful experiment can reveal a failure, an ineffective change or a successful
 approach. Improvement is something to investigate and validate—not something
 every run guarantees.
