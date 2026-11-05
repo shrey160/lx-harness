@@ -31,6 +31,27 @@ through MCP → prepare a task → run within your budget → inspect results.**
 You can also work directly in the Web UI or CLI. Your external agent uses its own
 model as orchestrator; LX supplies the configured worker, improver and task tools.
 
+## For hackathon judges: what we built
+
+**The LX application in this submitted repository was built from scratch during
+the hackathon.** Our work includes the Web UI, CLI and agent-facing MCP server;
+task/workspace setup; model and tool integrations; budgets and approval controls;
+optional checks and model judges; and run monitoring, trajectory inspection and
+export. The example datasets, experiment reviews and installation evidence are
+also included in this repository.
+
+**The execution core builds on existing open-source work.** We vendored the
+independent [harness2-cli](https://github.com/3ae3ae/harness2-cli) engine into the
+separate [portable core repository](https://github.com/shrey160/harness2-portable-core)
+and adapted it to fit LX, with a managed execution/recovery layer and local Windows
+compatibility patches. The underlying harness-refinement loop comes from upstream;
+it is not claimed as an algorithm invented for this submission.
+
+Upstream licenses and attribution are retained. The core's
+[provenance and patch history](https://github.com/shrey160/harness2-portable-core/blob/main/UPSTREAM.md)
+record the pinned source revision and modifications; see also LX's
+[third-party notices](THIRD_PARTY_NOTICES.md).
+
 ## How LX helps
 
 LX separates task execution from harness refinement:
