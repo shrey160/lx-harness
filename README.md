@@ -31,7 +31,7 @@ through MCP → prepare a task → run within your budget → inspect results.**
 You can also work directly in the Web UI or CLI. Your external agent uses its own
 model as orchestrator; LX supplies the configured worker, improver and task tools.
 
-## For hackathon judges: what we built
+## What was built during the hackathon
 
 **The LX application in this submitted repository was built from scratch during
 the hackathon.** Our work includes the Web UI, CLI and agent-facing MCP server;
